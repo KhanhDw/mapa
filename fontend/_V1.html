@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bản đồ Việt Nam</title>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  :root {
+    --ink: #1d2733;
+    --muted: #6b7785;
+    --line: #e3e8ee;
+    --surface: #ffffff;
+    --accent: #0b6e8a;
+  }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: "Segoe UI", Tahoma, sans-serif; color: var(--ink); }
+  #map { position: absolute; inset: 0; }
+
+  #panel {
+    position: absolute; top: 10px; left: 10px; z-index: 5;
+    width: 260px; max-height: calc(100% - 20px); overflow-y: auto;
+    background: var(--surface); border-radius: 8px; padding: 12px 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .18); font-size: 13px;
+  }
+  #panel h1 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+  #panel .group { margin: 10px 0 4px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+  #panel label { display: flex; align-items: center; gap: 8px; padding: 4px 2px; cursor: pointer; border-radius: 4px; }
+  #panel label:hover { background: #f1f6f9; }
+  #panel input:focus-visible, .sat-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #panel .hint { margin-top: 8px; font-size: 11px; color: var(--muted); }
+
+  .sat-btn {
+    height: 29px; min-width: 29px; padding: 0 9px; border: 0; cursor: pointer;
+    background: #fff; font-size: 11px; font-weight: 600; color: var(--ink);
+  }
+  .sat-btn[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  #toast {
+    position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+    z-index: 6; max-width: 80%; padding: 8px 14px; border-radius: 6px;
+    background: rgba(29, 39, 51, .92); color: #fff; font-size: 12px; display: none;
+  }
+
+  .popup { font-size: 13px; line-height: 1.4; }
+  .popup-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+  .popup-source { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .popup dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; }
+  .popup dt { color: var(--muted); }
+  .popup dd { margin: 0; word-break: break-word; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel" aria-label="Lớp dữ liệu">
+  <h1>Lớp dữ liệu</h1>
+  <div id="layer-list"></div>
+  <div class="hint">Bản đồ nền: OSM (mặc định) hoặc ảnh vệ tinh. Các lớp trên là dữ liệu bổ sung từ PostGIS.</div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+/* ===================== CẤU HÌNH ===================== */
+const CFG = {
+  tileserv:   "http://localhost:7800",
+  versatiles: "http://localhost:8080",
+  bounds:     [102, 6, 118, 24],
+  maxBounds:  [[98, 3], [122, 27]],
+  center:     [105.85, 21.03],
+  zoom:       6
+};
+
+/* ===================== 22 LAYER POSTGIS ===================== */
+const OVERLAYS = [
+  // ============ POLYGON ============
+  {
+    id: "admin", table: "clean.admin_areas", label: "Ranh giới hành chính",
+    group: "Hành chính", type: "fill", on: true, clickable: false,
+    paint: { "fill-color": "#d32f2f", "fill-opacity": 0.03 },
+    outline: { "line-color": "#c2185b", "line-width": 1, "line-dasharray": [3, 2] }
+  },
+  {
+    id: "water", table: "clean.water_areas", label: "Sông hồ, ao",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#a5c8e1", "fill-opacity": 0.85 }
+  },
+  {
+    id: "landuse", table: "clean.landuse", label: "Sử dụng đất",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#c8e6c9", "fill-opacity": 0.35 }
+  },
+  {
+    id: "places-a", table: "clean.places_areas", label: "Khu dân cư",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#ffe0b2", "fill-opacity": 0.45 }
+  },
+  {
+    id: "natural-a", table: "clean.natural_areas", label: "Tự nhiên (vùng)",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#a5d6a7", "fill-opacity": 0.35 }
+  },
+  {
+    id: "protected", table: "clean.protected_areas", label: "Khu bảo tồn",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#66bb6a", "fill-opacity": 0.3 },
+    outline: { "line-color": "#2e7d32", "line-width": 1 }
+  },
+  {
+    id: "buildings", table: "clean.buildings", label: "Tòa nhà",
+    group: "Vùng", type: "fill", on: false, minzoom: 14,
+    paint: { "fill-color": "#d9d9d9", "fill-opacity": 0.75, "fill-outline-color": "#aaa" }
+  },
+  {
+    id: "pois-a", table: "clean.pois_areas", label: "POI (vùng)",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#b39ddb", "fill-opacity": 0.5 }
+  },
+  {
+    id: "pofw-a", table: "clean.pofw_areas", label: "Cơ sở tôn giáo (vùng)",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#e1bee7", "fill-opacity": 0.6 }
+  },
+  {
+    id: "traffic-a", table: "clean.traffic_areas", label: "Giao thông (vùng)",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#ffcc80", "fill-opacity": 0.5 }
+  },
+  {
+    id: "transport-a", table: "clean.transport_areas", label: "Vận tải (vùng)",
+    group: "Vùng", type: "fill", on: false,
+    paint: { "fill-color": "#b0bec5", "fill-opacity": 0.5 }
+  },
+
+  // ============ LINE ============
+  {
+    id: "roads-major", table: "clean.roads_major", label: "Đường lớn (cao tốc, quốc lộ)",
+    group: "Đường", type: "line", on: false,
+    paint: {
+      "line-color": ["match", ["get", "fclass"],
+        "motorway", "#e53935", "trunk", "#fb8c00",
+        "primary", "#fbc02d", "secondary", "#fdd835",
+        "tertiary", "#90caf9", "#bbbbbb"],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.6, 10, 1.2, 14, 2.5, 18, 5]
+    }
+  },
+  {
+    id: "roads-minor", table: "clean.roads_minor", label: "Đường nhỏ (phố, dân cư)",
+    group: "Đường", type: "line", on: false, minzoom: 10,
+    paint: {
+      "line-color": ["match", ["get", "fclass"],
+        "residential", "#ffffff", "service", "#eeeeee", "#cccccc"],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.4, 14, 1.2, 18, 4]
+    }
+  },
+  {
+    id: "roads-local", table: "clean.roads_local", label: "Đường mòn, lối nhỏ",
+    group: "Đường", type: "line", on: false, minzoom: 14,
+    paint: {
+      "line-color": "#dddddd",
+      "line-width": ["interpolate", ["linear"], ["zoom"], 14, 0.5, 18, 2]
+    }
+  },
+  {
+    id: "railways", table: "clean.railways", label: "Đường sắt",
+    group: "Đường", type: "line", on: false,
+    paint: { "line-color": "#555", "line-width": 1.5, "line-dasharray": [4, 2] }
+  },
+  {
+    id: "waterways", table: "clean.waterways", label: "Sông, kênh, suối",
+    group: "Đường", type: "line", on: false,
+    paint: {
+      "line-color": "#2196f3",
+      "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.4, 14, 1.8, 18, 4]
+    }
+  },
+
+  // ============ POINT ============
+  {
+    id: "places", table: "clean.places", label: "Địa danh (TP, thị trấn)",
+    group: "Điểm", type: "circle", on: false,
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 2, 10, 3.5, 14, 5],
+      "circle-color": "#d32f2f",
+      "circle-stroke-color": "#fff", "circle-stroke-width": 1.5
+    }
+  },
+  {
+    id: "pois", table: "clean.pois", label: "POI chi tiết (OSM)",
+    group: "Điểm", type: "circle", on: false, minzoom: 13,
+    paint: { "circle-radius": 3, "circle-color": "#1976d2", "circle-stroke-color": "#fff", "circle-stroke-width": 1 }
+  },
+  {
+    id: "pofw", table: "clean.pofw", label: "Cơ sở tôn giáo",
+    group: "Điểm", type: "circle", on: false, minzoom: 14,
+    paint: { "circle-radius": 3, "circle-color": "#7b1fa2", "circle-stroke-color": "#fff", "circle-stroke-width": 1 }
+  },
+  {
+    id: "traffic", table: "clean.traffic", label: "Giao thông (điểm)",
+    group: "Điểm", type: "circle", on: false, minzoom: 14,
+    paint: { "circle-radius": 2.5, "circle-color": "#f57c00", "circle-stroke-color": "#fff", "circle-stroke-width": 1 }
+  },
+  {
+    id: "transport", table: "clean.transport", label: "Vận tải (điểm)",
+    group: "Điểm", type: "circle", on: false, minzoom: 13,
+    paint: { "circle-radius": 3, "circle-color": "#455a64", "circle-stroke-color": "#fff", "circle-stroke-width": 1 }
+  },
+  {
+    id: "natural", table: "clean.natural", label: "Tự nhiên (điểm)",
+    group: "Điểm", type: "circle", on: false, minzoom: 14,
+    paint: { "circle-radius": 2.5, "circle-color": "#2e7d32", "circle-stroke-color": "#fff", "circle-stroke-width": 1 }
+  }
+];
+
+/* ===================== TIỆN ÍCH ===================== */
+const $ = (s) => document.querySelector(s);
+let toastTimer;
+function toast(msg, ms = 4000) {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (el.style.display = "none"), ms);
+}
+
+/* ===================== KHỞI TẠO ===================== */
+function init() {
+  const map = new maplibregl.Map({
+    container: "map",
+    style: { version: 8, sources: {}, layers: [] },
+    center: CFG.center,
+    zoom: CFG.zoom,
+    maxZoom: 18,
+    maxBounds: CFG.maxBounds,
+    hash: true
+  });
+
+  map.addControl(new maplibregl.NavigationControl(), "top-right");
+  map.addControl(new maplibregl.ScaleControl({ maxWidth: 100, unit: "metric" }), "bottom-right");
+  map.addControl(new BasemapControl(), "top-right");
+
+  map.on("load", () => {
+    addBasemaps(map);
+    addOverlays(map);
+    buildPanel(map);
+    bindClicks(map);
+  });
+
+  let warned = false;
+  map.on("error", (e) => {
+    if (warned || !e.sourceId) return;
+    warned = true;
+    toast(`Không tải được nguồn "${e.sourceId}". Kiểm tra container/internet.`, 8000);
+  });
+}
+
+/* ===================== BASEMAPS (OSM + 2 satellite) ===================== */
+function addBasemaps(map) {
+  map.addSource("osm", {
+    type: "raster",
+    tiles: [
+      "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    ],
+    tileSize: 256,
+    maxzoom: 19,
+    attribution: "© OpenStreetMap contributors"
+  });
+  map.addLayer({
+    id: "osm", type: "raster", source: "osm",
+    layout: { visibility: "visible" }
+  });
+
+  map.addSource("satellite", {
+    type: "raster",
+    tiles: [`${CFG.versatiles}/tiles/satellite/{z}/{x}/{y}`],
+    tileSize: 512,
+    minzoom: 0,
+    maxzoom: 12,
+    bounds: CFG.bounds,
+    attribution: "Ảnh vệ tinh: VersaTiles"
+  });
+  map.addLayer({
+    id: "satellite", type: "raster", source: "satellite",
+    layout: { visibility: "none" }
+  });
+
+  map.addSource("satellite-esri", {
+    type: "raster",
+    tiles: [
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    ],
+    tileSize: 256,
+    maxzoom: 19,
+    attribution: "Tiles © Esri"
+  });
+  map.addLayer({
+    id: "satellite-esri", type: "raster", source: "satellite-esri",
+    layout: { visibility: "none" }
+  });
+}
+
+/* ===================== CONTROL: 3 NÚT BASEMAP ===================== */
+class BasemapControl {
+  onAdd(map) {
+    this._map = map;
+    this._el = document.createElement("div");
+    this._el.className = "maplibregl-ctrl maplibregl-ctrl-group";
+
+    const config = [
+      { id: "osm",            label: "OSM",   title: "Bản đồ OpenStreetMap (mặc định)" },
+      { id: "satellite",      label: "Ảnh",   title: "Ảnh vệ tinh nội bộ (offline, nét đến zoom 12)" },
+      { id: "satellite-esri", label: "Esri",  title: "Ảnh vệ tinh Esri (cần internet, nét mọi zoom)" }
+    ];
+
+    this._buttons = {};
+    config.forEach((c) => {
+      const btn = document.createElement("button");
+      btn.className = "sat-btn";
+      btn.type = "button";
+      btn.textContent = c.label;
+      btn.title = c.title;
+      btn.setAttribute("aria-pressed", "false");
+      btn.addEventListener("click", () => this._select(c.id));
+      this._el.appendChild(btn);
+      this._buttons[c.id] = btn;
+    });
+
+    this._select("osm");
+    return this._el;
+  }
+
+  _select(activeId) {
+    Object.keys(this._buttons).forEach((id) => {
+      const active = id === activeId;
+      if (this._map.getLayer(id)) {
+        this._map.setLayoutProperty(id, "visibility", active ? "visible" : "none");
+      }
+      this._buttons[id].setAttribute("aria-pressed", String(active));
+    });
+  }
+
+  onRemove() { this._el.remove(); this._map = undefined; }
+}
+
+/* ===================== OVERLAYS ===================== */
+function addOverlays(map) {
+  OVERLAYS.forEach((cfg) => {
+    const src = `ov-${cfg.id}`;
+    const vis = cfg.on ? "visible" : "none";
+    map.addSource(src, {
+      type: "vector",
+      tiles: [`${CFG.tileserv}/${cfg.table}/{z}/{x}/{y}.pbf`],
+      minzoom: 0,
+      maxzoom: 18
+    });
+
+    const def = {
+      id: cfg.id, type: cfg.type, source: src, "source-layer": cfg.table,
+      layout: { visibility: vis }, paint: cfg.paint
+    };
+    if (cfg.minzoom) def.minzoom = cfg.minzoom;
+    map.addLayer(def);
+    cfg.layerIds = [cfg.id];
+
+    if (cfg.outline) {
+      map.addLayer({
+        id: `${cfg.id}-outline`, type: "line", source: src, "source-layer": cfg.table,
+        layout: { visibility: vis }, paint: cfg.outline
+      });
+      cfg.layerIds.push(`${cfg.id}-outline`);
+    }
+  });
+}
+
+function setOverlayVisible(map, cfg, visible) {
+  cfg.layerIds.forEach((id) => map.setLayoutProperty(id, "visibility", visible ? "visible" : "none"));
+}
+
+/* ===================== PANEL ===================== */
+function buildPanel(map) {
+  const list = $("#layer-list");
+  let current = null;
+  OVERLAYS.forEach((cfg) => {
+    if (cfg.group !== current) {
+      current = cfg.group;
+      const g = document.createElement("div");
+      g.className = "group";
+      g.textContent = current;
+      list.appendChild(g);
+    }
+    const row = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = !!cfg.on;
+    cb.addEventListener("change", () => setOverlayVisible(map, cfg, cb.checked));
+    row.append(cb, document.createTextNode(cfg.label));
+    list.appendChild(row);
+  });
+}
+
+/* ===================== CLICK & POPUP ===================== */
+function bindClicks(map) {
+  const labelOf = Object.fromEntries(OVERLAYS.map((c) => [c.id, c.label]));
+  const overlayMain = () =>
+    OVERLAYS.filter((c) => c.clickable !== false)
+      .filter((c) => map.getLayoutProperty(c.id, "visibility") === "visible")
+      .map((c) => c.id);
+
+  function pick(point) {
+    const ov = overlayMain();
+    if (!ov.length) return null;
+    const hit = map.queryRenderedFeatures(point, { layers: ov });
+    return hit.length ? { f: hit[0], source: labelOf[hit[0].layer.id] } : null;
+  }
+
+  map.on("click", (e) => {
+    const hit = pick(e.point);
+    if (hit) showPopup(map, e.lngLat, hit.f.properties, hit.source);
+  });
+
+  let moveTimer;
+  map.on("mousemove", (e) => {
+    if (moveTimer) return;
+    moveTimer = setTimeout(() => {
+      moveTimer = null;
+      map.getCanvas().style.cursor = pick(e.point) ? "pointer" : "";
+    }, 60);
+  });
+}
+
+function showPopup(map, lngLat, props, source) {
+  const root = document.createElement("div");
+  root.className = "popup";
+
+  const title = document.createElement("div");
+  title.className = "popup-title";
+  title.textContent = props.name || props.name_vi || props.name_en || "(không có tên)";
+  root.appendChild(title);
+
+  const src = document.createElement("div");
+  src.className = "popup-source";
+  src.textContent = source;
+  root.appendChild(src);
+
+  const rows = Object.entries(props)
+    .filter(([k, v]) => k !== "name" && !/^name_/.test(k) && v !== "" && v != null)
+    .slice(0, 8);
+  if (rows.length) {
+    const dl = document.createElement("dl");
+    rows.forEach(([k, v]) => {
+      const dt = document.createElement("dt"); dt.textContent = k;
+      const dd = document.createElement("dd"); dd.textContent = String(v);
+      dl.append(dt, dd);
+    });
+    root.appendChild(dl);
+  }
+
+  new maplibregl.Popup({ maxWidth: "300px" }).setLngLat(lngLat).setDOMContent(root).addTo(map);
+}
+
+init();
+</script>
+</body>
+</html>

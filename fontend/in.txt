@@ -1,0 +1,675 @@
+<!-- <!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fontend-mapa</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html> -->
+
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <title>Bản đồ Việt Nam - OpenStreetMap Vector Tiles</title>
+    <link
+      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+
+      #layer-panel {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 1000;
+        background: #fff;
+        padding: 12px 14px;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        width: 270px;
+        font-size: 13px;
+      }
+      #layer-panel h3 {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+        color: #222;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      #layer-panel h3 span.close {
+        cursor: pointer;
+        color: #999;
+        font-size: 18px;
+        line-height: 1;
+      }
+      .layer-group-title {
+        margin: 10px 0 4px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #888;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 4px;
+      }
+      .layer-item {
+        display: flex;
+        align-items: center;
+        padding: 4px 2px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .layer-item:hover {
+        background: #f2f7ff;
+      }
+      .layer-item input[type="checkbox"] {
+        margin-right: 8px;
+        cursor: pointer;
+      }
+      .toggle-all {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #eee;
+        display: flex;
+        gap: 6px;
+      }
+      .toggle-all button {
+        flex: 1;
+        padding: 6px;
+        background: #0078d4;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .toggle-all button:hover {
+        background: #005a9e;
+      }
+
+      .map-popup {
+        font-family: "Segoe UI", sans-serif;
+        font-size: 13px;
+      }
+      .map-popup .popup-name {
+        font-weight: bold;
+        font-size: 14px;
+        color: #222;
+      }
+      .map-popup .popup-prop {
+        color: #666;
+        font-size: 12px;
+        margin-top: 3px;
+      }
+      .map-popup .popup-layer {
+        color: #999;
+        font-size: 11px;
+        margin-top: 6px;
+        border-top: 1px solid #eee;
+        padding-top: 4px;
+      }
+      #status {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 1000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="layer-panel">
+      <h3>🗺️ Lớp dữ liệu OSM</h3>
+      <div id="layer-list"></div>
+      <div class="toggle-all">
+        <button onclick="toggleAll(true)">Bật tất cả</button>
+        <button onclick="toggleAll(false)">Tắt tất cả</button>
+      </div>
+    </div>
+    <div id="status">Đang khởi động...</div>
+
+    <script>
+      // ============================================================
+      // CẤU HÌNH: URL của pg_tileserv
+      // ============================================================
+      const TILE_URL = "http://localhost:7800";
+
+      // ============================================================
+      // CẤU HÌNH 20 LAYER
+      // group: Polygon | Line | Point  (thứ tự vẽ: Polygon dưới → Point trên)
+      // type:  fill | line | circle
+      // ============================================================
+      const LAYERS = [
+        // ----- POLYGON (vẽ dưới cùng) -----
+        {
+          id: "gis_osm_water_a_free",
+          label: "Sông hồ, ao",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#a5c8e1", "fill-opacity": 0.85 },
+          default: true,
+        },
+
+        {
+          id: "gis_osm_landuse_a_free",
+          label: "Sử dụng đất",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#c8e6c9", "fill-opacity": 0.35 },
+          default: true,
+        },
+
+        {
+          id: "gis_osm_places_a_free",
+          label: "Khu dân cư",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#ffe0b2", "fill-opacity": 0.45 },
+          default: true,
+        },
+
+        {
+          id: "gis_osm_natural_a_free",
+          label: "Tự nhiên (vùng)",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#a5d6a7", "fill-opacity": 0.35 },
+          default: false,
+        },
+
+        {
+          id: "gis_osm_protected_areas_a_free",
+          label: "Khu bảo tồn",
+          group: "Polygon",
+          type: "fill",
+          paint: {
+            "fill-color": "#66bb6a",
+            "fill-opacity": 0.3,
+            "fill-outline-color": "#2e7d32",
+          },
+          default: false,
+        },
+
+        {
+          id: "gis_osm_buildings_a_free",
+          label: "Tòa nhà",
+          group: "Polygon",
+          type: "fill",
+          paint: {
+            "fill-color": "#d9d9d9",
+            "fill-opacity": 0.75,
+            "fill-outline-color": "#aaa",
+          },
+          default: true,
+          minzoom: 14,
+        },
+
+        {
+          id: "gis_osm_pois_a_free",
+          label: "POI (vùng)",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#b39ddb", "fill-opacity": 0.5 },
+          default: false,
+        },
+
+        {
+          id: "gis_osm_pofw_a_free",
+          label: "Cơ sở tôn giáo (vùng)",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#e1bee7", "fill-opacity": 0.6 },
+          default: false,
+        },
+
+        {
+          id: "gis_osm_traffic_a_free",
+          label: "Giao thông (vùng)",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#ffcc80", "fill-opacity": 0.5 },
+          default: false,
+        },
+
+        {
+          id: "gis_osm_transport_a_free",
+          label: "Vận tải (vùng)",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#b0bec5", "fill-opacity": 0.5 },
+          default: false,
+        },
+
+        // ----- LINE (vẽ giữa) -----
+        {
+          id: "gis_osm_roads_free",
+          label: "Đường giao thông",
+          group: "Line",
+          type: "line",
+          paint: {
+            "line-color": [
+              "match",
+              ["get", "fclass"],
+              "motorway",
+              "#e53935",
+              "trunk",
+              "#fb8c00",
+              "primary",
+              "#fbc02d",
+              "secondary",
+              "#fdd835",
+              "tertiary",
+              "#90caf9",
+              "residential",
+              "#ffffff",
+              "service",
+              "#eeeeee",
+              "#bbbbbb",
+            ],
+            "line-width": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              6,
+              0.2,
+              10,
+              0.6,
+              14,
+              1.5,
+              16,
+              3,
+              18,
+              6,
+            ],
+          },
+          default: true,
+        },
+
+        {
+          id: "gis_osm_railways_free",
+          label: "Đường sắt",
+          group: "Line",
+          type: "line",
+          paint: {
+            "line-color": "#555",
+            "line-width": 1.5,
+            "line-dasharray": [4, 2],
+          },
+          default: true,
+        },
+
+        {
+          id: "gis_osm_waterways_free",
+          label: "Sông, kênh, suối",
+          group: "Line",
+          type: "line",
+          paint: {
+            "line-color": "#2196f3",
+            "line-width": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              8,
+              0.4,
+              14,
+              1.8,
+              18,
+              4,
+            ],
+          },
+          default: true,
+        },
+
+        // ----- POINT (vẽ trên cùng) -----
+        {
+          id: "gis_osm_places_free",
+          label: "Địa danh (thành phố, thị trấn)",
+          group: "Point",
+          type: "circle",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              5,
+              2,
+              10,
+              3.5,
+              14,
+              5,
+            ],
+            "circle-color": "#d32f2f",
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1.5,
+          },
+          default: true,
+        },
+
+        {
+          id: "gis_osm_pois_free",
+          label: "POI (điểm)",
+          group: "Point",
+          type: "circle",
+          paint: {
+            "circle-radius": 3,
+            "circle-color": "#1976d2",
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1,
+          },
+          default: true,
+          minzoom: 13,
+        },
+
+        {
+          id: "gis_osm_pofw_free",
+          label: "Cơ sở tôn giáo",
+          group: "Point",
+          type: "circle",
+          paint: {
+            "circle-radius": 3,
+            "circle-color": "#7b1fa2",
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1,
+          },
+          default: false,
+          minzoom: 14,
+        },
+
+        {
+          id: "gis_osm_traffic_free",
+          label: "Giao thông (điểm)",
+          group: "Point",
+          type: "circle",
+          paint: {
+            "circle-radius": 2.5,
+            "circle-color": "#f57c00",
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1,
+          },
+          default: false,
+          minzoom: 14,
+        },
+
+        {
+          id: "gis_osm_transport_free",
+          label: "Vận tải (điểm)",
+          group: "Point",
+          type: "circle",
+          paint: {
+            "circle-radius": 3,
+            "circle-color": "#455a64",
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1,
+          },
+          default: false,
+          minzoom: 13,
+        },
+
+        {
+          id: "gis_osm_natural_free",
+          label: "Tự nhiên (điểm)",
+          group: "Point",
+          type: "circle",
+          paint: {
+            "circle-radius": 2.5,
+            "circle-color": "#2e7d32",
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 1,
+          },
+          default: false,
+          minzoom: 14,
+        },
+
+        // Ranh giới hành chính — xử lý đặc biệt: fill + line outline
+        {
+          id: "gis_osm_adminareas_a_free",
+          label: "Ranh giới hành chính",
+          group: "Polygon",
+          type: "fill",
+          paint: { "fill-color": "#ffeb3b", "fill-opacity": 0.04 },
+          outlinePaint: {
+            "line-color": "#d32f2f",
+            "line-width": 1.2,
+            "line-dasharray": [3, 2],
+          },
+          default: true,
+        },
+      ];
+
+      // Sắp xếp thứ tự vẽ: Polygon (1) → Line (2) → Point (3)
+      const GROUP_ORDER = { Polygon: 1, Line: 2, Point: 3 };
+      LAYERS.sort((a, b) => GROUP_ORDER[a.group] - GROUP_ORDER[b.group]);
+
+      // ============================================================
+      // KHỞI TẠO BẢN ĐỒ
+      // Base map: dùng raster CartoDB Voyager (miễn phí, nhẹ, hợp với overlay)
+      // ============================================================
+      // const map = new maplibregl.Map({
+      //   container: "map",
+      //   style: {
+      //     version: 8,
+      //     sources: {
+      //       basemap: {
+      //         type: "raster",
+      //         // Thay bằng tile của OpenStreetMap tiêu chuẩn
+      //         tiles: [
+      //           // 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+      //           // 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+      //         ],
+      //         tileSize: 256,
+      //         // attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      //         attribution: "Tiles &copy; Esri",
+      //       },
+      //     },
+      //     layers: [{ id: "basemap-layer", type: "raster", source: "basemap" }],
+      //   },
+      //   center: [105.85, 21.03], // Hà Nội
+      //   zoom: 6,
+      //   maxZoom: 19,
+      // });
+
+      const map = new maplibregl.Map({
+        container: "map",
+        // Sử dụng style 'colorful' có sẵn của VersaTiles
+        style: "https://tiles.versatiles.org/assets/styles/colorful/style.json",
+        center: [105.85, 21.03],
+        zoom: 6,
+        maxZoom: 19,
+      });
+
+      // Khi bản đồ tải xong, ghi đè nguồn tile để trỏ về server của bạn
+      map.on("load", () => {
+        // Lấy ID của nguồn tile trong style gốc (thường là 'versatiles' hoặc 'openmaptiles')
+        // Chúng ta sẽ thử cập nhật nguồn có tên là 'versatiles' trước
+        if (map.getSource("versatiles")) {
+          map
+            .getSource("versatiles")
+            .setTiles(["http://localhost:8080/tiles/vietnam/{z}/{x}/{y}"]);
+        }
+      });
+
+      // ============================================================
+      // KHI MAP LOAD XONG → THÊM TẤT CẢ LAYER
+      // ============================================================
+      map.on("load", () => {
+        const status = document.getElementById("status");
+        status.textContent = `Đang thêm ${LAYERS.length} layer...`;
+
+        LAYERS.forEach((cfg) => {
+          const sourceId = cfg.id + "-src";
+          const layerId = cfg.id + "-lyr";
+          const visible = cfg.default !== false;
+
+          // 1. Source
+          map.addSource(sourceId, {
+            type: "vector",
+            tiles: [`${TILE_URL}/public.${cfg.id}/{z}/{x}/{y}.pbf`],
+            minzoom: 0,
+            maxzoom: 19,
+          });
+
+          // 2. Layer chính
+          const layerDef = {
+            id: layerId,
+            type: cfg.type,
+            source: sourceId,
+            "source-layer": `public.${cfg.id}`,
+            layout: { visibility: visible ? "visible" : "none" },
+            paint: cfg.paint || {},
+          };
+          if (cfg.minzoom) layerDef.minzoom = cfg.minzoom;
+          map.addLayer(layerDef);
+
+          // 3. Nếu có outline (ranh giới hành chính) → thêm line layer chồng lên
+          if (cfg.outlinePaint) {
+            map.addLayer({
+              id: layerId + "-outline",
+              type: "line",
+              source: sourceId,
+              "source-layer": `public.${cfg.id}`,
+              layout: { visibility: visible ? "visible" : "none" },
+              paint: cfg.outlinePaint,
+            });
+          }
+
+          // 4. Sự kiện click để hiện popup
+          map.on("click", layerId, (e) => {
+            const p = e.features[0].properties;
+            showPopup(e.lngLat, p, cfg.label);
+          });
+          map.on(
+            "mouseenter",
+            layerId,
+            () => (map.getCanvas().style.cursor = "pointer"),
+          );
+          map.on(
+            "mouseleave",
+            layerId,
+            () => (map.getCanvas().style.cursor = ""),
+          );
+        });
+
+        // 5. Xây dựng panel checkbox
+        buildLayerPanel();
+        status.textContent = `✅ Đã tải ${LAYERS.length} layer`;
+        setTimeout(() => (status.style.display = "none"), 3000);
+      });
+
+      // ============================================================
+      // POPUP
+      // ============================================================
+      function showPopup(lngLat, props, layerLabel) {
+        const parts = [];
+        if (props.name)
+          parts.push(`<div class="popup-name">${esc(props.name)}</div>`);
+        if (props.fclass)
+          parts.push(
+            `<div class="popup-prop"><b>Loại:</b> ${esc(props.fclass)}</div>`,
+          );
+        if (props.type && props.type !== props.fclass) {
+          parts.push(
+            `<div class="popup-prop"><b>Phân loại:</b> ${esc(props.type)}</div>`,
+          );
+        }
+        parts.push(`<div class="popup-layer">Lớp: ${esc(layerLabel)}</div>`);
+
+        new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
+          .setLngLat(lngLat)
+          .setHTML(`<div class="map-popup">${parts.join("")}</div>`)
+          .addTo(map);
+      }
+
+      function esc(s) {
+        return String(s).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      }
+
+      // ============================================================
+      // PANEL BẬT/TẮT LAYER
+      // ============================================================
+      function buildLayerPanel() {
+        const list = document.getElementById("layer-list");
+        const groupLabels = {
+          Polygon: "🔷 Vùng (Polygon)",
+          Line: "📏 Đường (Line)",
+          Point: "📍 Điểm (Point)",
+        };
+        let currentGroup = null;
+
+        LAYERS.forEach((cfg) => {
+          if (cfg.group !== currentGroup) {
+            currentGroup = cfg.group;
+            const title = document.createElement("div");
+            title.className = "layer-group-title";
+            title.textContent = groupLabels[cfg.group] || cfg.group;
+            list.appendChild(title);
+          }
+
+          const row = document.createElement("label");
+          row.className = "layer-item";
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = cfg.default !== false;
+          cb.onchange = () => toggleLayer(cfg.id, cb.checked);
+          row.appendChild(cb);
+          row.appendChild(document.createTextNode(" " + cfg.label));
+          list.appendChild(row);
+        });
+      }
+
+      function toggleLayer(id, visible) {
+        const ids = [id + "-lyr", id + "-lyr-outline"];
+        ids.forEach((lid) => {
+          if (map.getLayer(lid)) {
+            map.setLayoutProperty(
+              lid,
+              "visibility",
+              visible ? "visible" : "none",
+            );
+          }
+        });
+      }
+
+      function toggleAll(visible) {
+        LAYERS.forEach((cfg) => toggleLayer(cfg.id, visible));
+        document
+          .querySelectorAll("#layer-list input[type=checkbox]")
+          .forEach((cb) => (cb.checked = visible));
+      }
+    </script>
+  </body>
+</html>

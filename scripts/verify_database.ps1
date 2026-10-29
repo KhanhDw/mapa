@@ -1,0 +1,1 @@
+docker exec -it postgis-webmap psql -U postgres -d webmap_db -P pager=off -c "SELECT id, image_url, heading, next_ids, link_positions FROM streetview_images ORDER BY id;"

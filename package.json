@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "osmtogeojson": "^3.0.0-beta.5"
+  },
+  "devDependencies": {
+    "@types/osmtogeojson": "^2.2.34"
+  }
+}

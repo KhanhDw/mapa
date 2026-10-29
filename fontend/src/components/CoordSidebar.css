@@ -1,0 +1,79 @@
+.coord-sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 320px;
+    max-width: 100%;
+    z-index: 20;               /* trên .map-switcher (10), dưới modal (9999) */
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.25);
+    animation: coord-slide-in 0.2s ease-out;
+}
+
+@keyframes coord-slide-in {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+}
+
+.coord-sidebar__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.coord-sidebar__header h2 {
+    margin: 0;
+    font-size: 16px;
+    color: #0f172a;
+}
+
+.coord-sidebar__close {
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    cursor: pointer;
+    color: #475569;
+}
+
+.coord-sidebar__body {
+    margin: 0;
+    padding: 16px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.coord-sidebar__body dt {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-top: 14px;
+}
+
+.coord-sidebar__body dd {
+    margin: 4px 0 0;
+    font-size: 15px;
+    font-family: ui-monospace, Consolas, monospace;
+    color: #0f172a;
+}
+
+.coord-sidebar__copy {
+    margin: 16px;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: #0b6e8a;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Đẩy thước tỷ lệ sang phải để khỏi bị sidebar che */
+.map-wrapper.has-sidebar .maplibregl-ctrl-bottom-left {
+    left: 320px;
+}
