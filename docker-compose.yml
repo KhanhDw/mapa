@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${PG_PASSWORD}
       POSTGRES_DB: webmap_db
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
     # Chỉnh theo RAM máy: shared_buffers ~25% RAM, effective_cache_size ~50-75% RAM
@@ -35,7 +35,7 @@ services:
       TS_URLBASE: /
       TS_DEBUG: "false"
     ports:
-      - "7800:7800"
+      - "127.0.0.1:7800:7800"
     depends_on:
       postgis:
         condition: service_healthy
@@ -45,7 +45,7 @@ services:
     container_name: versatiles
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./data:/data:ro
     command:
