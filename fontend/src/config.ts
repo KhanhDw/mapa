@@ -1,0 +1,24 @@
+export const API_BASE =
+    import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
+
+export const TILE_BASE =
+    import.meta.env.VITE_TILE_BASE ??
+    import.meta.env.VITE_TILESERVER_URL ??
+    "http://127.0.0.1:7800";
+
+export const SATELLITE_TILE_URL =
+    import.meta.env.VITE_SATELLITE_URL ??
+    "http://localhost:8080/tiles/satellite/{z}/{x}/{y}";
+
+export const ESRI_SATELLITE_TILE_URL =
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+export const OSM_TILE_URLS = [
+    "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
+];
+
+export function getMapLibreWorkerUrl(version: string): string {
+    return `https://cdn.jsdelivr.net/npm/maplibre-gl@${version}/dist/maplibre-gl-worker.mjs`;
+}

@@ -4,9 +4,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { getVersion, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./OsmPolygonMap.css";
-
-const TILESERVER_URL =
-    import.meta.env.VITE_TILESERVER_URL ?? "http://localhost:7800";
+import { getMapLibreWorkerUrl, OSM_TILE_URLS, TILE_BASE } from "../config";
 
 const POLYGON_LAYERS = [
     {
@@ -52,7 +50,7 @@ function OsmPolygonMap() {
         if (!containerRef.current || mapRef.current) return;
 
         setWorkerUrl(
-            `https://cdn.jsdelivr.net/npm/maplibre-gl@${getVersion()}/dist/maplibre-gl-worker.mjs`,
+            getMapLibreWorkerUrl(getVersion()),
         );
 
         const map = new maplibregl.Map({
@@ -70,11 +68,7 @@ function OsmPolygonMap() {
                 sources: {
                     osm: {
                         type: "raster",
-                        tiles: [
-                            "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                            "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                            "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                        ],
+                        tiles: OSM_TILE_URLS,
                         tileSize: 256,
                         maxzoom: 19,
                         attribution: "© OpenStreetMap contributors",
@@ -106,7 +100,7 @@ function OsmPolygonMap() {
                 map.addSource(sourceId, {
                     type: "vector",
                     tiles: [
-                        `${TILESERVER_URL}/${polygon.table}/{z}/{x}/{y}.pbf`,
+                        `${TILE_BASE}/${polygon.table}/{z}/{x}/{y}.pbf`,
                     ],
                     minzoom: 0,
                     maxzoom: 18,
