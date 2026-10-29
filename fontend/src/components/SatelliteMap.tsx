@@ -4,10 +4,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { getVersion, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./SatelliteMap.css";
-
-const SATELLITE_URL =
-    import.meta.env.VITE_SATELLITE_URL ??
-    "http://localhost:8080/tiles/satellite/{z}/{x}/{y}";
+import { getMapLibreWorkerUrl, SATELLITE_TILE_URL } from "../config";
 
 function App() {
     const mapContainer = useRef<HTMLDivElement | null>(null);
@@ -17,7 +14,7 @@ function App() {
         if (!mapContainer.current || mapRef.current) return;
 
         setWorkerUrl(
-            `https://cdn.jsdelivr.net/npm/maplibre-gl@${getVersion()}/dist/maplibre-gl-worker.mjs`,
+            getMapLibreWorkerUrl(getVersion()),
         );
 
         const map = new maplibregl.Map({
@@ -35,7 +32,7 @@ function App() {
                 sources: {
                     satellite: {
                         type: "raster",
-                        tiles: [SATELLITE_URL],
+                        tiles: [SATELLITE_TILE_URL],
                         tileSize: 512,
                         minzoom: 0,
                         maxzoom: 12,
