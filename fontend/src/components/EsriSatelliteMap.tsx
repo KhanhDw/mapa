@@ -7,8 +7,12 @@ import "./EsriSatelliteMap.css";
 import { getVersion, setWorkerUrl } from "maplibre-gl";
 import { StreetViewModal, type StreetViewPoint } from "./StreetViewModal";
 import { CoordSidebar, type ClickInfo } from "./CoordSidebar";
-
-const API_BASE = "http://127.0.0.1:8000";
+import {
+    API_BASE,
+    ESRI_SATELLITE_TILE_URL,
+    getMapLibreWorkerUrl,
+    TILE_BASE,
+} from "../config";
 
 function EsriSatelliteMap() {
     const mapContainer = useRef<HTMLDivElement | null>(null);
@@ -24,7 +28,7 @@ function EsriSatelliteMap() {
         if (!mapContainer.current || mapRef.current) return;
 
         setWorkerUrl(
-            `https://cdn.jsdelivr.net/npm/maplibre-gl@${getVersion()}/dist/maplibre-gl-worker.mjs`
+            getMapLibreWorkerUrl(getVersion())
         );
 
         const map = new maplibregl.Map({
@@ -39,7 +43,7 @@ function EsriSatelliteMap() {
                     "satellite-esri": {
                         type: "raster",
                         tiles: [
-                            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                            ESRI_SATELLITE_TILE_URL,
                         ],
                         tileSize: 256,
                         maxzoom: 19,
@@ -70,7 +74,7 @@ function EsriSatelliteMap() {
             // Đường từ PostGIS
             map.addSource("roads-pg", {
                 type: "vector",
-                tiles: [`http://localhost:7800/public.vietnam_roads/{z}/{x}/{y}.pbf`],
+                tiles: [`${TILE_BASE}/public.vietnam_roads/{z}/{x}/{y}.pbf`],
                 minzoom: 0,
                 maxzoom: 14,
             });
