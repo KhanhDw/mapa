@@ -14,11 +14,10 @@ from dotenv import load_dotenv
 # Load .env từ thư mục backend/ (cùng chỗ với main.py)
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-# ---- Cấu hình (đọc từ env, có fallback cho dev local) ----
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://tile_reader:mat_khau_tile_reader@localhost:5432/webmap_db",
-)
+# ---- Cấu hình ----
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is required")
 PANORAMAS_DIR = os.getenv("PANORAMAS_DIR", "data/panoramas")
 MAX_FEATURES = 5000
 
