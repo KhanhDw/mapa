@@ -7,6 +7,7 @@ import { EquirectangularAdapter } from "@photo-sphere-viewer/core";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
 import "@photo-sphere-viewer/markers-plugin/index.css";
 import "./StreetViewModal.css";
+import { API_BASE } from "../config";
 
 export interface StreetViewPoint {
     id: number;
@@ -24,8 +25,6 @@ interface StreetViewModalProps {
     onClose: () => void;
     onNodeChange?: (point: StreetViewPoint) => void;
 }
-
-const API_BASE = "http://127.0.0.1:8000";
 
 function computeBearing(
     lng1: number,
