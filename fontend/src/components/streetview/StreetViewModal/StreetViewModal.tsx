@@ -7,7 +7,7 @@ import { EquirectangularAdapter } from "@photo-sphere-viewer/core";
 import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
 import "@photo-sphere-viewer/markers-plugin/index.css";
 import "./StreetViewModal.css";
-import { API_BASE } from "../config";
+import { API_BASE } from "../../../config";
 
 export interface StreetViewPoint {
     id: number;
