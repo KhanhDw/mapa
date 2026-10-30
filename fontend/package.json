@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "devh": "vite --host && ngrok http 5173",
+    "build": "tsc -b && vite build --mode staging",
     "lint": "eslint .",
     "preview": "vite preview"
   },
