@@ -4,7 +4,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { getVersion, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./OsmPolygonMap.css";
-import { getMapLibreWorkerUrl, OSM_TILE_URLS, TILE_BASE } from "../config";
+import { getMapLibreWorkerUrl, OSM_TILE_URLS, TILE_BASE } from "../../../config";
 
 const POLYGON_LAYERS = [
     {

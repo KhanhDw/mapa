@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import "./CoordSidebar.css";
 
+export interface PoiInfo {
+    id: string | number;
+    name: string | null;
+    category: string | null;
+    distance_m: number;
+    lng: number;
+    lat: number;
+    streetview_id?: number | null;
+    streetview_distance_m?: number | null;
+}   
+
 export interface ClickInfo {
     lng: number;
     lat: number;

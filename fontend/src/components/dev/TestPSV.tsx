@@ -1,5 +1,5 @@
 import { ReactPhotoSphereViewer } from "react-photo-sphere-viewer";
-import { API_BASE } from "../config";
+import { API_BASE } from "../../config";
 
 export default function TestPSV() {
     return (
