@@ -5,7 +5,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '127.0.0.1',
-    allowedHosts: ['.ngrok-free.app', '.ngrok.app'],
+    allowedHosts: [
+      '.ngrok-free.app',
+      '.ngrok.app',
+      '.ngrok-free.dev', // Thêm vào để phòng trường hợp
+      '.ngrok.dev',      // Thêm vào để phòng trường hợp
+    ],
+    hmr: {
+      clientPort: 443, // Bắt buộc cho tunnel HTTPS
+    },
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',

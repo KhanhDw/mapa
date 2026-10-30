@@ -4,7 +4,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { getVersion, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./SatelliteMap.css";
-import { getMapLibreWorkerUrl, SATELLITE_TILE_URL } from "../config";
+import { getMapLibreWorkerUrl, SATELLITE_TILE_URL } from "../../../config";
 
 function App() {
     const mapContainer = useRef<HTMLDivElement | null>(null);
