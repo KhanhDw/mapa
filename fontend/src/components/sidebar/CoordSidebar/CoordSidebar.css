@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CoordSidebar commercial UI styles
+   CoordSidebar — Modern UI
    ========================================================================== */
 
 :root {
@@ -13,187 +13,309 @@
   --cs-card-bg: #f8fafc;
   --cs-radius-sm: 6px;
   --cs-radius-md: 10px;
-  --cs-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --cs-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Base Layout */
+/* ==========================================================================
+   Base Layout
+   ========================================================================== */
+
 .coord-sidebar {
-  display: flex;
-  flex-direction: column;
-  width: 360px;
-  height: 100%;
-  background-color: var(--cs-bg);
-  /* Thay đổi từ border-left sang border-right vì nằm bên trái */
-  border-right: 1px solid var(--cs-border);
-  border-left: none;
-  /* Đặt thành tuyệt đối để nổi lên trên bản đồ, không làm dịch chuyển bản đồ */
   position: absolute;
   top: 0;
   left: 0;
   z-index: 100;
+
+  display: flex;
+  flex-direction: column;
+
+  width: 360px;
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+
+  background: var(--cs-bg);
+  color: var(--cs-text-main);
+
+  border-right: 1px solid var(--cs-border);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
-  color: var(--cs-text-main);
+
   user-select: none;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
-/* Header */
+.coord-sidebar *,
+.coord-sidebar *::before,
+.coord-sidebar *::after {
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
+
 .coord-sidebar__header {
+  position: relative;
+  z-index: 1;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--cs-border);
+  gap: 16px;
+
+  flex-shrink: 0;
+  padding: 18px 20px;
+
   background: #ffffff;
+  border-bottom: 1px solid var(--cs-border);
+}
+
+.coord-sidebar__header > div {
+  min-width: 0;
 }
 
 .coord-sidebar__header h2 {
   margin: 0;
+
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 650;
+  line-height: 1.5;
+  letter-spacing: -0.025em;
+
   color: var(--cs-text-main);
-  letter-spacing: -0.01em;
 }
 
-.cs-zoom-tag {
-  display: inline-block;
-  margin-top: 2px;
+.coord-sidebar__header .cs-muted {
+  margin-top: 3px;
+
   font-size: 12px;
+  line-height: 1.5;
   color: var(--cs-text-muted);
-  font-weight: 400;
 }
 
 .coord-sidebar__close {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--cs-radius-sm);
-  border: none;
+
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+
+  border: 1px solid transparent;
+  border-radius: 8px;
+
   background: transparent;
   color: var(--cs-text-muted);
+
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .coord-sidebar__close:hover {
-  background-color: #f4f4f5;
+  background: #f4f4f5;
+  border-color: #e4e4e7;
   color: var(--cs-text-main);
 }
 
-/* Scroll Area */
+.coord-sidebar__close:active {
+  background: #e4e4e7;
+}
+
+.coord-sidebar__close:focus-visible {
+  outline: 2px solid var(--cs-primary);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Scroll Area
+   ========================================================================== */
+
 .coord-sidebar__scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 20px;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 20px;
+
+  min-height: 0;
+  padding: 20px;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d8 transparent;
 }
 
 .coord-sidebar__scroll::-webkit-scrollbar {
-  width: 5px;
-}
-.coord-sidebar__scroll::-webkit-scrollbar-thumb {
-  background: #e4e4e7;
-  border-radius: 4px;
+  width: 6px;
 }
 
-/* Empty State */
-.coord-sidebar--empty .cs-empty-state {
+.coord-sidebar__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.coord-sidebar__scroll::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 10px;
+}
+
+.coord-sidebar__scroll::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
+/* ==========================================================================
+   Empty State
+   Áp dụng trực tiếp với JSX hiện tại:
+   <aside className="coord-sidebar">
+   ========================================================================== */
+
+.coord-sidebar > .cs-empty-state {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+
+  min-height: 0;
+  padding: 32px 28px;
+
   text-align: center;
-  padding: 48px 24px;
-  height: 100%;
 }
 
 .cs-empty-state__icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--cs-primary-light);
-  color: var(--cs-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
+
+  width: 68px;
+  height: 68px;
+  margin-bottom: 22px;
+
+  flex-shrink: 0;
+
+  color: var(--cs-primary);
+  background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+
+  border: 1px solid #dbeafe;
+  border-radius: 20px;
+
+  box-shadow:
+    0 4px 12px rgba(37, 99, 235, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.cs-empty-state__icon svg {
+  display: block;
+  width: 32px;
+  height: 32px;
 }
 
 .cs-empty-state__title {
-  margin: 0 0 6px 0;
-  font-size: 15px;
-  font-weight: 600;
+  margin: 0 0 10px;
+
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+
+  color: var(--cs-text-main);
 }
 
 .cs-empty-state__desc {
+  max-width: 260px;
   margin: 0;
+
   font-size: 13px;
+  font-weight: 400;
+  line-height: 1.8;
+
   color: var(--cs-text-muted);
-  line-height: 1.5;
 }
 
-/* Coordinates Card */
+/* ==========================================================================
+   Coordinates Card
+   ========================================================================== */
+
 .cs-coords-card {
-  background: var(--cs-card-bg);
-  border: 1px solid var(--cs-border);
-  border-radius: var(--cs-radius-md);
-  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+
+  padding: 14px;
+
+  background: var(--cs-card-bg);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-md);
 }
 
 .cs-coords-card__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .cs-seg {
   display: flex;
+  gap: 2px;
+
+  padding: 3px;
+
   background: #e4e4e7;
-  padding: 2px;
-  border-radius: var(--cs-radius-sm);
+  border-radius: 7px;
 }
 
 .cs-seg__tab {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 10px;
+  padding: 5px 10px;
+
   border: none;
+  border-radius: 5px;
+
   background: transparent;
   color: var(--cs-text-muted);
-  border-radius: 4px;
+
+  font-size: 12px;
+  font-weight: 500;
+
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
 .cs-seg__tab.is-active {
   background: #ffffff;
   color: var(--cs-text-main);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--cs-shadow-sm);
 }
 
 .cs-copy-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--cs-primary);
-  background: transparent;
+
+  padding: 6px 8px;
+
   border: none;
-  cursor: pointer;
-  padding: 4px 8px;
   border-radius: var(--cs-radius-sm);
-  transition: background 0.15s ease;
+
+  background: transparent;
+  color: var(--cs-primary);
+
+  font-size: 12px;
+  font-weight: 550;
+
+  cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .cs-copy-btn:hover {
@@ -207,96 +329,128 @@
 .cs-coords-display {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+
+  padding: 12px;
+
   background: #ffffff;
-  padding: 8px 12px;
-  border-radius: var(--cs-radius-sm);
   border: 1px solid #f1f5f9;
+  border-radius: var(--cs-radius-sm);
 }
 
 .cs-coords-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .cs-coords-label {
+  flex-shrink: 0;
+
+  color: #a1a1aa;
   font-size: 11px;
   font-weight: 700;
-  color: #a1a1aa;
   letter-spacing: 0.05em;
 }
 
 .cs-coords-val {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+
   color: var(--cs-text-main);
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  font-size: 12px;
+  font-weight: 600;
 }
 
-/* Sections */
+/* ==========================================================================
+   Sections
+   ========================================================================== */
+
 .cs-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .cs-section__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .cs-section__title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
+
   color: var(--cs-text-muted);
+
+  font-size: 12px;
+  font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 .cs-icon {
   color: var(--cs-primary);
+  flex-shrink: 0;
 }
 
 .cs-badge {
-  font-size: 11px;
-  font-weight: 600;
+  padding: 3px 8px;
+
+  border-radius: 12px;
+
   background: #f4f4f5;
   color: var(--cs-text-muted);
-  padding: 2px 7px;
-  border-radius: 12px;
+
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .cs-section__body {
   font-size: 14px;
+  line-height: 1.6;
 }
 
 .cs-address-text {
   margin: 0;
-  line-height: 1.5;
+
   color: var(--cs-text-main);
   font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 
-/* Road Card */
+/* ==========================================================================
+   Road Card
+   ========================================================================== */
+
 .cs-road-card {
-  background: var(--cs-card-bg);
-  border-radius: var(--cs-radius-md);
-  padding: 12px;
-  border: 1px solid var(--cs-border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+
+  padding: 14px;
+
+  background: var(--cs-card-bg);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-md);
 }
 
 .cs-road-card__name {
-  margin: 0 0 6px 0;
-  font-weight: 600;
+  margin: 0;
+
+  color: var(--cs-text-main);
   font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
 }
 
 .cs-chip-group {
@@ -306,12 +460,18 @@
 }
 
 .cs-chip {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+
+  padding: 4px 8px;
+
+  border-radius: 5px;
+
   background: #e4e4e7;
   color: #3f3f46;
+
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .cs-chip--primary {
@@ -328,62 +488,87 @@
 .cs-road-card__meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
-  font-size: 12px;
+
   color: var(--cs-text-muted);
+  font-size: 12px;
 }
 
 .cs-dot {
   color: #d4d4d8;
 }
 
-/* POI List */
+/* ==========================================================================
+   POI List
+   ========================================================================== */
+
 .cs-poi-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+
+  margin: 0;
+  padding: 0;
+
+  list-style: none;
 }
 
 .cs-poi-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+
+  padding: 10px;
+
+  background: #ffffff;
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius-sm);
-  padding: 8px 10px;
-  background: #ffffff;
-  transition: all 0.15s ease;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .cs-poi-item:hover {
+  background: #fafafa;
   border-color: #cbd5e1;
   box-shadow: var(--cs-shadow-sm);
 }
 
 .cs-poi-item__action {
-  background: none;
-  border: none;
+  flex: 1;
+  min-width: 0;
   padding: 0;
+
+  border: none;
+  background: none;
+
   text-align: left;
   cursor: pointer;
-  flex: 1;
 }
 
 .cs-poi-item__title {
   display: block;
-  font-size: 13px;
-  font-weight: 500;
+
+  margin-bottom: 4px;
+
   color: var(--cs-text-main);
-  margin-bottom: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+
+  overflow-wrap: anywhere;
 }
 
 .cs-poi-item__details {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+
   font-size: 11px;
 }
 
@@ -399,63 +584,92 @@
 .cs-btn-360 {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+
+  flex-shrink: 0;
+  margin-left: 4px;
+  padding: 5px 8px;
+
+  border: 1px solid #bfdbfe;
+  border-radius: 5px;
+
+  background: var(--cs-primary-light);
+  color: var(--cs-primary);
+
   font-size: 11px;
   font-weight: 600;
-  color: var(--cs-primary);
-  background: var(--cs-primary-light);
-  border: 1px solid #bfdbfe;
-  padding: 4px 8px;
-  border-radius: 4px;
+
   cursor: pointer;
-  transition: all 0.15s ease;
-  margin-left: 8px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .cs-btn-360:hover {
   background: #dbeafe;
+  border-color: #93c5fd;
 }
 
-/* StreetView Card */
+/* ==========================================================================
+   Street View Card
+   ========================================================================== */
+
 .cs-sv-card {
-  background: var(--cs-card-bg);
-  border: 1px solid var(--cs-border);
-  border-radius: var(--cs-radius-md);
-  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+
+  padding: 14px;
+
+  background: var(--cs-card-bg);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-md);
 }
 
 .cs-sv-card__info {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
 .cs-sv-card__title {
+  color: var(--cs-text-main);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
+  line-height: 1.5;
 }
 
 .cs-sv-card__sub {
-  font-size: 12px;
   color: var(--cs-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
-/* Buttons */
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
 .cs-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+
   width: 100%;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: var(--cs-radius-sm);
+  padding: 9px 14px;
+
   border: 1px solid transparent;
+  border-radius: var(--cs-radius-sm);
+
+  font-size: 13px;
+  font-weight: 600;
+
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .cs-btn--primary {
@@ -467,25 +681,40 @@
   background: var(--cs-primary-hover);
 }
 
-/* Skeleton & Error */
+.cs-btn:focus-visible,
+.cs-copy-btn:focus-visible,
+.cs-seg__tab:focus-visible,
+.cs-btn-360:focus-visible,
+.cs-poi-item__action:focus-visible {
+  outline: 2px solid var(--cs-primary);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Skeleton & Error
+   ========================================================================== */
+
 .cs-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .cs-skeleton__line {
   height: 14px;
+
   background: #f4f4f5;
   border-radius: 4px;
-  animation: pulse 1.5s infinite ease-in-out;
+
+  animation: cs-pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes pulse {
+@keyframes cs-pulse {
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.4;
   }
@@ -495,17 +724,76 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
+
+  padding: 12px;
+
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #dc2626;
-  padding: 10px 12px;
   border-radius: var(--cs-radius-sm);
+
+  color: #dc2626;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.6;
 }
 
 .cs-muted {
-  font-size: 13px;
-  color: var(--cs-text-muted);
   margin: 0;
+
+  color: var(--cs-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .coord-sidebar {
+    width: min(360px, 100%);
+  }
+
+  .coord-sidebar__header {
+    padding: 14px 16px;
+  }
+
+  .coord-sidebar__scroll {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .coord-sidebar > .cs-empty-state {
+    padding: 24px 20px;
+  }
+
+  .cs-empty-state__icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 18px;
+
+    border-radius: 17px;
+  }
+
+  .cs-empty-state__title {
+    font-size: 15px;
+  }
+
+  .cs-empty-state__desc {
+    font-size: 12px;
+  }
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .coord-sidebar *,
+  .coord-sidebar *::before,
+  .coord-sidebar *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

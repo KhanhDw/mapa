@@ -5,21 +5,28 @@ import {
     ROADS_LAYER_ID,
     SV_LAYER_ID,
 } from "../constants";
+import { EXTRA_LAYERS } from "./registry";
 
-/** Mỗi "lớp" trong panel ứng với 1 hoặc nhiều layer MapLibre. */
-const LAYER_MAP_IDS: Record<LayerKey, string[]> = {
-    roads: [ROADS_LAYER_ID],
-    roadNames: [ROADS_LABEL_LAYER_ID],
-    streetview: [SV_LAYER_ID],
-};
+/** Trả về các MapLibre layer id tương ứng với 1 LayerKey. */
+function layerIdsFor(key: LayerKey): string[] {
+    const extra = EXTRA_LAYERS.find((d) => d.key === key);
+    if (extra) return [extra.layerId];
 
-export function applyLayerVisibility(map: MapLibreMap, layers: LayerVisibility): void {
-    (Object.keys(LAYER_MAP_IDS) as LayerKey[]).forEach((key) => {
+    if (key === "roads") return [ROADS_LAYER_ID];
+    if (key === "roadNames") return [ROADS_LABEL_LAYER_ID];
+    if (key === "streetview") return [SV_LAYER_ID];
+
+    return [];
+}
+
+export function applyLayerVisibility(
+    map: MapLibreMap,
+    layers: LayerVisibility
+): void {
+    (Object.keys(layers) as LayerKey[]).forEach((key) => {
         const visibility = layers[key] ? "visible" : "none";
-        LAYER_MAP_IDS[key].forEach((id) => {
-            if (map.getLayer(id)) {
-                map.setLayoutProperty(id, "visibility", visibility);
-            }
+        layerIdsFor(key).forEach((id) => {
+            if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
         });
     });
 }
