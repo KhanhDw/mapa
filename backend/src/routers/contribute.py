@@ -6,6 +6,7 @@
 """
 import asyncio
 import io
+import logging
 import secrets
 import uuid
 from pathlib import Path
@@ -16,28 +17,30 @@ from fastapi import (APIRouter, Depends, File, Form, Header, HTTPException,
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field, field_validator
 
-from ..config import (MAX_UPLOAD_MB, PANO_MIN_WIDTH, PANORAMAS_DIR,
-                      USER_MEDIA_DIR, WRITE_API_KEY)
+from ..config import settings
 from ..db import get_pool
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["contribute"])
 
 USER_MEDIA_URL = "/user-media"
 PANORAMAS_URL = "/panoramas"
-MAX_PHOTOS_PER_POI = 20
 
-Image.MAX_IMAGE_PIXELS = 100_000_000          # chặn decompression bomb
+Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
 BIGINT_MAX = 2**63 - 1
 
 
+# ---------- auth ----------
 def require_write_key(x_api_key: str | None = Header(default=None)):
-    if not WRITE_API_KEY:
+    if not settings.WRITE_API_KEY:
         raise HTTPException(503, "Chưa cấu hình WRITE_API_KEY trong .env")
-    if not x_api_key or not secrets.compare_digest(x_api_key, WRITE_API_KEY):
+    if not x_api_key or not secrets.compare_digest(x_api_key, settings.WRITE_API_KEY):
         raise HTTPException(401, "Sai hoặc thiếu API key")
 
 
+# ---------- schema ----------
 class UserPoiIn(BaseModel):
     lng: float = Field(ge=-180, le=180)
     lat: float = Field(ge=-90, le=90)
@@ -63,14 +66,24 @@ class UserPoiIn(BaseModel):
 
 
 # ---------- xử lý ảnh (CPU nặng -> chạy trong thread) ----------
-def _process_image(data: bytes, kind: str):
+def _flatten_to_rgb(img: Image.Image) -> Image.Image:
+    """Convert về RGB. Nếu có alpha, composite trên nền trắng — tránh viền đen."""
+    if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+        img = img.convert("RGBA")
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=img.getchannel("A"))
+        return bg
+    return img.convert("RGB")
+
+
+def _process_image(data: bytes, kind: str) -> tuple[bytes, bytes | None, int, int]:
     """kind: 'photo' | 'pano'. Trả (main_jpeg, thumb_jpeg | None, width, height)."""
     try:
         probe = Image.open(io.BytesIO(data))
         if probe.format not in ALLOWED_FORMATS:
             raise ValueError("Chỉ chấp nhận JPEG, PNG hoặc WebP")
         probe.verify()
-        img = Image.open(io.BytesIO(data))      # verify() làm hỏng đối tượng -> mở lại
+        img = Image.open(io.BytesIO(data))  # verify() làm hỏng object -> mở lại
         img.load()
     except ValueError:
         raise
@@ -83,10 +96,12 @@ def _process_image(data: bytes, kind: str):
     else:
         if abs(img.width / img.height - 2) > 0.05:
             raise ValueError("Ảnh 360° (equirectangular) phải có tỉ lệ 2:1")
-        if img.width < PANO_MIN_WIDTH:
-            raise ValueError(f"Ảnh 360° quá nhỏ (tối thiểu rộng {PANO_MIN_WIDTH}px)")
+        if img.width < settings.PANO_MIN_WIDTH:
+            raise ValueError(
+                f"Ảnh 360° quá nhỏ (tối thiểu rộng {settings.PANO_MIN_WIDTH}px)"
+            )
 
-    img = img.convert("RGB")
+    img = _flatten_to_rgb(img)
     main = io.BytesIO()
     img.save(main, "JPEG", quality=88 if kind == "photo" else 90, optimize=True)
 
@@ -101,12 +116,16 @@ def _process_image(data: bytes, kind: str):
 
 
 async def _read_limited(file: UploadFile) -> bytes:
-    limit = MAX_UPLOAD_MB * 1024 * 1024
+    """Đọc tối đa MAX_UPLOAD_MB. Luôn close file dù lỗi hay thành công."""
+    limit = settings.MAX_UPLOAD_MB * 1024 * 1024
     buf = bytearray()
-    while chunk := await file.read(1024 * 1024):
-        buf.extend(chunk)
-        if len(buf) > limit:
-            raise HTTPException(413, f"File vượt quá {MAX_UPLOAD_MB}MB")
+    try:
+        while chunk := await file.read(1024 * 1024):
+            buf.extend(chunk)
+            if len(buf) > limit:
+                raise HTTPException(413, f"File vượt quá {settings.MAX_UPLOAD_MB}MB")
+    finally:
+        await file.close()
     return bytes(buf)
 
 
@@ -128,17 +147,23 @@ def _media_url(rel: str | None) -> str | None:
 # ---------- endpoints ----------
 @router.post("/user-pois", status_code=201, dependencies=[Depends(require_write_key)])
 async def create_user_poi(body: UserPoiIn, pool: asyncpg.Pool = Depends(get_pool)):
-    new_id = await pool.fetchval(
+    row = await pool.fetchrow(
         """
         INSERT INTO user_data.pois (name, category, address, phone, description, geom)
         VALUES ($1, $2, $3, $4, $5,
                 ST_SetSRID(ST_MakePoint($6::float8, $7::float8), 4326))
-        RETURNING id
+        RETURNING id, created_at
         """,
         body.name, body.category, body.address, body.phone, body.description,
         body.lng, body.lat,
     )
-    return {"id": int(new_id), "source": "user", **body.model_dump(), "photos": []}
+    return {
+        "id": int(row["id"]),
+        "source": "user",
+        **body.model_dump(),
+        "created_at": row["created_at"].isoformat(),
+        "photos": [],
+    }
 
 
 @router.get("/user-pois/{poi_id}")
@@ -183,9 +208,13 @@ async def upload_poi_photo(
 ):
     if not await pool.fetchval("SELECT 1 FROM user_data.pois WHERE id = $1", poi_id):
         raise HTTPException(404, "Không tìm thấy địa điểm")
-    n = await pool.fetchval("SELECT count(*) FROM user_data.poi_photos WHERE poi_id = $1", poi_id)
-    if n >= MAX_PHOTOS_PER_POI:
-        raise HTTPException(409, f"Mỗi địa điểm tối đa {MAX_PHOTOS_PER_POI} ảnh")
+    n = await pool.fetchval(
+        "SELECT count(*) FROM user_data.poi_photos WHERE poi_id = $1", poi_id
+    )
+    if n >= settings.MAX_PHOTOS_PER_POI:
+        raise HTTPException(
+            409, f"Mỗi địa điểm tối đa {settings.MAX_PHOTOS_PER_POI} ảnh"
+        )
 
     data = await _read_limited(file)
     try:
@@ -195,8 +224,10 @@ async def upload_poi_photo(
 
     name = uuid.uuid4().hex
     rel_main, rel_thumb = f"{poi_id}/{name}.jpg", f"{poi_id}/{name}_t.jpg"
-    base = Path(USER_MEDIA_DIR)
-    await asyncio.to_thread(_write_files, {base / rel_main: main_b, base / rel_thumb: thumb_b})
+    base = settings.USER_MEDIA_DIR
+    await asyncio.to_thread(
+        _write_files, {base / rel_main: main_b, base / rel_thumb: thumb_b}
+    )
     try:
         pid = await pool.fetchval(
             """INSERT INTO user_data.poi_photos (poi_id, file_path, thumb_path, width, height)
@@ -206,11 +237,14 @@ async def upload_poi_photo(
     except Exception:
         await asyncio.to_thread(_remove_files, [base / rel_main, base / rel_thumb])
         raise
-    return {"id": int(pid), "url": _media_url(rel_main),
-            "thumb_url": _media_url(rel_thumb), "width": w, "height": h}
+    return {
+        "id": int(pid), "url": _media_url(rel_main),
+        "thumb_url": _media_url(rel_thumb), "width": w, "height": h,
+    }
 
 
-@router.post("/user-panoramas", status_code=201, dependencies=[Depends(require_write_key)])
+@router.post("/user-panoramas", status_code=201,
+             dependencies=[Depends(require_write_key)])
 async def upload_user_panorama(
     lng: float = Form(..., ge=-180, le=180),
     lat: float = Form(..., ge=-90, le=90),
@@ -224,23 +258,29 @@ async def upload_user_panorama(
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-    filename = f"u_{uuid.uuid4().hex}.jpg"          # tên do server tạo -> không có path traversal
-    path = Path(PANORAMAS_DIR) / filename
+    filename = f"u_{uuid.uuid4().hex}.jpg"     # tên do server tạo, không có path traversal
+    path = settings.PANORAMAS_DIR / filename
     image_url = f"{PANORAMAS_URL}/{filename}"
     await asyncio.to_thread(_write_files, {path: main_b})
     try:
-        new_id = await pool.fetchval(
+        row = await pool.fetchrow(
             """
             INSERT INTO public.streetview_images
                 (geom, image_url, heading, captured_at, next_ids, link_positions)
             VALUES (ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326),
                     $3, $4, now(), ARRAY[]::integer[], '[]'::jsonb)
-            RETURNING id
+            RETURNING id, captured_at
             """,
             lng, lat, image_url, heading,
         )
     except Exception:
         await asyncio.to_thread(_remove_files, [path])
         raise
-    return {"id": int(new_id), "image_url": image_url, "lng": lng, "lat": lat,
-            "heading": heading, "width": w, "height": h}
+    return {
+        "id": int(row["id"]),
+        "image_url": image_url,
+        "lng": lng, "lat": lat,
+        "heading": heading,
+        "width": w, "height": h,
+        "captured_at": row["captured_at"].isoformat(),
+    }

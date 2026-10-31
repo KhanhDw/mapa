@@ -1,7 +1,8 @@
+"""Endpoint đọc street view: danh sách điểm trong bbox, chi tiết 1 ảnh."""
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ..config import MAX_FEATURES
+from ..config import settings
 from ..db import get_pool
 from ..utils import parse_link_positions, validate_bbox
 
@@ -33,7 +34,7 @@ async def get_streetview_points(
     miny: float | None = Query(None),
     maxx: float | None = Query(None),
     maxy: float | None = Query(None),
-    limit: int = Query(MAX_FEATURES, ge=1, le=20000),
+    limit: int = Query(settings.MAX_FEATURES, ge=1, le=20000),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     if all(v is not None for v in (minx, miny, maxx, maxy)):

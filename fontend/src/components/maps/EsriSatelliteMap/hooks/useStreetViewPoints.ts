@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { StreetViewPoint } from "../../../streetview/StreetViewModal/StreetViewModal";
+import { SV_LIMIT } from "../constants";
 
 interface Result {
     points: StreetViewPoint[];
@@ -9,8 +10,8 @@ interface Result {
 }
 
 /**
- * Fetch danh sách street view points từ backend.
- * Chạy độc lập với map — bắt đầu ngay khi mount.
+ * Fetch street view points 1 lần khi mount (spec §4.2).
+ * Thiếu bbox → backend trả `limit` điểm đầu tiên theo `id`.
  */
 export function useStreetViewPoints(apiBase: string): Result {
     const [points, setPoints] = useState<StreetViewPoint[]>([]);
@@ -18,28 +19,35 @@ export function useStreetViewPoints(apiBase: string): Result {
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
-        let cancelled = false;
+        const controller = new AbortController();
+        const base = apiBase.replace(/\/+$/, "");
+        setError(null);
 
-        fetch(`${apiBase}/api/streetview/points`)
-            .then((r) => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                return r.json();
-            })
-            .then((data) => {
-                if (cancelled) return;
-
-                // ✅ FIX: guard trước khi parse — tránh crash khi backend trả {error:...}
-                // hoặc response rỗng do proxy 404
-                if (!data || !Array.isArray(data.features)) {
+        (async () => {
+            try {
+                const res = await fetch(
+                    `${base}/api/streetview/points?limit=${SV_LIMIT}`,
+                    { signal: controller.signal }
+                );
+                if (!res.ok) {
                     throw new Error(
-                        "Phản hồi /api/streetview/points không phải GeoJSON hợp lệ"
+                        `Không tải được Street View points: HTTP ${res.status} — ${res.url}`
+                    );
+                }
+
+                const data = await res.json();
+                if (!Array.isArray(data?.features)) {
+                    throw new Error(
+                        "Phản hồi /api/streetview/points không phải GeoJSON FeatureCollection hợp lệ"
                     );
                 }
 
                 const parsed: StreetViewPoint[] = data.features
                     .filter(
                         (f: any) =>
-                            f?.geometry?.coordinates?.length >= 2
+                            f?.geometry?.type === "Point" &&
+                            Array.isArray(f.geometry.coordinates) &&
+                            f.geometry.coordinates.length >= 2
                     )
                     .map((f: any) => ({
                         ...f.properties,
@@ -49,14 +57,17 @@ export function useStreetViewPoints(apiBase: string): Result {
 
                 setGeojson(data);
                 setPoints(parsed);
-            })
-            .catch((err: Error) => {
-                if (!cancelled) setError(err);
-            });
+            } catch (e) {
+                if (controller.signal.aborted) return;
+                setError(
+                    e instanceof Error
+                        ? e
+                        : new Error("Không xác định được lỗi tải Street View points")
+                );
+            }
+        })();
 
-        return () => {
-            cancelled = true;
-        };
+        return () => controller.abort();
     }, [apiBase]);
 
     return { points, geojson, error };

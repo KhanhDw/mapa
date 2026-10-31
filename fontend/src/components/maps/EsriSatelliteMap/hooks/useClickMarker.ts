@@ -6,14 +6,9 @@ import { SV_LAYER_ID } from "../constants";
 
 interface Result {
     clickInfo: ClickInfo | null;
-    /** Xoá marker đỏ + đóng sidebar */
     clear: () => void;
 }
 
-/**
- * Quản lý marker đỏ khi click lên map (trừ khi click trúng X street view).
- * Trả về clickInfo để CoordSidebar hiển thị.
- */
 export function useClickMarker(map: MapLibreMap | null): Result {
     const [clickInfo, setClickInfo] = useState<ClickInfo | null>(null);
     const markerRef = useRef<maplibregl.Marker | null>(null);
@@ -22,7 +17,7 @@ export function useClickMarker(map: MapLibreMap | null): Result {
         if (!map) return;
 
         const onClick = (e: maplibregl.MapMouseEvent) => {
-            // Bỏ qua nếu click trúng dấu X (modal street view sẽ xử lý)
+            // Click trúng X street view → modal tự xử lý, không đặt marker
             if (map.getLayer(SV_LAYER_ID)) {
                 const hit = map.queryRenderedFeatures(e.point, {
                     layers: [SV_LAYER_ID],
@@ -49,7 +44,7 @@ export function useClickMarker(map: MapLibreMap | null): Result {
             try {
                 markerRef.current?.remove();
             } catch {
-                /* map có thể đã bị remove trước — bỏ qua */
+                /* map đã bị remove */
             }
             markerRef.current = null;
         };
@@ -60,7 +55,6 @@ export function useClickMarker(map: MapLibreMap | null): Result {
         markerRef.current = null;
         setClickInfo(null);
     }, []);
-
 
     return { clickInfo, clear };
 }

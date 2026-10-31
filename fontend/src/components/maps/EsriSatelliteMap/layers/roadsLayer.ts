@@ -1,10 +1,14 @@
-// fontend\src\components\maps\EsriSatelliteMap\layers\roadsLayer.ts
+// spec §4.6: /tiles/{schema}.{table}/{z}/{x}/{y}.pbf
+// Backend pg_tileserv emit layer name có schema prefix → dùng "public.vietnam_roads"
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { TILE_BASE } from "../../../../config";
-import { ROADS_LAYER_ID, ROADS_SOURCE_ID } from "../constants";
+import {
+    ROADS_LABEL_LAYER_ID,
+    ROADS_LAYER_ID,
+    ROADS_SOURCE_ID,
+} from "../constants";
 
 export function addRoadsLayer(map: MapLibreMap): void {
-    // 1. Khai báo Source (Dùng chung cho cả Line và Label)
     if (!map.getSource(ROADS_SOURCE_ID)) {
         map.addSource(ROADS_SOURCE_ID, {
             type: "vector",
@@ -14,14 +18,13 @@ export function addRoadsLayer(map: MapLibreMap): void {
         });
     }
 
-    // 2. Vẽ đường (Line) - Dùng lại ID cũ là ROADS_LAYER_ID
     if (!map.getLayer(ROADS_LAYER_ID)) {
         map.addLayer({
             id: ROADS_LAYER_ID,
             type: "line",
             source: ROADS_SOURCE_ID,
             "source-layer": "public.vietnam_roads",
-            minzoom: 14, // Chỉ hiện ở zoom 14+
+            minzoom: 14,
             layout: { "line-join": "round", "line-cap": "round" },
             paint: {
                 "line-color": [
@@ -37,19 +40,21 @@ export function addRoadsLayer(map: MapLibreMap): void {
                     "#ffffff",
                 ],
                 "line-width": ["interpolate", ["linear"], ["zoom"], 14, 5, 18, 9],
-                "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.95, 6, 0.75, 10, 0.45, 14, 0.35, 18, 0.2],
+                "line-opacity": [
+                    "interpolate", ["linear"], ["zoom"],
+                    3, 0.95, 6, 0.75, 10, 0.45, 14, 0.35, 18, 0.2,
+                ],
             },
         });
     }
 
-    // 3. Vẽ tên đường (Label) - ID mới
-    if (!map.getLayer("roads-label-layer")) {
+    if (!map.getLayer(ROADS_LABEL_LAYER_ID)) {
         map.addLayer({
-            id: "roads-label-layer",
+            id: ROADS_LABEL_LAYER_ID,
             type: "symbol",
             source: ROADS_SOURCE_ID,
             "source-layer": "public.vietnam_roads",
-            minzoom: 15, // Hiện tên đường khi zoom 15+
+            minzoom: 15,
             layout: {
                 "text-field": ["coalesce", ["get", "name"], ["get", "ref"], ""],
                 "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],

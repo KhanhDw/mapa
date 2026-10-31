@@ -1,22 +1,50 @@
-from contextlib import asynccontextmanager
+"""Asyncpg pool quản lý tập trung.
+
+- Pool là global, mỗi uvicorn worker sẽ có pool riêng.
+- Startup check toàn bộ table cần thiết để cảnh báo sớm nếu thiếu schema.
+
+Lifespan KHÔNG nằm ở đây. main.py compose lifespan từ _init_pool/_close_pool
+và các service phụ (vd. tiles client) để tránh import chéo db ↔ routers.
+"""
+import logging
+
 import asyncpg
 from fastapi import HTTPException
 
-from .config import DATABASE_URL
+from .config import settings
+
+logger = logging.getLogger(__name__)
 
 _pool: asyncpg.Pool | None = None
+
+_REQUIRED_TABLES = (
+    "public.pois",
+    "public.streetview_images",
+    "public.vietnam_roads",
+    "user_data.pois",
+    "user_data.poi_photos",
+)
 
 
 async def _init_pool() -> None:
     global _pool
     _pool = await asyncpg.create_pool(
-        DATABASE_URL, min_size=2, max_size=10, command_timeout=10,
+        settings.DATABASE_URL,
+        min_size=settings.DB_POOL_MIN,
+        max_size=settings.DB_POOL_MAX,
+        command_timeout=settings.DB_COMMAND_TIMEOUT,
     )
     async with _pool.acquire() as conn:
-        has_pois = bool(await conn.fetchval(
-            "SELECT to_regclass('public.pois') IS NOT NULL"
-        ))
-    print(f"[startup] Connected to PostGIS | pois table: {has_pois}")
+        missing: list[str] = []
+        for t in _REQUIRED_TABLES:
+            exists = await conn.fetchval("SELECT to_regclass($1) IS NOT NULL", t)
+            if not exists:
+                missing.append(t)
+
+    if missing:
+        logger.warning("[startup] Missing tables: %s", ", ".join(missing))
+    else:
+        logger.info("[startup] PostGIS connected — all required tables present")
 
 
 async def _close_pool() -> None:
@@ -24,14 +52,7 @@ async def _close_pool() -> None:
     if _pool:
         await _pool.close()
         _pool = None
-        print("[shutdown] PostGIS pool closed")
-
-
-@asynccontextmanager
-async def lifespan(app):
-    await _init_pool()
-    yield
-    await _close_pool()
+        logger.info("[shutdown] PostGIS pool closed")
 
 
 def get_pool() -> asyncpg.Pool:
