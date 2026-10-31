@@ -6,16 +6,16 @@ Database được chạy bằng Docker Compose trong [`docker-compose.yml`](../d
 Compose khai báo PostgreSQL/PostGIS, dịch vụ tạo vector tile từ database và
 dịch vụ phục vụ các file bản đồ `.versatiles`.
 
-| Thuộc tính | Giá trị |
-|---|---|
-| Image database | `postgis/postgis:17-3.5` |
-| Container | `postgis-webmap` |
-| Database mặc định | `webmap_db` |
-| User quản trị mặc định | `postgres` |
-| Cổng host | `127.0.0.1:5432` |
-| Persistence | Named volume `postgis_data` mount vào `/var/lib/postgresql/data` |
-| Init scripts | `./init` mount read-only vào `/docker-entrypoint-initdb.d` |
-| Health check | `pg_isready -U postgres -d webmap_db`, mỗi 5 giây, tối đa 20 lần |
+| Thuộc tính             | Giá trị                                                          |
+| ---------------------- | ---------------------------------------------------------------- |
+| Image database         | `postgis/postgis:17-3.5`                                         |
+| Container              | `postgis-webmap`                                                 |
+| Database mặc định      | `webmap_db`                                                      |
+| User quản trị mặc định | `postgres`                                                       |
+| Cổng host              | `127.0.0.1:5432`                                                 |
+| Persistence            | Named volume `postgis_data` mount vào `/var/lib/postgresql/data` |
+| Init scripts           | `./init` mount read-only vào `/docker-entrypoint-initdb.d`       |
+| Health check           | `pg_isready -U postgres -d webmap_db`, mỗi 5 giây, tối đa 20 lần |
 
 Mật khẩu quản trị lấy từ `PG_PASSWORD`; mật khẩu role đọc tile lấy từ
 `TILE_PASSWORD`. Các giá trị này phải được cấu hình trong `.env` tại root. Không
@@ -28,11 +28,11 @@ giá trị cấu hình container, cần điều chỉnh theo tài nguyên máy c
 
 ## 2. Service liên quan
 
-| Service | Cổng host | Vai trò | Quyền / nguồn dữ liệu |
-|---|---:|---|---|
-| `postgis` | `127.0.0.1:5432` | Lưu trữ và truy vấn dữ liệu không gian. | Persistent volume `postgis_data`; chạy init scripts khi khởi tạo data directory lần đầu. |
-| `pg_tileserv` | `127.0.0.1:7800` | Cung cấp vector tile động từ PostGIS. | Kết nối DB bằng `tile_reader`; cấu hình `TS_URLBASE=/`, `TS_DEBUG=false`. |
-| `versatiles` | `127.0.0.1:8080` | Cung cấp tile từ file tĩnh. | Mount `./data` read-only; cấu hình nguồn `[vietnam]` và `[satellite]`. |
+| Service       |        Cổng host | Vai trò                                 | Quyền / nguồn dữ liệu                                                                    |
+| ------------- | ---------------: | --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `postgis`     | `127.0.0.1:5432` | Lưu trữ và truy vấn dữ liệu không gian. | Persistent volume `postgis_data`; chạy init scripts khi khởi tạo data directory lần đầu. |
+| `pg_tileserv` | `127.0.0.1:7800` | Cung cấp vector tile động từ PostGIS.   | Kết nối DB bằng `tile_reader`; cấu hình `TS_URLBASE=/`, `TS_DEBUG=false`.                |
+| `versatiles`  | `127.0.0.1:8080` | Cung cấp tile từ file tĩnh.             | Mount `./data` read-only; cấu hình nguồn `[vietnam]` và `[satellite]`.                   |
 
 `pg_tileserv` chỉ được start sau khi health check của PostGIS thành công.
 Backend FastAPI không được định nghĩa trong Compose và kết nối từ máy host qua
@@ -76,22 +76,22 @@ nguồn `raw`.
 
 Các bảng API đang sử dụng:
 
-| Đối tượng | Tình trạng trong repository | Cột / mục đích |
-|---|---|---|
-| `pois` | DDL đầy đủ trong `init/01-pois.sql`. | POI điểm, được endpoint `point-info` truy vấn. |
+| Đối tượng           | Tình trạng trong repository                                                                                                     | Cột / mục đích                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `pois`              | DDL đầy đủ trong `init/01-pois.sql`.                                                                                            | POI điểm, được endpoint `point-info` truy vấn.                    |
 | `streetview_images` | DDL đầy đủ chưa được tìm thấy trong các init/migration SQL hiện có. Cột dưới đây suy ra từ truy vấn backend và script nhập ảnh. | Điểm panorama, vị trí ảnh, hướng nhìn, liên kết sang ảnh kế tiếp. |
-| `vietnam_roads` | DDL đầy đủ chưa được tìm thấy trong các init/migration SQL hiện có. Cột dưới đây suy ra từ truy vấn backend và migration quyền. | Lớp đường được endpoint `point-info` dùng để tìm đường gần nhất. |
+| `vietnam_roads`     | DDL đầy đủ chưa được tìm thấy trong các init/migration SQL hiện có. Cột dưới đây suy ra từ truy vấn backend và migration quyền. | Lớp đường được endpoint `point-info` dùng để tìm đường gần nhất.  |
 
 #### `public.pois` — schema được định nghĩa
 
-| Cột | Kiểu | Ràng buộc / ý nghĩa |
-|---|---|---|
-| `id` | `BIGSERIAL` | Primary key. |
-| `osm_id` | `TEXT` | Unique; có thể null theo đặc tính unique của PostgreSQL. |
-| `name` | `TEXT` | Tên POI. |
-| `category` | `TEXT` | Nhóm POI. |
-| `geom` | `GEOMETRY(Point, 4326)` | Bắt buộc; tọa độ điểm WGS 84. |
-| `created_at` | `TIMESTAMPTZ` | Mặc định `NOW()`. |
+| Cột          | Kiểu                    | Ràng buộc / ý nghĩa                                      |
+| ------------ | ----------------------- | -------------------------------------------------------- |
+| `id`         | `BIGSERIAL`             | Primary key.                                             |
+| `osm_id`     | `TEXT`                  | Unique; có thể null theo đặc tính unique của PostgreSQL. |
+| `name`       | `TEXT`                  | Tên POI.                                                 |
+| `category`   | `TEXT`                  | Nhóm POI.                                                |
+| `geom`       | `GEOMETRY(Point, 4326)` | Bắt buộc; tọa độ điểm WGS 84.                            |
+| `created_at` | `TIMESTAMPTZ`           | Mặc định `NOW()`.                                        |
 
 Index được tạo: GiST trên `geom`, B-tree trên `category`. Role `tile_reader`
 chưa được cấp quyền SELECT trên `pois` trong init script (dòng GRANT hiện
@@ -102,15 +102,15 @@ chưa được cấp quyền SELECT trên `pois` trong init script (dòng GRANT 
 Backend/scripts sử dụng các cột sau; kiểu dữ liệu ngoài các chi tiết thể hiện
 trực tiếp trong câu lệnh nhập là **chưa được xác nhận bằng DDL**:
 
-| Cột | Cách sử dụng |
-|---|---|
-| `id` | Mã panorama; API tra cứu theo ID và dùng làm khóa liên kết trong `next_ids`. |
-| `geom` | Hình học điểm; API dùng `ST_X`/`ST_Y`, bbox và phép đo khoảng cách. |
-| `image_url` | URL static của ảnh, ví dụ `/panoramas/<file>`. |
-| `heading` | Hướng ban đầu của camera. |
-| `next_ids` | Mảng ID panorama có thể đi tiếp. |
-| `link_positions` | JSON array chứa vị trí hotspot trên ảnh; script insert dùng kiểu `jsonb`. |
-| `captured_at` | Thời điểm chụp; endpoint trả ISO-8601 hoặc `null`. |
+| Cột              | Cách sử dụng                                                                 |
+| ---------------- | ---------------------------------------------------------------------------- |
+| `id`             | Mã panorama; API tra cứu theo ID và dùng làm khóa liên kết trong `next_ids`. |
+| `geom`           | Hình học điểm; API dùng `ST_X`/`ST_Y`, bbox và phép đo khoảng cách.          |
+| `image_url`      | URL static của ảnh, ví dụ `/panoramas/<file>`.                               |
+| `heading`        | Hướng ban đầu của camera.                                                    |
+| `next_ids`       | Mảng ID panorama có thể đi tiếp.                                             |
+| `link_positions` | JSON array chứa vị trí hotspot trên ảnh; script insert dùng kiểu `jsonb`.    |
+| `captured_at`    | Thời điểm chụp; endpoint trả ISO-8601 hoặc `null`.                           |
 
 `db/migrations/04_grants.sql` yêu cầu GiST index trên `geom` của bảng này và
 cấp quyền SELECT cho `tile_reader`.
@@ -119,13 +119,13 @@ cấp quyền SELECT cho `tile_reader`.
 
 Backend cần các cột:
 
-| Cột | Cách sử dụng |
-|---|---|
-| `osm_id` | Mã đối tượng OpenStreetMap. |
-| `name`, `ref` | Tên đường và mã tham chiếu. |
-| `fclass` | Phân loại đường. |
-| `oneway`, `maxspeed` | Thuộc tính giao thông. |
-| `geom` | Hình học tuyến; truy vấn gần nhất và khoảng cách được thực hiện trên geometry/geography. |
+| Cột                  | Cách sử dụng                                                                             |
+| -------------------- | ---------------------------------------------------------------------------------------- |
+| `osm_id`             | Mã đối tượng OpenStreetMap.                                                              |
+| `name`, `ref`        | Tên đường và mã tham chiếu.                                                              |
+| `fclass`             | Phân loại đường.                                                                         |
+| `oneway`, `maxspeed` | Thuộc tính giao thông.                                                                   |
+| `geom`               | Hình học tuyến; truy vấn gần nhất và khoảng cách được thực hiện trên geometry/geography. |
 
 Migration [`db/migrations/04_grants.sql`](../db/migrations/04_grants.sql) yêu
 cầu GiST index trên `geom` và cấp quyền SELECT cho `tile_reader`. Tuy nhiên,

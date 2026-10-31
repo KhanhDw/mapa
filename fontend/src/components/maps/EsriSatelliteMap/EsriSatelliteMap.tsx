@@ -6,27 +6,34 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "./EsriSatelliteMap.css";
 import { getVersion, setWorkerUrl } from "maplibre-gl";
 
-import {
-    StreetViewModal,
-} from "../../streetview/StreetViewModal/StreetViewModal";
-import {
-    CoordSidebar,
-} from "../../sidebar/CoordSidebar/CoordSidebar";
-import {
-    API_BASE,
-    ESRI_SATELLITE_TILE_URL,
-    getMapLibreWorkerUrl,
-} from "../../../config";
+import { StreetViewModal } from "../../streetview/StreetViewModal/StreetViewModal";
+import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSidebar";
+import { LayersPanel, SettingsPanel } from "../../layout/panels";
+import type { PanelType } from "../../layout/Activitybar";
+
+import { API_BASE, ESRI_SATELLITE_TILE_URL, getMapLibreWorkerUrl } from "../../../config";
 
 import { ESRI_INITIAL_VIEW, SV_LAYER_ID } from "./constants";
 import { addRoadsLayer } from "./layers/roadsLayer";
 import { addStreetViewLayer } from "./layers/streetViewLayer";
 import { useStreetViewPoints } from "./hooks/useStreetViewPoints";
 import { useClickMarker } from "./hooks/useClickMarker";
+import { useClickPointInfo } from "./hooks/useClickPointInfo";
 
-function EsriSatelliteMap() {
+interface Props {
+    activePanel?: PanelType | null;
+    onAutoShowInfo?: () => void;
+    onPanelClose?: () => void;
+}
+
+function EsriSatelliteMap({
+    activePanel = null,
+    onAutoShowInfo,
+    onPanelClose,
+}: Props) {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
+
     const [mapReady, setMapReady] = useState(false);
 
     const [svModal, setSvModal] = useState<{
@@ -34,15 +41,33 @@ function EsriSatelliteMap() {
         startId: number;
     } | null>(null);
 
-    // Fetch points — độc lập với map (song song)
-    const { points, geojson, error } = useStreetViewPoints(API_BASE);
+    // ================= StreetView points =================
+    const {
+        points,
+        geojson,
+        error: svPointsError,
+    } = useStreetViewPoints(API_BASE);
 
-    // Marker + clickInfo
-    const { clickInfo, clear } = useClickMarker(
-        mapReady ? mapRef.current : null
-    );
+    // ================= Click marker =================
+    const { clickInfo, clear } = useClickMarker(mapReady ? mapRef.current : null);
 
-    // ============ Khởi tạo map ============
+    // ================= Point info =================
+    const {
+        data: pointInfo,
+        loading: pointInfoLoading,
+        error: pointInfoError,
+    } = useClickPointInfo(API_BASE, clickInfo);
+
+    // Auto mở panel Info khi click map (nếu chưa mở)
+    useEffect(() => {
+        if (clickInfo && onAutoShowInfo && activePanel !== "info") {
+            onAutoShowInfo();
+        }
+    }, [clickInfo, onAutoShowInfo, activePanel]);
+
+    // ======================================================
+    // Init map
+    // ======================================================
     useEffect(() => {
         if (!mapContainer.current || mapRef.current) return;
 
@@ -53,6 +78,7 @@ function EsriSatelliteMap() {
             ...ESRI_INITIAL_VIEW,
             style: {
                 version: 8,
+                glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
                 sources: {
                     "satellite-esri": {
                         type: "raster",
@@ -69,7 +95,7 @@ function EsriSatelliteMap() {
                         source: "satellite-esri",
                         minzoom: 0,
                         maxzoom: 22,
-                    },
+                    }
                 ],
             },
         });
@@ -79,7 +105,10 @@ function EsriSatelliteMap() {
             new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }),
             "bottom-left"
         );
-        map.on("error", (e) => console.error("[maplibre]", e.error));
+
+        map.on("error", (e) => {
+            console.error("[maplibre]", e.error);
+        });
 
         map.on("load", () => {
             addRoadsLayer(map);
@@ -95,9 +124,12 @@ function EsriSatelliteMap() {
         };
     }, []);
 
-    // ============ Gắn layer street view khi map + data sẵn sàng ============
+    // ======================================================
+    // StreetView layer
+    // ======================================================
     useEffect(() => {
         if (!mapReady || !mapRef.current || !geojson) return;
+
         const map = mapRef.current;
         if (map.getLayer(SV_LAYER_ID)) return;
 
@@ -108,15 +140,68 @@ function EsriSatelliteMap() {
         });
     }, [mapReady, geojson]);
 
-    // ============ Log lỗi fetch (dev convenience) ============
+    // Dev logs
     useEffect(() => {
-        if (error) console.error("[sv-points] fetch error:", error);
-    }, [error]);
+        if (svPointsError) console.error("[sv-points] fetch error:", svPointsError);
+    }, [svPointsError]);
+
+    useEffect(() => {
+        if (pointInfoError) console.error("[point-info] fetch error:", pointInfoError);
+    }, [pointInfoError]);
+
+    // ======================================================
+    // Handlers
+    // ======================================================
+    const handleOpenStreetViewById = (id: number) => {
+        const point = points.find((p) => Number(p.id) === id);
+        if (point && mapRef.current) {
+            mapRef.current.flyTo({ center: [point.lng, point.lat], zoom: 17, duration: 800 });
+        }
+        setSvModal({ open: true, startId: id });
+    };
+
+    const handlePoiClick = (poi: PoiInfo) => {
+        if (poi.streetview_id != null) {
+            handleOpenStreetViewById(poi.streetview_id);
+            return;
+        }
+        mapRef.current?.flyTo({ center: [poi.lng, poi.lat], zoom: 17, duration: 600 });
+    };
+
+    const handleClose = () => {
+        clear();
+        onPanelClose?.();
+    };
+
+    const showInfo = activePanel === "info";
+    const showLayers = activePanel === "layers";
+    const showSettings = activePanel === "settings";
+    const hasSidebar = showInfo || showLayers || showSettings;
 
     return (
-        <div className={`map-wrapper${clickInfo ? " has-sidebar" : ""}`}>
+        <div className={`map-wrapper${hasSidebar ? " has-sidebar" : ""}`}>
             <div ref={mapContainer} className="map-container" />
-            <CoordSidebar info={clickInfo} onClose={clear} />
+
+            {showInfo && (
+                <CoordSidebar
+                    info={clickInfo}
+                    onClose={handleClose}
+                    road={pointInfo?.road}
+                    streetview={pointInfo?.streetview}
+                    address={pointInfo?.address}
+                    pois={pointInfo?.pois}
+                    loading={pointInfoLoading}
+                    addressLoading={pointInfoLoading}
+                    poisLoading={pointInfoLoading}
+                    error={pointInfoError?.message ?? null}
+                    onOpenStreetView={handleOpenStreetViewById}
+                    onPoiClick={handlePoiClick}
+                    onPoiStreetView={handleOpenStreetViewById}
+                />
+            )}
+
+            {showLayers && <LayersPanel onClose={() => onPanelClose?.()} />}
+            {showSettings && <SettingsPanel onClose={() => onPanelClose?.()} />}
 
             {svModal?.open &&
                 createPortal(
@@ -125,16 +210,15 @@ function EsriSatelliteMap() {
                         allPoints={points}
                         onClose={() => setSvModal(null)}
                         onNodeChange={(p) => {
-                            mapRef.current?.flyTo({
-                                center: [p.lng, p.lat],
-                                zoom: 17,
-                            });
+                            mapRef.current?.flyTo({ center: [p.lng, p.lat], zoom: 17 });
                         }}
                     />,
                     document.body
                 )}
         </div>
     );
+
+
 }
 
 export default EsriSatelliteMap;

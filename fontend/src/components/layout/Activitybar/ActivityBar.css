@@ -1,0 +1,72 @@
+/* ==========================================================================
+   ActivityBar Commercial Light Theme
+   ========================================================================== */
+
+.activity-bar {
+  width: 56px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 0;
+  background: #ffffff;
+  border-right: 1px solid #e4e4e7;
+  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.02);
+  z-index: 50;
+  user-select: none;
+}
+
+.activity-bar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.activity-bar__divider {
+  width: 28px;
+  height: 1px;
+  background: #e4e4e7;
+  margin: 10px auto;
+}
+
+.activity-bar__btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.activity-bar__btn:hover {
+  background: #f4f4f5;
+  color: #09090b;
+}
+
+.activity-bar__btn.is-active {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.activity-bar__btn.is-active::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  background: #2563eb;
+  border-radius: 0 3px 3px 0;
+}
+
+.activity-bar__btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}

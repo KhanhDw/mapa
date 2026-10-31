@@ -27,14 +27,14 @@ database.
 
 ## 2. Thành phần và công nghệ
 
-| Thành phần | Công nghệ / vai trò |
-|---|---|
-| API | Python, FastAPI, Uvicorn |
-| Truy cập database | `asyncpg`, connection pool bất đồng bộ |
-| Database | PostgreSQL với PostGIS; container `postgis/postgis:17-3.5` |
-| Vector tile động | `pg_tileserv`, kết nối bằng role `tile_reader` |
-| Bản đồ nền tĩnh | VersaTiles, đọc các file `.versatiles` trong `data/` |
-| Ảnh Street View | Static files từ thư mục panorama trên máy chạy backend |
+| Thành phần        | Công nghệ / vai trò                                        |
+| ----------------- | ---------------------------------------------------------- |
+| API               | Python, FastAPI, Uvicorn                                   |
+| Truy cập database | `asyncpg`, connection pool bất đồng bộ                     |
+| Database          | PostgreSQL với PostGIS; container `postgis/postgis:17-3.5` |
+| Vector tile động  | `pg_tileserv`, kết nối bằng role `tile_reader`             |
+| Bản đồ nền tĩnh   | VersaTiles, đọc các file `.versatiles` trong `data/`       |
+| Ảnh Street View   | Static files từ thư mục panorama trên máy chạy backend     |
 
 Dependency Python được liệt kê trong [`backend/requirements.txt`](../backend/requirements.txt).
 
@@ -45,10 +45,10 @@ Dependency Python được liệt kê trong [`backend/requirements.txt`](../back
 Backend nạp `backend/.env` (nếu có) bằng `python-dotenv`; biến môi trường của
 tiến trình vẫn được sử dụng nếu đã khai báo bên ngoài.
 
-| Biến | Bắt buộc | Ý nghĩa |
-|---|---:|---|
-| `DATABASE_URL` | Có | URI kết nối PostgreSQL. Thiếu biến này thì ứng dụng dừng ngay khi import module. |
-| `PANORAMAS_DIR` | Không | Thư mục ảnh static; mặc định `data/panoramas`. Đường dẫn tương đối được tính theo working directory của tiến trình. |
+| Biến            | Bắt buộc | Ý nghĩa                                                                                                             |
+| --------------- | -------: | ------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`  |       Có | URI kết nối PostgreSQL. Thiếu biến này thì ứng dụng dừng ngay khi import module.                                    |
+| `PANORAMAS_DIR` |    Không | Thư mục ảnh static; mặc định `data/panoramas`. Đường dẫn tương đối được tính theo working directory của tiến trình. |
 
 Ví dụ định dạng URI (thay bằng thông tin phù hợp, không đưa mật khẩu thật vào
 tài liệu hoặc Git):
@@ -114,10 +114,10 @@ Kiểm tra pool và thực hiện `SELECT 1`.
 
 Trả danh sách điểm panorama dưới dạng GeoJSON `FeatureCollection`.
 
-| Query parameter | Mặc định | Ràng buộc / ý nghĩa |
-|---|---:|---|
+| Query parameter                | Mặc định | Ràng buộc / ý nghĩa                                    |
+| ------------------------------ | -------: | ------------------------------------------------------ |
 | `minx`, `miny`, `maxx`, `maxy` | Không có | Nếu cung cấp đủ cả bốn, lọc theo bbox trong EPSG:4326. |
-| `limit` | `5000` | Số nguyên từ 1 đến 20.000. |
+| `limit`                        |   `5000` | Số nguyên từ 1 đến 20.000.                             |
 
 Nếu bbox đầy đủ nhưng `minx >= maxx` hoặc `miny >= maxy`, API trả `400`.
 Nếu không đủ cả bốn tọa độ, API bỏ qua bbox và trả các điểm theo `id` trong
@@ -141,13 +141,13 @@ Trả chi tiết một panorama theo ID: `id`, `lng`, `lat`, `image_url`, `headi
 Tra cứu đường, panorama gần nhất và POI quanh tọa độ. Tất cả khoảng cách được
 tính theo mét trên kiểu `geography`.
 
-| Query parameter | Bắt buộc | Mặc định | Ràng buộc |
-|---|---:|---:|---|
-| `lng` | Có | — | Từ -180 đến 180. |
-| `lat` | Có | — | Từ -90 đến 90. |
-| `zoom` | Không | `13` | Từ 0 đến 22; hiện được nhận nhưng chưa dùng trong truy vấn. |
-| `radius_m` | Không | `200` | Từ 10 đến 2.000 mét. |
-| `poi_limit` | Không | `10` | Từ 1 đến 50. |
+| Query parameter | Bắt buộc | Mặc định | Ràng buộc                                                   |
+| --------------- | -------: | -------: | ----------------------------------------------------------- |
+| `lng`           |       Có |        — | Từ -180 đến 180.                                            |
+| `lat`           |       Có |        — | Từ -90 đến 90.                                              |
+| `zoom`          |    Không |     `13` | Từ 0 đến 22; hiện được nhận nhưng chưa dùng trong truy vấn. |
+| `radius_m`      |    Không |    `200` | Từ 10 đến 2.000 mét.                                        |
+| `poi_limit`     |    Không |     `10` | Từ 1 đến 50.                                                |
 
 Response có cấu trúc:
 
@@ -162,7 +162,7 @@ Response có cấu trúc:
     "maxspeed": "...",
     "distance_m": 0.0
   },
-  "streetview": {"id": 1, "distance_m": 0.0},
+  "streetview": { "id": 1, "distance_m": 0.0 },
   "address": null,
   "pois": [
     {
@@ -188,11 +188,11 @@ vấn ở endpoint này được trả thành HTTP `500` kèm thông tin lỗi d
 
 Backend hiện truy vấn các đối tượng sau trong schema `public`:
 
-| Đối tượng | Endpoint | Cột được backend sử dụng |
-|---|---|---|
-| `streetview_images` | Street View và `point-info` | `id`, `geom`, `image_url`, `heading`, `next_ids`, `link_positions`, `captured_at` |
-| `vietnam_roads` | `point-info` | `osm_id`, `name`, `ref`, `fclass`, `oneway`, `maxspeed`, `geom` |
-| `pois` | `point-info`, kiểm tra startup | `id`, `name`, `category`, `geom` |
+| Đối tượng           | Endpoint                       | Cột được backend sử dụng                                                          |
+| ------------------- | ------------------------------ | --------------------------------------------------------------------------------- |
+| `streetview_images` | Street View và `point-info`    | `id`, `geom`, `image_url`, `heading`, `next_ids`, `link_positions`, `captured_at` |
+| `vietnam_roads`     | `point-info`                   | `osm_id`, `name`, `ref`, `fclass`, `oneway`, `maxspeed`, `geom`                   |
+| `pois`              | `point-info`, kiểm tra startup | `id`, `name`, `category`, `geom`                                                  |
 
 `pois` có DDL trong `init/01-pois.sql`. DDL đầy đủ cho `streetview_images` và
 `vietnam_roads` không nằm trong các file schema đã kiểm tra; danh sách cột

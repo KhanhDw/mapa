@@ -1,439 +1,511 @@
+/* ==========================================================================
+   CoordSidebar commercial UI styles
+   ========================================================================== */
+
+:root {
+  --cs-bg: #ffffff;
+  --cs-border: #e4e4e7;
+  --cs-text-main: #09090b;
+  --cs-text-muted: #71717a;
+  --cs-primary: #2563eb;
+  --cs-primary-hover: #1d4ed8;
+  --cs-primary-light: #eff6ff;
+  --cs-card-bg: #f8fafc;
+  --cs-radius-sm: 6px;
+  --cs-radius-md: 10px;
+  --cs-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Base Layout */
 .coord-sidebar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 320px;
-    max-width: 100%;
-    z-index: 20;               /* trên .map-switcher (10), dưới modal (9999) */
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.25);
-    animation: coord-slide-in 0.2s ease-out;
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  height: 100%;
+  background-color: var(--cs-bg);
+  /* Thay đổi từ border-left sang border-right vì nằm bên trái */
+  border-right: 1px solid var(--cs-border);
+  border-left: none;
+  /* Đặt thành tuyệt đối để nổi lên trên bản đồ, không làm dịch chuyển bản đồ */
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  color: var(--cs-text-main);
+  user-select: none;
+  overflow: hidden;
 }
 
-@keyframes coord-slide-in {
-    from { transform: translateX(-100%); }
-    to   { transform: translateX(0); }
-}
-
+/* Header */
 .coord-sidebar__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--cs-border);
+  background: #ffffff;
 }
 
 .coord-sidebar__header h2 {
-    margin: 0;
-    font-size: 16px;
-    color: #0f172a;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cs-text-main);
+  letter-spacing: -0.01em;
+}
+
+.cs-zoom-tag {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--cs-text-muted);
+  font-weight: 400;
 }
 
 .coord-sidebar__close {
-    border: none;
-    background: transparent;
-    font-size: 18px;
-    cursor: pointer;
-    color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--cs-radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--cs-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.coord-sidebar__body {
-    margin: 0;
-    padding: 16px;
-    flex: 1;
-    overflow-y: auto;
+.coord-sidebar__close:hover {
+  background-color: #f4f4f5;
+  color: var(--cs-text-main);
 }
 
-.coord-sidebar__body dt {
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: #64748b;
-    margin-top: 14px;
-}
-
-.coord-sidebar__body dd {
-    margin: 4px 0 0;
-    font-size: 15px;
-    font-family: ui-monospace, Consolas, monospace;
-    color: #0f172a;
-}
-
-.coord-sidebar__copy {
-    margin: 16px;
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
-    background: #0b6e8a;
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-/* Đẩy thước tỷ lệ sang phải để khỏi bị sidebar che */
-.map-wrapper.has-sidebar .maplibregl-ctrl-bottom-left {
-    left: 320px;
-}
-
-/* ============================================================
-   CoordSidebar — polished UI
-   Khớp với JSX: __scroll, cs-coords, cs-seg, cs-btn, cs-section,
-   cs-chips, cs-skeleton, cs-error, cs-copy-status…
-   ============================================================ */
-
-.coord-sidebar {
-    position: absolute;
-    inset: 0 auto 0 0;               /* top:0 right:auto bottom:0 left:0 */
-    width: 340px;
-    max-width: 100%;
-    z-index: 20;                      /* trên .map-switcher (10), dưới modal (9999) */
-    display: flex;
-    flex-direction: column;
-    background: #ffffff;
-    border-right: 1px solid rgba(15, 23, 42, 0.06);
-    border-radius: 0 16px 16px 0;
-    box-shadow:
-        4px 0 24px rgba(15, 23, 42, 0.10),
-        1px 0 0 rgba(15, 23, 42, 0.04);
-    overflow: hidden;
-    animation: coord-slide-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-        "Helvetica Neue", Arial, sans-serif;
-    color: #0f172a;
-}
-
-@keyframes coord-slide-in {
-    from { transform: translateX(-100%); opacity: 0.4; }
-    to   { transform: translateX(0);     opacity: 1;   }
-}
-
-/* ---------------- Header ---------------- */
-.coord-sidebar__header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 16px 18px 14px;
-    border-bottom: 1px solid #eef2f7;
-    background: linear-gradient(180deg, #fbfdff 0%, #ffffff 100%);
-}
-
-.coord-sidebar__header > div { min-width: 0; }
-
-.coord-sidebar__header h2 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    line-height: 1.3;
-    color: #0f172a;
-}
-
-.coord-sidebar__close {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 9px;
-    background: transparent;
-    color: #64748b;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
-}
-.coord-sidebar__close:hover  { background: #f1f5f9; color: #0f172a; }
-.coord-sidebar__close:active { transform: scale(0.94); }
-.coord-sidebar__close:focus-visible {
-    outline: 2px solid #0ea5e9;
-    outline-offset: 2px;
-}
-
-/* ---------------- Scroll container ---------------- */
+/* Scroll Area */
 .coord-sidebar__scroll {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px 18px 20px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
-.coord-sidebar__scroll::-webkit-scrollbar { width: 8px; }
-.coord-sidebar__scroll::-webkit-scrollbar-track { background: transparent; }
+
+.coord-sidebar__scroll::-webkit-scrollbar {
+  width: 5px;
+}
 .coord-sidebar__scroll::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 999px;
-    border: 2px solid #fff;
-}
-.coord-sidebar__scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-/* ---------------- Block toạ độ ---------------- */
-.cs-coords {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 14px;
-    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+  background: #e4e4e7;
+  border-radius: 4px;
 }
 
-.cs-coords .cs-btn { align-self: stretch; }
-
-.cs-coords__value {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 2px 0;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-variant-numeric: tabular-nums;
-    font-size: 14.5px;
-    letter-spacing: 0.01em;
-    line-height: 1.5;
-    color: #0f172a;
-    user-select: all;
-    word-break: break-all;
+/* Empty State */
+.coord-sidebar--empty .cs-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  height: 100%;
 }
 
-/* ---------------- Segmented control ---------------- */
+.cs-empty-state__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--cs-primary-light);
+  color: var(--cs-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.cs-empty-state__title {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cs-empty-state__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--cs-text-muted);
+  line-height: 1.5;
+}
+
+/* Coordinates Card */
+.cs-coords-card {
+  background: var(--cs-card-bg);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cs-coords-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .cs-seg {
-    display: inline-flex;
-    align-self: flex-start;
-    gap: 2px;
-    padding: 3px;
-    background: #e8eef6;
-    border-radius: 9px;
+  display: flex;
+  background: #e4e4e7;
+  padding: 2px;
+  border-radius: var(--cs-radius-sm);
 }
 
-.cs-seg button {
-    border: none;
-    background: transparent;
-    padding: 6px 12px;
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
-    line-height: 1;
-    color: #475569;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-.cs-seg button:hover { color: #0f172a; }
-.cs-seg button[aria-pressed="true"] {
-    background: #ffffff;
-    color: #0b6e8a;
-    box-shadow:
-        0 1px 3px rgba(15, 23, 42, 0.12),
-        0 1px 1px rgba(15, 23, 42, 0.06);
-}
-.cs-seg button:focus-visible {
-    outline: 2px solid #0ea5e9;
-    outline-offset: 1px;
+.cs-seg__tab {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  color: var(--cs-text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-/* ---------------- Buttons ---------------- */
-.cs-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 9px 14px;
-    border: 1px solid transparent;
-    border-radius: 9px;
-    font: inherit;
-    font-size: 13.5px;
-    font-weight: 600;
-    line-height: 1.2;
-    cursor: pointer;
-    transition:
-        background 0.15s ease,
-        border-color 0.15s ease,
-        color 0.15s ease,
-        box-shadow 0.15s ease,
-        transform 0.1s ease;
-}
-.cs-btn:active { transform: translateY(1px); }
-.cs-btn:focus-visible {
-    outline: 2px solid #0ea5e9;
-    outline-offset: 2px;
+.cs-seg__tab.is-active {
+  background: #ffffff;
+  color: var(--cs-text-main);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.cs-btn--ghost {
-    background: #ffffff;
-    border-color: #d7e0ea;
-    color: #0b6e8a;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-.cs-btn--ghost:hover {
-    background: #f0f7fa;
-    border-color: #b7d3de;
-}
-
-.cs-btn--primary {
-    background: linear-gradient(180deg, #0e86a8 0%, #0b6e8a 100%);
-    color: #ffffff;
-    box-shadow:
-        0 1px 3px rgba(11, 110, 138, 0.35),
-        0 1px 2px rgba(11, 110, 138, 0.20);
-}
-.cs-btn--primary:hover {
-    background: linear-gradient(180deg, #0f92b8 0%, #0d7a97 100%);
-    box-shadow: 0 3px 10px rgba(11, 110, 138, 0.32);
+.cs-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cs-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--cs-radius-sm);
+  transition: background 0.15s ease;
 }
 
-/* ---------------- Copy status ---------------- */
-.cs-copy-status {
-    margin: 0;
-    min-height: 16px;
-    font-size: 12px;
-    line-height: 1.4;
-    color: #0b6e8a;
-}
-.cs-copy-status:empty { display: none; }
-
-/* ---------------- Error ---------------- */
-.cs-error {
-    margin: 0;
-    padding: 10px 12px;
-    font-size: 13px;
-    line-height: 1.45;
-    color: #991b1b;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-left: 3px solid #ef4444;
-    border-radius: 8px;
+.cs-copy-btn:hover {
+  background: var(--cs-primary-light);
 }
 
-/* ---------------- Sections ---------------- */
+.cs-copy-btn.is-success {
+  color: #16a34a;
+}
+
+.cs-coords-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #ffffff;
+  padding: 8px 12px;
+  border-radius: var(--cs-radius-sm);
+  border: 1px solid #f1f5f9;
+}
+
+.cs-coords-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cs-coords-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a1a1aa;
+  letter-spacing: 0.05em;
+}
+
+.cs-coords-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cs-text-main);
+}
+
+/* Sections */
 .cs-section {
-    padding-top: 16px;
-    border-top: 1px solid #eef2f7;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cs-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .cs-section__title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 10px;
-    font-size: 11.5px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cs-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cs-icon {
+  color: var(--cs-primary);
+}
+
+.cs-badge {
+  font-size: 11px;
+  font-weight: 600;
+  background: #f4f4f5;
+  color: var(--cs-text-muted);
+  padding: 2px 7px;
+  border-radius: 12px;
 }
 
 .cs-section__body {
-    font-size: 14px;
-    line-height: 1.5;
-    color: #1e293b;
-}
-.cs-section__body > * + * { margin-top: 8px; }
-
-.cs-icon {
-    flex: 0 0 auto;
-    color: #0b6e8a;
+  font-size: 14px;
 }
 
-/* ---------------- Text helpers ---------------- */
-.cs-text {
-    margin: 0;
-    font-size: 14.5px;
-    line-height: 1.5;
-    color: #1e293b;
-}
-.cs-text--strong {
-    font-weight: 600;
-    color: #0f172a;
+.cs-address-text {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--cs-text-main);
+  font-weight: 400;
 }
 
-.cs-muted {
-    margin: 2px 0 0;
-    font-size: 13px;
-    line-height: 1.45;
-    color: #64748b;
+/* Road Card */
+.cs-road-card {
+  background: var(--cs-card-bg);
+  border-radius: var(--cs-radius-md);
+  padding: 12px;
+  border: 1px solid var(--cs-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* ---------------- Chips ---------------- */
-.cs-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+.cs-road-card__name {
+  margin: 0 0 6px 0;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.cs-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .cs-chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.4;
-    color: #334155;
-    background: #eef4f8;
-    border: 1px solid rgba(11, 110, 138, 0.06);
-    border-radius: 999px;
-    letter-spacing: 0.01em;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #e4e4e7;
+  color: #3f3f46;
 }
 
-.cs-chip--ref {
-    background: #0b6e8a;
-    color: #ffffff;
-    border-color: transparent;
+.cs-chip--primary {
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
 }
 
-/* ---------------- Skeleton ---------------- */
+.cs-chip--neutral {
+  background: #f4f4f5;
+  color: #71717a;
+}
+
+.cs-road-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--cs-text-muted);
+}
+
+.cs-dot {
+  color: #d4d4d8;
+}
+
+/* POI List */
+.cs-poi-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cs-poi-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+  padding: 8px 10px;
+  background: #ffffff;
+  transition: all 0.15s ease;
+}
+
+.cs-poi-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: var(--cs-shadow-sm);
+}
+
+.cs-poi-item__action {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+}
+
+.cs-poi-item__title {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cs-text-main);
+  margin-bottom: 2px;
+}
+
+.cs-poi-item__details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.cs-poi-item__cat {
+  color: var(--cs-primary);
+  font-weight: 500;
+}
+
+.cs-poi-item__dist {
+  color: var(--cs-text-muted);
+}
+
+.cs-btn-360 {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cs-primary);
+  background: var(--cs-primary-light);
+  border: 1px solid #bfdbfe;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 8px;
+}
+
+.cs-btn-360:hover {
+  background: #dbeafe;
+}
+
+/* StreetView Card */
+.cs-sv-card {
+  background: var(--cs-card-bg);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cs-sv-card__info {
+  display: flex;
+  flex-direction: column;
+}
+
+.cs-sv-card__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cs-sv-card__sub {
+  font-size: 12px;
+  color: var(--cs-text-muted);
+}
+
+/* Buttons */
+.cs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--cs-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cs-btn--primary {
+  background: var(--cs-primary);
+  color: #ffffff;
+}
+
+.cs-btn--primary:hover {
+  background: var(--cs-primary-hover);
+}
+
+/* Skeleton & Error */
 .cs-skeleton {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .cs-skeleton__line {
-    display: block;
-    height: 12px;
-    border-radius: 6px;
-    background: linear-gradient(90deg, #eef2f7 0%, #e2e8f0 40%, #eef2f7 80%);
-    background-size: 200% 100%;
-    animation: cs-shimmer 1.4s ease-in-out infinite;
-}
-.cs-skeleton__line:nth-child(2) { width: 85%; }
-.cs-skeleton__line:nth-child(3) { width: 60%; }
-
-@keyframes cs-shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+  height: 14px;
+  background: #f4f4f5;
+  border-radius: 4px;
+  animation: pulse 1.5s infinite ease-in-out;
 }
 
-/* ---------------- Đẩy scale bar tránh sidebar ---------------- */
-.map-wrapper.has-sidebar .maplibregl-ctrl-bottom-left {
-    left: 340px;
-    transition: left 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
-/* ---------------- Responsive ---------------- */
-@media (max-width: 480px) {
-    .coord-sidebar {
-        width: 100%;
-        border-right: none;
-        border-radius: 0;
-    }
-    .map-wrapper.has-sidebar .maplibregl-ctrl-bottom-left {
-        left: 0;
-    }
+.cs-alert--error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 10px 12px;
+  border-radius: var(--cs-radius-sm);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
-/* ---------------- Reduced motion ---------------- */
-@media (prefers-reduced-motion: reduce) {
-    .coord-sidebar,
-    .map-wrapper.has-sidebar .maplibregl-ctrl-bottom-left {
-        animation: none;
-        transition: none;
-    }
-    .cs-skeleton__line { animation: none; }
+.cs-muted {
+  font-size: 13px;
+  color: var(--cs-text-muted);
+  margin: 0;
 }
