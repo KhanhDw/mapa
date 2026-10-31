@@ -8,11 +8,13 @@ export default defineConfig({
     allowedHosts: [
       '.ngrok-free.app',
       '.ngrok.app',
-      '.ngrok-free.dev', // Thêm vào để phòng trường hợp
-      '.ngrok.dev',      // Thêm vào để phòng trường hợp
+      '.ngrok-free.dev',
+      '.ngrok.dev',
     ],
+    // Sửa lại phần HMR
     hmr: {
-      clientPort: 443, // Bắt buộc cho tunnel HTTPS
+      // Bắt buộc dùng 'wss' khi truy cập qua tunnel HTTPS
+      clientPort: 443,
     },
     proxy: {
       '/api': {

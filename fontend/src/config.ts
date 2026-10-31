@@ -1,10 +1,10 @@
 export const API_BASE =
-    import.meta.env.VITE_API_BASE ?? "";
+    import.meta.env.VITE_API_BASE ?? window.location.origin;
 
 export const TILE_BASE =
     import.meta.env.VITE_TILE_BASE ??
     import.meta.env.VITE_TILESERVER_URL ??
-    "/tileserver";
+    `${window.location.origin}/tileserver`;
 
 export const SATELLITE_TILE_URL =
     import.meta.env.VITE_SATELLITE_URL ??
