@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MapLibreMap } from "maplibre-gl";
@@ -7,17 +6,22 @@ import "./EsriSatelliteMap.css";
 
 import { StreetViewModal } from "../../streetview/StreetViewModal/StreetViewModal";
 import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSidebar";
-import { LayersPanel, SettingsPanel } from "../../layout/panels";
 import type { PanelType } from "../../layout/Activitybar";
 
 import { API_BASE, ESRI_SATELLITE_TILE_URL, getMapLibreWorkerUrl } from "../../../config";
 
 import { ESRI_INITIAL_VIEW, SV_LAYER_ID } from "./constants";
+
 import { addRoadsLayer } from "./layers/roadsLayer";
 import { addStreetViewLayer } from "./layers/streetViewLayer";
 import { useStreetViewPoints } from "./hooks/useStreetViewPoints";
 import { useClickMarker } from "./hooks/useClickMarker";
 import { useClickPointInfo } from "./hooks/useClickPointInfo";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { LayersPanel, SettingsPanel, DEFAULT_LAYERS } from "../../layout/panels";
+import type { LayerKey, LayerVisibility } from "../../layout/panels";
+import { applyLayerVisibility } from "./layers/applyLayerVisibility";
 
 
 interface Props {
@@ -35,6 +39,19 @@ function EsriSatelliteMap({
     const mapRef = useRef<MapLibreMap | null>(null);
 
     const [mapReady, setMapReady] = useState(false);
+
+
+    const [layers, setLayers] = useState<LayerVisibility>(DEFAULT_LAYERS);
+
+    const toggleLayer = useCallback((key: LayerKey) => {
+        setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
+    }, []);
+
+    // Áp dụng bật/tắt lớp. Phụ thuộc geojson vì layer 360 chỉ tồn tại sau khi fetch xong.
+    useEffect(() => {
+        if (!mapReady || !mapRef.current) return;
+        applyLayerVisibility(mapRef.current, layers);
+    }, [mapReady, layers]);
 
     const [svModal, setSvModal] = useState<{
         open: boolean;
@@ -206,7 +223,13 @@ function EsriSatelliteMap({
                 />
             )}
 
-            {showLayers && <LayersPanel onClose={() => onPanelClose?.()} />}
+            {showLayers && (
+                <LayersPanel
+                    layers={layers}
+                    onToggle={toggleLayer}
+                    onClose={() => onPanelClose?.()}
+                />
+            )}
             {showSettings && <SettingsPanel onClose={() => onPanelClose?.()} />}
 
             {svModal?.open &&

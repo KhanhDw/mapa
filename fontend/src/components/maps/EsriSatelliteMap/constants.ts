@@ -20,3 +20,4 @@ export const ROADS_LAYER_ID = "roads-pg-layer";
 export const SV_SOURCE_ID = "sv-points";
 export const SV_LAYER_ID = "sv-points-layer";
 export const SV_ICON_ID = "sv-x-icon";
+export const ROADS_LABEL_LAYER_ID = "roads-label-layer";
