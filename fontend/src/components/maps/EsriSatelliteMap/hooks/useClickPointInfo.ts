@@ -5,6 +5,7 @@ import type {
     RoadInfo,
     StreetViewHit,
 } from "../../../sidebar/CoordSidebar/CoordSidebar";
+import { POINT_INFO_POI_LIMIT, POINT_INFO_RADIUS_M } from "../constants";
 
 export interface PointInfoResponse {
     road: RoadInfo | null;
@@ -20,8 +21,8 @@ interface Result {
 }
 
 /**
- * Fetch thông tin điểm (road / streetview / address / pois) khi người dùng click map.
- * Tự cancel request cũ nếu click liên tục.
+ * Fetch /api/point-info khi click map (spec §4.3).
+ * Params: lng, lat, radius_m, poi_limit — KHÔNG gửi zoom.
  */
 export function useClickPointInfo(
     apiBase: string,
@@ -39,36 +40,35 @@ export function useClickPointInfo(
             return;
         }
 
-        let cancelled = false;
+        const controller = new AbortController();
         setLoading(true);
-        setData(null);        // ✅ FIX: xoá data điểm cũ trước khi fetch điểm mới
+        setData(null);
         setError(null);
 
         const params = new URLSearchParams({
             lng: String(clickInfo.lng),
             lat: String(clickInfo.lat),
-            zoom: String(clickInfo.zoom),
+            radius_m: String(POINT_INFO_RADIUS_M),
+            poi_limit: String(POINT_INFO_POI_LIMIT),
         });
 
-        fetch(`${apiBase}/api/point-info?${params.toString()}`)
+        fetch(`${apiBase.replace(/\/+$/, "")}/api/point-info?${params}`, {
+            signal: controller.signal,
+        })
             .then((r) => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json() as Promise<PointInfoResponse>;
             })
-            .then((d) => {
-                if (!cancelled) setData(d);
-            })
+            .then((d) => setData(d))
             .catch((err: Error) => {
-                if (!cancelled) setError(err);
+                if (err.name !== "AbortError") setError(err);
             })
             .finally(() => {
-                if (!cancelled) setLoading(false);
+                if (!controller.signal.aborted) setLoading(false);
             });
 
-        return () => {
-            cancelled = true;
-        };
-    }, [apiBase, clickInfo?.lat, clickInfo?.lng, clickInfo?.zoom]);
+        return () => controller.abort();
+    }, [apiBase, clickInfo?.lat, clickInfo?.lng]);
 
     return { data, loading, error };
 }
