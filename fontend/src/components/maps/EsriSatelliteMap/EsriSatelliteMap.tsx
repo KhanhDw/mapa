@@ -3,7 +3,7 @@ import * as maplibregl from "maplibre-gl";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./EsriSatelliteMap.css";
-
+import { addExtraLayers } from "./layers/addExtraLayers";
 import { StreetViewModal } from "../../streetview/StreetViewModal/StreetViewModal";
 import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSidebar";
 import type { PanelType } from "../../layout/Activitybar";
@@ -129,6 +129,7 @@ function EsriSatelliteMap({
 
         map.on("load", () => {
             addRoadsLayer(map);
+            addExtraLayers(map);
             addPoisLayer(map);
             ensureStreetViewLayer({
                 map,
