@@ -41,6 +41,7 @@ export function useClickPointInfo(
 
         let cancelled = false;
         setLoading(true);
+        setData(null);        // ✅ FIX: xoá data điểm cũ trước khi fetch điểm mới
         setError(null);
 
         const params = new URLSearchParams({

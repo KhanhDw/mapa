@@ -4,6 +4,7 @@ import {
   type PanelType,
   type MapType,
 } from "./components/layout/Activitybar";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import EsriSatelliteMap from "./components/maps/EsriSatelliteMap/EsriSatelliteMap";
 import SatelliteMap from "./components/maps/SatelliteMap/SatelliteMap";
 import OsmPolygonMap from "./components/maps/OsmPolygonMap/OsmPolygonMap";
@@ -15,6 +16,8 @@ const SHOW_SWITCHER = import.meta.env.VITE_SHOW_MAP_SWITCHER === "true";
 export default function App() {
   const [mapType, setMapType] = useState<MapType>("esri");
   const [activePanel, setActivePanel] = useState<PanelType | null>(null);
+  // ✅ Mỗi lần reset error → bump mapKey → ErrorBoundary + subtree remount sạch
+  const [mapKey, setMapKey] = useState(0);
 
   const handlePanelToggle = (panel: PanelType) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
@@ -30,16 +33,21 @@ export default function App() {
         showMapSwitcher={SHOW_SWITCHER}
       />
       <div className="app-content">
-        {mapType === "esri" && (
-          <EsriSatelliteMap
-            activePanel={activePanel}
-            onAutoShowInfo={() => setActivePanel("info")}
-            onPanelClose={() => setActivePanel(null)}
-          />
-        )}
-        {mapType === "selfhost" && <SatelliteMap />}
-        {mapType === "osm" && <OsmPolygonMap />}
-        {mapType === "test" && <TestPSV />}
+        <ErrorBoundary
+          key={`${mapType}-${mapKey}`}
+          onReset={() => setMapKey((k) => k + 1)}
+        >
+          {mapType === "esri" && (
+            <EsriSatelliteMap
+              activePanel={activePanel}
+              onAutoShowInfo={() => setActivePanel("info")}
+              onPanelClose={() => setActivePanel(null)}
+            />
+          )}
+          {mapType === "selfhost" && <SatelliteMap />}
+          {mapType === "osm" && <OsmPolygonMap />}
+          {mapType === "test" && <TestPSV />}
+        </ErrorBoundary>
       </div>
     </div>
   );
