@@ -31,26 +31,43 @@ _SV_SQL = """
     LIMIT 1
 """
 
+# POI = public.pois (nguồn OSM) + user_data.pois (người dùng thêm).
+# Hai bảng dùng hai sequence riêng nên id có thể trùng -> luôn trả kèm "source".
+# LIMIT áp dụng TRƯỚC khi tìm Street View gần nhất để LATERAL chỉ chạy tối đa $4 lần.
 _POI_SQL = """
     WITH ref AS (
         SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326) AS pt
+    ),
+    cand AS (
+        SELECT 'osm'::text AS source, p.id, p.name, p.category, p.geom,
+               0 AS photo_count
+        FROM public.pois p CROSS JOIN ref
+        WHERE ST_DWithin(p.geom::geography, ref.pt::geography, $3::float8)
+        UNION ALL
+        SELECT 'user'::text, u.id, u.name, u.category, u.geom,
+               (SELECT count(*)::int FROM user_data.poi_photos ph WHERE ph.poi_id = u.id)
+        FROM user_data.pois u CROSS JOIN ref
+        WHERE ST_DWithin(u.geom::geography, ref.pt::geography, $3::float8)
+    ),
+    top AS (
+        SELECT c.*, ST_Distance(c.geom::geography, ref.pt::geography) AS distance_m
+        FROM cand c CROSS JOIN ref
+        ORDER BY distance_m, c.source, c.id
+        LIMIT $4
     )
-    SELECT p.id, p.name, p.category,
-           ST_X(p.geom) AS lng, ST_Y(p.geom) AS lat,
-           ST_Distance(p.geom::geography, ref.pt::geography) AS distance_m,
+    SELECT t.source, t.id, t.name, t.category, t.photo_count,
+           ST_X(t.geom) AS lng, ST_Y(t.geom) AS lat, t.distance_m,
            sv.id AS streetview_id, sv.dist AS streetview_distance_m
-    FROM public.pois p CROSS JOIN ref
+    FROM top t
     LEFT JOIN LATERAL (
         SELECT s.id,
-               ST_Distance(s.geom::geography, p.geom::geography) AS dist
+               ST_Distance(s.geom::geography, t.geom::geography) AS dist
         FROM public.streetview_images s
-        WHERE ST_DWithin(s.geom::geography, p.geom::geography, 100)
-        ORDER BY s.geom <-> p.geom
+        WHERE ST_DWithin(s.geom::geography, t.geom::geography, 100)
+        ORDER BY s.geom <-> t.geom
         LIMIT 1
     ) sv ON TRUE
-    WHERE ST_DWithin(p.geom::geography, ref.pt::geography, $3::float8)
-    ORDER BY p.geom <-> ref.pt
-    LIMIT $4
+    ORDER BY t.distance_m, t.source, t.id
 """
 
 
@@ -70,9 +87,11 @@ def _to_road(row) -> dict | None:
 
 def _to_poi(row) -> dict:
     return {
+        "source": row["source"],                # "osm" | "user"  -> khóa là (source, id)
         "id": int(row["id"]),
         "name": row["name"],
         "category": row["category"],
+        "photo_count": int(row["photo_count"]),
         "lng": float(row["lng"]),
         "lat": float(row["lat"]),
         "distance_m": float(row["distance_m"]),
