@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "back": "cd backend && python -m uvicorn src.main:app --reload --host 127.0.0.1 --port 8000",
+    "font": "cd fontend && npm run dev",
+    "init-back": "cd backend && python -m pip install -r requirements.txt"
+  },
   "dependencies": {
     "osmtogeojson": "^3.0.0-beta.5"
   },
