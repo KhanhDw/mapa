@@ -1,6 +1,6 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClickInfo } from "../../../sidebar/CoordSidebar/CoordSidebar";
 import { SV_LAYER_ID } from "../constants";
 
@@ -55,11 +55,12 @@ export function useClickMarker(map: MapLibreMap | null): Result {
         };
     }, [map]);
 
-    const clear = () => {
+    const clear = useCallback(() => {
         markerRef.current?.remove();
         markerRef.current = null;
         setClickInfo(null);
-    };
+    }, []);
+
 
     return { clickInfo, clear };
 }

@@ -28,13 +28,24 @@ export function useStreetViewPoints(apiBase: string): Result {
             .then((data) => {
                 if (cancelled) return;
 
-                const parsed: StreetViewPoint[] = data.features.map(
-                    (f: any) => ({
+                // ✅ FIX: guard trước khi parse — tránh crash khi backend trả {error:...}
+                // hoặc response rỗng do proxy 404
+                if (!data || !Array.isArray(data.features)) {
+                    throw new Error(
+                        "Phản hồi /api/streetview/points không phải GeoJSON hợp lệ"
+                    );
+                }
+
+                const parsed: StreetViewPoint[] = data.features
+                    .filter(
+                        (f: any) =>
+                            f?.geometry?.coordinates?.length >= 2
+                    )
+                    .map((f: any) => ({
                         ...f.properties,
                         lng: f.geometry.coordinates[0],
                         lat: f.geometry.coordinates[1],
-                    })
-                );
+                    }));
 
                 setGeojson(data);
                 setPoints(parsed);

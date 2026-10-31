@@ -4,7 +4,6 @@ import * as maplibregl from "maplibre-gl";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./EsriSatelliteMap.css";
-import { getVersion, setWorkerUrl } from "maplibre-gl";
 
 import { StreetViewModal } from "../../streetview/StreetViewModal/StreetViewModal";
 import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSidebar";
@@ -19,6 +18,7 @@ import { addStreetViewLayer } from "./layers/streetViewLayer";
 import { useStreetViewPoints } from "./hooks/useStreetViewPoints";
 import { useClickMarker } from "./hooks/useClickMarker";
 import { useClickPointInfo } from "./hooks/useClickPointInfo";
+
 
 interface Props {
     activePanel?: PanelType | null;
@@ -50,7 +50,12 @@ function EsriSatelliteMap({
 
     // ================= Click marker =================
     const { clickInfo, clear } = useClickMarker(mapReady ? mapRef.current : null);
-
+    // ✅ FIX: đóng panel "info" (qua ActivityBar HOẶC nút X) đều phải clear marker
+    useEffect(() => {
+        if (activePanel !== "info") {
+            clear();
+        }
+    }, [activePanel, clear]);
     // ================= Point info =================
     const {
         data: pointInfo,
@@ -71,7 +76,9 @@ function EsriSatelliteMap({
     useEffect(() => {
         if (!mapContainer.current || mapRef.current) return;
 
-        setWorkerUrl(getMapLibreWorkerUrl(getVersion()));
+        maplibregl.setWorkerUrl(
+            getMapLibreWorkerUrl(maplibregl.getVersion())
+        );
 
         const map = new maplibregl.Map({
             container: mapContainer.current,
@@ -169,7 +176,6 @@ function EsriSatelliteMap({
     };
 
     const handleClose = () => {
-        clear();
         onPanelClose?.();
     };
 
