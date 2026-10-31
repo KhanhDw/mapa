@@ -1,3 +1,4 @@
+// fontend\src\components\maps\EsriSatelliteMap\layers\roadsLayer.ts
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { TILE_BASE } from "../../../../config";
 import { ROADS_LAYER_ID, ROADS_SOURCE_ID } from "../constants";

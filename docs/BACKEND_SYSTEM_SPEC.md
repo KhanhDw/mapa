@@ -2,217 +2,210 @@
 
 ## 1. Tổng quan
 
-Hệ thống bản đồ gồm giao diện web, API backend và các dịch vụ dữ liệu không
-gian. Backend hiện được cài đặt bằng FastAPI trong [`backend/main.py`](../backend/main.py).
-API truy vấn PostGIS qua `asyncpg`, cung cấp thông tin điểm trên bản đồ và dữ
-liệu Street View 360. Ảnh panorama được phục vụ dưới dạng static files.
-
-Backend **không phải là một service trong Docker Compose**. Nó chạy riêng trên
-máy phát triển ở `127.0.0.1:8000`; các container cung cấp database, vector
-tiles và bản đồ nền. Cấu hình các container được mô tả trong
-[`docker-compose.yml`](../docker-compose.yml).
+Backend là API FastAPI chạy riêng trên máy host, không nằm trong Docker Compose.
+Ứng dụng phục vụ API bản đồ, ảnh panorama và ảnh do người dùng tải lên; dữ liệu
+không gian được truy vấn trong PostgreSQL/PostGIS.
 
 ```text
 Trình duyệt
-  ├─ API / ảnh panorama ──> FastAPI (127.0.0.1:8000)
-  │                           └─ asyncpg pool ──> PostGIS (127.0.0.1:5432)
-  ├─ Vector tiles ─────────> pg_tileserv (127.0.0.1:7800)
-  │                           └───────────────> PostGIS
-  └─ Raster/vector basemap > VersaTiles (127.0.0.1:8080)
+  ├─ /api, /panoramas, /user-media ──> FastAPI (127.0.0.1:8000)
+  │                                      └─ asyncpg pool ──> PostGIS (127.0.0.1:5432)
+  ├─ /tileserver ────────────────────> pg_tileserv (127.0.0.1:7800)
+  └─ /satellite/tiles ───────────────> VersaTiles (127.0.0.1:8080)
 ```
 
-Trong môi trường phát triển, Vite có thể proxy các đường dẫn API/tile. Khi chia
-sẻ ứng dụng qua ngrok, tunnel trỏ đến frontend; không cần public trực tiếp cổng
-database.
+Trong chế độ phát triển, Vite proxy các đường dẫn trên đến các dịch vụ local.
+Khi chia sẻ ứng dụng qua tunnel, chỉ expose frontend; không public trực tiếp
+cổng PostgreSQL.
 
-## 2. Thành phần và công nghệ
+## 2. Thành phần
 
-| Thành phần        | Công nghệ / vai trò                                        |
-| ----------------- | ---------------------------------------------------------- |
-| API               | Python, FastAPI, Uvicorn                                   |
-| Truy cập database | `asyncpg`, connection pool bất đồng bộ                     |
-| Database          | PostgreSQL với PostGIS; container `postgis/postgis:17-3.5` |
-| Vector tile động  | `pg_tileserv`, kết nối bằng role `tile_reader`             |
-| Bản đồ nền tĩnh   | VersaTiles, đọc các file `.versatiles` trong `data/`       |
-| Ảnh Street View   | Static files từ thư mục panorama trên máy chạy backend     |
+| Thành phần | Công nghệ / vai trò |
+| --- | --- |
+| API | Python, FastAPI, Uvicorn |
+| Truy cập database | `asyncpg`, pool bất đồng bộ |
+| Database | PostgreSQL/PostGIS, cấu hình trong [`docker-compose.yml`](../docker-compose.yml) |
+| Ảnh | Static files trong các thư mục panorama và user media |
+| Router | [`backend/src/routers/streetview.py`](../backend/src/routers/streetview.py), [`point_info.py`](../backend/src/routers/point_info.py), [`contribute.py`](../backend/src/routers/contribute.py) |
+| Khởi tạo ứng dụng | [`backend/src/main.py`](../backend/src/main.py), cấu hình tại [`backend/src/config.py`](../backend/src/config.py) |
 
-Dependency Python được liệt kê trong [`backend/requirements.txt`](../backend/requirements.txt).
+Dependency Python nằm trong [`backend/requirements.txt`](../backend/requirements.txt).
 
-## 3. Cấu hình và khởi động
+## 3. Cấu hình và chạy
 
-### Biến môi trường
+Backend đọc `backend/.env` bằng `python-dotenv`. Biến đã được thiết lập trong
+môi trường tiến trình vẫn được sử dụng.
 
-Backend nạp `backend/.env` (nếu có) bằng `python-dotenv`; biến môi trường của
-tiến trình vẫn được sử dụng nếu đã khai báo bên ngoài.
+| Biến | Bắt buộc | Mặc định / ý nghĩa |
+| --- | --- | --- |
+| `DATABASE_URL` | Có | URI PostgreSQL. Thiếu biến này thì import ứng dụng thất bại. |
+| `PANORAMAS_DIR` | Không | `backend/data/panoramas`; nơi lưu ảnh panorama. |
+| `USER_MEDIA_DIR` | Không | `backend/data/user_media`; nơi lưu ảnh POI và thumbnail. |
+| `WRITE_API_KEY` | Cần cho API ghi | Khóa gửi qua header `X-API-Key`; nếu chưa cấu hình, API ghi trả `503`. |
+| `MAX_UPLOAD_MB` | Không | Giới hạn kích thước mỗi file; mặc định `30` MB. |
+| `PANO_MIN_WIDTH` | Không | Chiều rộng tối thiểu của ảnh panorama; mặc định `1024` pixel. |
 
-| Biến            | Bắt buộc | Ý nghĩa                                                                                                             |
-| --------------- | -------: | ------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`  |       Có | URI kết nối PostgreSQL. Thiếu biến này thì ứng dụng dừng ngay khi import module.                                    |
-| `PANORAMAS_DIR` |    Không | Thư mục ảnh static; mặc định `data/panoramas`. Đường dẫn tương đối được tính theo working directory của tiến trình. |
-
-Ví dụ định dạng URI (thay bằng thông tin phù hợp, không đưa mật khẩu thật vào
-tài liệu hoặc Git):
+Ví dụ URI database, không dùng mật khẩu thật trong tài liệu hoặc Git:
 
 ```dotenv
 DATABASE_URL=postgresql://<user>:<password>@127.0.0.1:5432/webmap_db
 PANORAMAS_DIR=data/panoramas
+USER_MEDIA_DIR=data/user_media
+WRITE_API_KEY=<set-a-private-key>
 ```
 
-URI của backend chạy trên máy host cần kết nối tới cổng đã publish
-`127.0.0.1:5432`. Đặt `DATABASE_URL` trong `backend/.env`; mật khẩu PostgreSQL
-cần đồng bộ với `PG_PASSWORD` được Docker Compose sử dụng.
+Thư mục mặc định của ảnh được xác định từ thư mục `backend`; hai thư mục ảnh
+được tạo khi ứng dụng khởi động. Cấu hình quyền database cần tương ứng với
+[`db/migrations/05_user_data.sql`](../db/migrations/05_user_data.sql).
 
-### Chạy ở môi trường phát triển
+Khởi động dịch vụ database và backend từ thư mục gốc:
 
-1. Tạo `.env` từ `.env.example`, thay các giá trị mật khẩu mẫu; cấu hình
-   `backend/.env` với `DATABASE_URL`.
-2. Khởi chạy các dịch vụ dữ liệu: `docker compose up -d`.
-3. Kích hoạt môi trường Python và chạy từ thư mục gốc:
+```powershell
+docker compose up -d
+Set-Location backend
+python -m pip install -r requirements.txt
+python -m uvicorn src.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-   ```powershell
-   .\backend\myenv\Scripts\Activate.ps1
-   python -m backend.main
-   ```
+Hoặc dùng lệnh root `npm run back`. Backend phục vụ OpenAPI UI tại
+`http://127.0.0.1:8000/docs` và schema tại `/openapi.json`.
 
-4. Uvicorn chạy tại `http://127.0.0.1:8000` với auto-reload theo thư mục
-   `backend/`.
+### Pool kết nối
 
-FastAPI cung cấp OpenAPI UI mặc định tại `/docs` và schema tại `/openapi.json`.
+- Khi startup, tạo pool `asyncpg` với `min_size=2`, `max_size=10` và
+  `command_timeout=10` giây.
+- Kiểm tra startup ghi nhận kết nối và sự tồn tại của `public.pois`; kiểm tra
+  này không thay thế health check đầy đủ.
+- Pool đóng khi ứng dụng shutdown.
+- Nếu pool chưa sẵn sàng, dependency database trả HTTP `503`.
 
-### Vòng đời kết nối
+## 4. Middleware và static files
 
-- Khi khởi động ứng dụng, FastAPI tạo pool `asyncpg` với `min_size=2`,
-  `max_size=10`, `command_timeout=10` giây.
-- Backend kiểm tra sự tồn tại của `public.pois` để ghi trạng thái startup; đây
-  là thông tin chẩn đoán, không thay thế health check đầy đủ.
-- Mỗi handler lấy connection từ pool và trả connection về pool sau truy vấn.
-- Khi shutdown, pool được đóng.
-- Nếu pool chưa sẵn sàng, endpoint database trả HTTP `503`.
+- CORS hiện cho phép mọi origin, method và header; credentials bị tắt.
+- GZip nén response từ 1.000 byte.
+- `/panoramas` phục vụ `PANORAMAS_DIR`; `/user-media` phục vụ `USER_MEDIA_DIR`.
+- `image_url` lưu trong database thường là đường dẫn tương đối như
+  `/panoramas/<file>.jpg` hoặc `/user-media/<poi_id>/<file>.jpg`.
+- Thư mục ảnh không nằm trong volume PostGIS. Khi triển khai, cần bảo đảm chúng
+  được lưu bền vững và được backup cùng database.
 
-## 4. HTTP middleware và static files
-
-- CORS cho phép mọi origin, method và header; credentials bị tắt.
-- GZip được áp dụng cho response có kích thước tối thiểu 1.000 byte.
-- Thư mục panorama được tạo nếu chưa có và mount tại `/panoramas`.
-- Ảnh trong database dùng `image_url` (thường là `/panoramas/<tên-file>`); file
-  tương ứng phải tồn tại dưới `PANORAMAS_DIR`.
-
-## 5. API hiện có
-
-Các endpoint dưới đây được triển khai trực tiếp trong [`backend/main.py`](../backend/main.py).
-Các truy vấn sử dụng parameter binding của `asyncpg`.
+## 5. API đọc
 
 ### `GET /health`
 
-Kiểm tra pool và thực hiện `SELECT 1`.
+Thực hiện `SELECT 1` qua pool.
 
-- `200`: `{"status":"ok"}`
+- `200`: `{"status":"ok"}`.
 - `503`: pool chưa sẵn sàng.
-- Lỗi kết nối database sẽ được chuyển thành lỗi HTTP của FastAPI.
 
 ### `GET /api/streetview/points`
 
-Trả danh sách điểm panorama dưới dạng GeoJSON `FeatureCollection`.
+Trả GeoJSON `FeatureCollection` từ `public.streetview_images`.
 
-| Query parameter                | Mặc định | Ràng buộc / ý nghĩa                                    |
-| ------------------------------ | -------: | ------------------------------------------------------ |
-| `minx`, `miny`, `maxx`, `maxy` | Không có | Nếu cung cấp đủ cả bốn, lọc theo bbox trong EPSG:4326. |
-| `limit`                        |   `5000` | Số nguyên từ 1 đến 20.000.                             |
+| Tham số | Mặc định | Ràng buộc / ý nghĩa |
+| --- | ---: | --- |
+| `minx`, `miny`, `maxx`, `maxy` | Không có | Chỉ lọc bounding box khi có đủ cả bốn tọa độ; EPSG:4326. |
+| `limit` | `5000` | Số nguyên từ 1 đến 20.000. |
 
-Nếu bbox đầy đủ nhưng `minx >= maxx` hoặc `miny >= maxy`, API trả `400`.
-Nếu không đủ cả bốn tọa độ, API bỏ qua bbox và trả các điểm theo `id` trong
-giới hạn yêu cầu.
-
-Feature có `geometry` kiểu `Point`, tọa độ `[longitude, latitude]`; `properties`
-gồm `id`, `image_url`, `heading`, `next_ids` và `link_positions`. Giá trị
-`next_ids`/`link_positions` rỗng được chuẩn hóa thành mảng rỗng.
+Nếu bbox đầy đủ nhưng `minx >= maxx` hoặc `miny >= maxy`, trả `400`. Bbox
+không đầy đủ bị bỏ qua. Mỗi feature có `Point` với tọa độ
+`[longitude, latitude]` và properties `id`, `image_url`, `heading`, `next_ids`,
+`link_positions`. Giá trị liên kết rỗng được trả thành mảng rỗng.
 
 ### `GET /api/streetview/image/{image_id}`
 
-Trả chi tiết một panorama theo ID: `id`, `lng`, `lat`, `image_url`, `heading`,
-`next_ids`, `link_positions`, `captured_at`.
-
-- `captured_at` được đổi thành chuỗi ISO-8601 hoặc `null`.
-- Không tìm thấy bản ghi: `404`.
-- Database chưa sẵn sàng: `503`.
+Trả chi tiết panorama gồm `id`, `lng`, `lat`, `image_url`, `heading`,
+`next_ids`, `link_positions` và `captured_at`. Thời gian được đổi sang
+ISO-8601 hoặc `null`; không có bản ghi thì trả `404`.
 
 ### `GET /api/point-info`
 
-Tra cứu đường, panorama gần nhất và POI quanh tọa độ. Tất cả khoảng cách được
-tính theo mét trên kiểu `geography`.
+Tra cứu đường, panorama gần nhất và POI quanh tọa độ. Khoảng cách trả về tính
+bằng mét.
 
-| Query parameter | Bắt buộc | Mặc định | Ràng buộc                                                   |
-| --------------- | -------: | -------: | ----------------------------------------------------------- |
-| `lng`           |       Có |        — | Từ -180 đến 180.                                            |
-| `lat`           |       Có |        — | Từ -90 đến 90.                                              |
-| `zoom`          |    Không |     `13` | Từ 0 đến 22; hiện được nhận nhưng chưa dùng trong truy vấn. |
-| `radius_m`      |    Không |    `200` | Từ 10 đến 2.000 mét.                                        |
-| `poi_limit`     |    Không |     `10` | Từ 1 đến 50.                                                |
+| Tham số | Bắt buộc | Mặc định | Ràng buộc |
+| --- | --- | ---: | --- |
+| `lng` | Có | — | -180 đến 180 |
+| `lat` | Có | — | -90 đến 90 |
+| `zoom` | Không | `13` | 0 đến 22; hiện chưa ảnh hưởng truy vấn |
+| `radius_m` | Không | `50` | 10 đến 1.000 mét |
+| `poi_limit` | Không | `10` | 1 đến 50 |
 
-Response có cấu trúc:
+Response gồm:
 
-```json
-{
-  "road": {
-    "osm_id": "...",
-    "name": "...",
-    "ref": "...",
-    "fclass": "...",
-    "oneway": "...",
-    "maxspeed": "...",
-    "distance_m": 0.0
-  },
-  "streetview": { "id": 1, "distance_m": 0.0 },
-  "address": null,
-  "pois": [
-    {
-      "id": 1,
-      "name": "...",
-      "category": "...",
-      "lng": 0.0,
-      "lat": 0.0,
-      "distance_m": 0.0,
-      "streetview_id": 1,
-      "streetview_distance_m": 0.0
-    }
-  ]
-}
-```
+- `road`: `osm_id`, `name`, `ref`, `fclass`, `oneway`, `maxspeed`,
+  `distance_m`, hoặc `null`.
+- `streetview`: `id`, `distance_m`, hoặc `null`.
+- `address`: hiện luôn là `null` (chưa tích hợp reverse geocoding).
+- `pois`: kết quả từ cả `public.pois` (`source: "osm"`) và
+  `user_data.pois` (`source: "user"`). Mỗi phần tử có `source`, `id`, `name`,
+  `category`, `photo_count`, tọa độ, khoảng cách và panorama gần nhất trong
+  phạm vi 100 m nếu có.
 
-`road` hoặc `streetview` là `null` nếu không có kết quả trong bán kính. POI
-được sắp theo khoảng cách; mỗi POI có thể kèm ID panorama gần nhất trong phạm
-vi 100 m. `address` hiện luôn là `null` (chưa có reverse geocoding). Lỗi truy
-vấn ở endpoint này được trả thành HTTP `500` kèm thông tin lỗi database.
+POI được sắp theo khoảng cách. ID POI chỉ duy nhất trong từng nguồn; khi dùng
+ID làm khóa cần giữ cả `source`.
 
-## 6. Phụ thuộc dữ liệu
+## 6. API đóng góp dữ liệu
 
-Backend hiện truy vấn các đối tượng sau trong schema `public`:
+Các endpoint ghi yêu cầu header `X-API-Key`. Khóa phải khớp
+`WRITE_API_KEY`; khóa sai/thiếu trả `401`, chưa cấu hình khóa trả `503`.
+Frontend hiện chưa có form đóng góp dữ liệu; các endpoint có thể được gọi qua
+client riêng hoặc OpenAPI UI.
 
-| Đối tượng           | Endpoint                       | Cột được backend sử dụng                                                          |
-| ------------------- | ------------------------------ | --------------------------------------------------------------------------------- |
-| `streetview_images` | Street View và `point-info`    | `id`, `geom`, `image_url`, `heading`, `next_ids`, `link_positions`, `captured_at` |
-| `vietnam_roads`     | `point-info`                   | `osm_id`, `name`, `ref`, `fclass`, `oneway`, `maxspeed`, `geom`                   |
-| `pois`              | `point-info`, kiểm tra startup | `id`, `name`, `category`, `geom`                                                  |
+### `POST /api/user-pois`
 
-`pois` có DDL trong `init/01-pois.sql`. DDL đầy đủ cho `streetview_images` và
-`vietnam_roads` không nằm trong các file schema đã kiểm tra; danh sách cột
-trên chỉ mô tả hợp đồng truy vấn của backend. Các bảng này cần tồn tại trước
-khi dùng các endpoint tương ứng.
+Nhận JSON để tạo POI trong `user_data.pois`; trả `201`, ID, `source: "user"`
+và `photos: []`.
 
-Lưu ý: pipeline [`rebuild.ps1`](../rebuild.ps1) nhập dữ liệu vào `raw` và tạo
-các materialized view `clean.*`; pipeline đó không tạo bảng `public.vietnam_roads`.
-Vì vậy cần kiểm tra riêng nguồn tạo/cập nhật `public.vietnam_roads` trong môi
-trường triển khai.
+- `lng`, `lat`: tọa độ WGS 84 hợp lệ.
+- `name`: sau khi trim phải khác rỗng, tối đa 200 ký tự.
+- `category`: mặc định `other`, chỉ gồm chữ thường ASCII, chữ số và `_`,
+  tối đa 50 ký tự.
+- `address`, `phone`, `description`: tùy chọn, tối đa lần lượt 300, 30 và
+  2.000 ký tự.
 
-## 7. Vận hành và giới hạn hiện tại
+### `GET /api/user-pois/{poi_id}`
 
-- Các container trong Compose chỉ bind vào loopback (`127.0.0.1`); không nên
-  đổi sang public interface hoặc public trực tiếp cổng PostGIS.
-- API hiện không có authentication/authorization và CORS mở cho mọi origin;
-  phù hợp cho môi trường phát triển, cần đánh giá lại trước khi public.
-- Chưa có endpoint ghi dữ liệu; các thay đổi POI/panorama hiện được thực hiện
-  trực tiếp bằng SQL hoặc script quản trị.
-- Lỗi truy vấn ở `/api/point-info` hiện trả chi tiết exception trong response;
-  không nên để nguyên hành vi này ở production.
-- Đảm bảo panorama được lưu đúng thư mục static và đường dẫn `image_url` có thể
-  được trình duyệt truy cập.
+Đọc POI người dùng và danh sách ảnh trong `user_data.poi_photos`; không yêu cầu
+API key. Không tìm thấy thì trả `404`. URL ảnh và thumbnail được trả dưới
+`/user-media/...`.
+
+### `POST /api/user-pois/{poi_id}/photos`
+
+Upload multipart field `file`, yêu cầu API key. Mỗi POI tối đa 20 ảnh. Chấp
+nhận JPEG, PNG hoặc WebP; ảnh đầu ra được chuẩn hóa thành JPEG và có thumbnail.
+File vượt `MAX_UPLOAD_MB` trả `413`; loại ảnh không hợp lệ trả `400`; POI
+không tồn tại trả `404`; vượt số ảnh tối đa trả `409`.
+
+### `POST /api/user-panoramas`
+
+Upload multipart fields `lng`, `lat`, `file` và `heading` tùy chọn
+(0 <= heading < 360), yêu cầu API key. Chỉ nhận JPEG, PNG hoặc WebP; ảnh 360°
+phải có tỉ lệ 2:1 và đạt `PANO_MIN_WIDTH`. Server chuyển ảnh sang JPEG, lưu
+trong `PANORAMAS_DIR` và thêm bản ghi vào `public.streetview_images` với danh
+sách liên kết rỗng. Ảnh này được các API Street View sử dụng như panorama khác.
+
+## 7. Phụ thuộc database và giới hạn
+
+Backend cần các bảng/cột sau:
+
+| Bảng | Cột được truy vấn |
+| --- | --- |
+| `public.streetview_images` | `id`, `geom`, `image_url`, `heading`, `next_ids`, `link_positions`, `captured_at` |
+| `public.vietnam_roads` | `osm_id`, `name`, `ref`, `fclass`, `oneway`, `maxspeed`, `geom` |
+| `public.pois` | `id`, `name`, `category`, `geom` |
+| `user_data.pois` | `id`, `name`, `category`, `geom` |
+| `user_data.poi_photos` | `id`, `poi_id`, `file_path`, `thumb_path`, `width`, `height` |
+
+`public.pois` được khởi tạo trong [`init/01-pois.sql`](../init/01-pois.sql);
+`user_data` được định nghĩa trong migration 05. DDL tạo
+`public.streetview_images` và `public.vietnam_roads` chưa có trong các migration
+được kiểm tra. Migration quyền và truy vấn backend giả định các bảng này đã
+được provision từ nguồn khác. Pipeline OSM tạo `clean.roads_*`, không tạo
+`public.vietnam_roads`; cần xác nhận quy trình đồng bộ riêng.
+
+Các truy vấn được parameter-bind qua `asyncpg`. Riêng `/api/point-info` hiện
+bắt lỗi database và trả HTTP `500` kèm chi tiết exception; hành vi này cần
+được xem xét lại trước khi public. API hiện chưa có phân quyền đọc; CORS mở
+cho mọi origin. Không expose API ghi ra môi trường công khai nếu chưa quản lý
+`WRITE_API_KEY`, xác thực và giới hạn upload phù hợp.
