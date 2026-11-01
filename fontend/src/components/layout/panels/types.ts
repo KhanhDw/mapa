@@ -20,7 +20,8 @@ export type LayerKey =
     | "admin"
     // Địa danh & POI
     | "places"
-    | "pois";
+    | "pois"
+    | "userPois";
 
 export type LayerVisibility = Record<LayerKey, boolean>;
 
@@ -40,5 +41,6 @@ export const DEFAULT_LAYERS: LayerVisibility = {
     buildings: false,
     admin: false,
     places: false,
-    pois: false,
+    pois: true,
+    userPois: true,
 };

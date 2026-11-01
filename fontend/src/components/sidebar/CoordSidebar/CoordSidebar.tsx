@@ -2,9 +2,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import "./CoordSidebar.css";
 
 export interface PoiInfo {
+    source?: "osm" | "user";
     id: string | number;
     name: string | null;
     category: string | null;
+    fclass?: string | null;
+    photo_count?: number;
     distance_m: number;
     lng: number;
     lat: number;
@@ -80,26 +83,109 @@ const FCLASS_LABEL: Record<string, string> = {
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
-    cafe: "Cà phê",
+    // ===== English — OSM fclass hoặc user POI category =====
+    // Ăn uống
     restaurant: "Nhà hàng",
     fast_food: "Đồ ăn nhanh",
+    food_court: "Khu ẩm thực",
+    cafe: "Cà phê",
     bar: "Quán bar",
     pub: "Quán bia",
-    pharmacy: "Nhà thuốc",
+    biergarten: "Bia vườn",
+
+    // Y tế
     hospital: "Bệnh viện",
     clinic: "Phòng khám",
-    bank: "Ngân hàng",
-    atm: "Cây ATM",
-    shop: "Cửa hàng",
-    supermarket: "Siêu thị",
-    convenience: "Tiện lợi",
-    fuel: "Cây xăng",
-    hotel: "Khách sạn",
+    doctors: "Bác sĩ",
+    pharmacy: "Nhà thuốc",
+    dentist: "Nha khoa",
+    veterinary: "Thú y",
+    nursing_home: "Viện dưỡng lão",
+
+    // Giáo dục
     school: "Trường học",
     university: "Đại học",
-    post_office: "Bưu điện",
+    college: "Cao đẳng",
+    kindergarten: "Mẫu giáo",
+    library: "Thư viện",
+
+    // Tài chính
+    bank: "Ngân hàng",
+    atm: "Cây ATM",
+
+    // Mua sắm
+    supermarket: "Siêu thị",
+    convenience: "Tiện lợi",
+    mall: "Trung tâm TM",
+    department_store: "Bách hoá",
+    clothes: "Quần áo",
+    bakery: "Tiệm bánh",
+    butcher: "Thịt",
+    greengrocer: "Rau củ",
+    kiosk: "Ki-ốt",
+    market_place: "Chợ",
+    bookshop: "Nhà sách",
+    shoe_shop: "Giày dép",
+    furniture_shop: "Nội thất",
+    jeweller: "Trang sức",
+    mobile_phone_shop: "Điện thoại",
+    hairdresser: "Cắt tóc",
+    beauty_shop: "Làm đẹp",
+
+    // Lưu trú & du lịch
+    hotel: "Khách sạn",
+    guesthouse: "Nhà nghỉ",
+    guest_house: "Nhà nghỉ",
+    hostel: "Hostel",
+    motel: "Motel",
+    chalet: "Nhà nghỉ",
+    camp_site: "Khu cắm trại",
+    caravan_site: "Khu caravan",
+    attraction: "Điểm tham quan",
+    museum: "Bảo tàng",
+    zoo: "Sở thú",
+    theme_park: "Công viên giải trí",
+    viewpoint: "Điểm ngắm cảnh",
+    monument: "Tượng đài",
+    memorial: "Đài tưởng niệm",
+    ruins: "Di tích",
+    castle: "Lâu đài",
+    tourist_info: "Trung tâm TT du lịch",
+    artwork: "Tác phẩm nghệ thuật",
+    picnic_site: "Khu picnic",
+    archaeological: "Khảo cổ",
+
+    // Hành chính
     police: "Công an",
-    tourist_attraction: "Điểm du lịch",
+    fire_station: "Cứu hoả",
+    post_office: "Bưu điện",
+    town_hall: "UBND",
+    courthouse: "Toà án",
+    embassy: "Đại sứ quán",
+    prison: "Nhà tù",
+    community_centre: "Nhà văn hoá",
+    public_building: "Công trình công cộng",
+
+    // Giao thông
+    fuel: "Cây xăng",
+    parking: "Bãi đỗ xe",
+    charging_station: "Trạm sạc",
+    car_rental: "Thuê xe",
+    bicycle_rental: "Thuê xe đạp",
+
+    // Khác
+    toilet: "Nhà vệ sinh",
+    other: "Khác",
+
+    // ===== Vietnamese — clean.pois.category (tổng hợp) =====
+    an_uong: "Ăn uống",
+    y_te: "Y tế",
+    giao_duc: "Giáo dục",
+    tai_chinh: "Tài chính",
+    mua_sam: "Mua sắm",
+    du_lich: "Du lịch",
+    hanh_chinh: "Hành chính",
+    khac: "Khác",
 };
 
 function categoryLabel(cat: string | null): string | null {
@@ -447,9 +533,11 @@ export function CoordSidebar({
                                                         {poi.name?.trim() || "Chưa đặt tên"}
                                                     </span>
                                                     <div className="cs-poi-item__details">
-                                                        {poi.category && (
+                                                        {(poi.fclass || poi.category) && (
                                                             <span className="cs-poi-item__cat">
-                                                                {categoryLabel(poi.category)}
+                                                                {poi.fclass
+                                                                    ? categoryLabel(poi.fclass)
+                                                                    : categoryLabel(poi.category)}
                                                             </span>
                                                         )}
                                                         <span className="cs-poi-item__dist">

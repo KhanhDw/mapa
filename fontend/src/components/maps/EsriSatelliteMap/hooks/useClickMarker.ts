@@ -9,15 +9,17 @@ interface Result {
     clear: () => void;
 }
 
-export function useClickMarker(map: MapLibreMap | null): Result {
+export function useClickMarker(
+    map: MapLibreMap | null,
+    disabled = false
+): Result {
     const [clickInfo, setClickInfo] = useState<ClickInfo | null>(null);
     const markerRef = useRef<maplibregl.Marker | null>(null);
 
     useEffect(() => {
-        if (!map) return;
+        if (!map || disabled) return;
 
         const onClick = (e: maplibregl.MapMouseEvent) => {
-            // Click trúng X street view → modal tự xử lý, không đặt marker
             if (map.getLayer(SV_LAYER_ID)) {
                 const hit = map.queryRenderedFeatures(e.point, {
                     layers: [SV_LAYER_ID],
@@ -48,7 +50,7 @@ export function useClickMarker(map: MapLibreMap | null): Result {
             }
             markerRef.current = null;
         };
-    }, [map]);
+    }, [map, disabled]);
 
     const clear = useCallback(() => {
         markerRef.current?.remove();

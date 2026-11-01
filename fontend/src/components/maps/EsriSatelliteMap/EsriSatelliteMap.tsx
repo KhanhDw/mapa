@@ -3,15 +3,17 @@ import * as maplibregl from "maplibre-gl";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./EsriSatelliteMap.css";
+
 import { addExtraLayers } from "./layers/addExtraLayers";
 import { StreetViewModal } from "../../streetview/StreetViewModal/StreetViewModal";
 import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSidebar";
 import type { PanelType } from "../../layout/Activitybar";
-import { addPoisLayer } from "./layers/poisLayer";
+import { ContributePanel } from "../../contribute/ContributePanel";
 
 import {
     API_BASE,
     ESRI_SATELLITE_TILE_URL,
+    TILE_BASE,
     getMapLibreWorkerUrl,
 } from "../../../config";
 
@@ -27,6 +29,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LayersPanel, SettingsPanel, DEFAULT_LAYERS } from "../../layout/panels";
 import type { LayerKey, LayerVisibility } from "../../layout/panels";
 import { applyLayerVisibility } from "./layers/applyLayerVisibility";
+import { EXTRA_LAYERS } from "./layers/registry";
 
 interface Props {
     activePanel?: PanelType | null;
@@ -59,7 +62,7 @@ function EsriSatelliteMap({
         startId: number;
     } | null>(null);
 
-    // ================= StreetView points (fetch 1 lần) =================
+    // ================= StreetView points =================
     const {
         points,
         geojson,
@@ -67,8 +70,11 @@ function EsriSatelliteMap({
     } = useStreetViewPoints(API_BASE);
 
     // ================= Click marker + point info =================
-    const { clickInfo, clear } = useClickMarker(mapInstance);
-
+    // Khi panel Contribute đang mở, disable marker đỏ (tránh conflict với picker)
+    const { clickInfo, clear } = useClickMarker(
+        mapInstance,
+        activePanel === "contribute"
+    );
 
     useEffect(() => {
         if (activePanel !== "info") clear();
@@ -132,7 +138,6 @@ function EsriSatelliteMap({
         map.on("load", () => {
             addRoadsLayer(map);
             addExtraLayers(map);
-            addPoisLayer(map);
             ensureStreetViewLayer({
                 map,
                 onIconClick: (id) => setSvModal({ open: true, startId: id }),
@@ -142,8 +147,6 @@ function EsriSatelliteMap({
             setMapReady(true);
         });
 
-        mapRef.current = map;
-
         return () => {
             map.remove();
             mapRef.current = null;
@@ -152,7 +155,7 @@ function EsriSatelliteMap({
         };
     }, []);
 
-    // ================= Update SV data khi geojson sẵn sàng =================
+    // ================= Update SV data =================
     useEffect(() => {
         if (!mapReady || !mapRef.current || !geojson) return;
         setStreetViewData(mapRef.current, geojson);
@@ -196,10 +199,39 @@ function EsriSatelliteMap({
 
     const handleClose = () => onPanelClose?.();
 
+    // Refresh layer userPois + fly to POI mới
+    const handleContributeCreated = useCallback(
+        (poi: { id: number; lng: number; lat: number }) => {
+            const map = mapRef.current;
+            if (!map) return;
+
+            map.flyTo({ center: [poi.lng, poi.lat], zoom: 17, duration: 800 });
+
+            const def = EXTRA_LAYERS.find((d) => d.key === "userPois");
+            if (!def) return;
+
+            if (map.getLayer(def.layerId)) map.removeLayer(def.layerId);
+            if (map.getSource(def.sourceId)) map.removeSource(def.sourceId);
+
+            map.addSource(def.sourceId, {
+                type: "vector",
+                tiles: [
+                    `${TILE_BASE}/${def.schemaTable}/{z}/{x}/{y}.pbf?v=${Date.now()}`,
+                ],
+                minzoom: 0,
+                maxzoom: def.maxzoom ?? 14,
+            });
+            def.beforeAdd?.(map);
+            map.addLayer(def.spec(def.sourceId, def.layerId));
+        },
+        []
+    );
+
     const showInfo = activePanel === "info";
     const showLayers = activePanel === "layers";
     const showSettings = activePanel === "settings";
-    const hasSidebar = showInfo || showLayers || showSettings;
+    const showContribute = activePanel === "contribute";
+    const hasSidebar = showInfo || showLayers || showSettings || showContribute;
 
     return (
         <div className={`map-wrapper${hasSidebar ? " has-sidebar" : ""}`}>
@@ -230,7 +262,16 @@ function EsriSatelliteMap({
                     onClose={() => onPanelClose?.()}
                 />
             )}
+
             {showSettings && <SettingsPanel onClose={() => onPanelClose?.()} />}
+
+            {showContribute && (
+                <ContributePanel
+                    onClose={() => onPanelClose?.()}
+                    mapInstance={mapInstance}
+                    onCreated={handleContributeCreated}
+                />
+            )}
 
             {svModal?.open &&
                 createPortal(

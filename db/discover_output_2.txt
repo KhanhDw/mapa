@@ -98,9 +98,9 @@ Expanded display is used automatically.
            tbl            |  count  
 --------------------------+---------
  public.streetview_images |       4
- user_data.pois           |       1
- public.pois              |       4
- user_data.poi_photos     |       1
+ user_data.pois           |       0
+ public.pois              |       0
+ user_data.poi_photos     |       0
  clean.places             |   14699
  clean.water_areas        |   39758
  clean.pois               |   74933
@@ -305,25 +305,19 @@ Access method: heap
 
 
 ========== 6.1 user_data.pois (5 newest) ==========
- id |       name       | category |   address    |   phone    |    description    |    lng     |    lat    |          created_at           
-----+------------------+----------+--------------+------------+-------------------+------------+-----------+-------------------------------
-  2 | Swagger test POI | cafe     | Test address | 0900000000 | Tß║ío tß╗½ Swagger UI | 105.438687 | 10.383099 | 2026-10-31 10:52:52.742967+00
-(1 row)
+ id | name | category | address | phone | description | lng | lat | created_at 
+----+------+----------+---------+-------+-------------+-----+-----+------------
+(0 rows)
 
 ========== 6.2 user_data.poi_photos (5 newest) ==========
- id | poi_id |               file_path                |                thumb_path                | width | height 
-----+--------+----------------------------------------+------------------------------------------+-------+--------
-  1 |      2 | 2/ecb7100d12794fb793c72dfd4dc12b6a.jpg | 2/ecb7100d12794fb793c72dfd4dc12b6a_t.jpg |   553 |    467
-(1 row)
+ id | poi_id | file_path | thumb_path | width | height 
+----+--------+-----------+------------+-------+--------
+(0 rows)
 
 ========== 6.3 public.pois (5 rows) ==========
- id | osm_id |          name           |  category   |                        geom                        |          created_at           
-----+--------+-------------------------+-------------+----------------------------------------------------+-------------------------------
-  1 | test:1 | Highlands Coffee L├¬ Lß╗úi | cafe        | 0101000020E61000008126C286A75B5A406C787AA52CC32440 | 2026-10-30 14:55:21.926829+00
-  2 | test:2 | Nh├á thuß╗æc Pharmacity    | pharmacy    | 0101000020E6100000C1CAA145B65B5A40DD24068195C32440 | 2026-10-30 14:55:21.926829+00
-  3 | test:3 | Bã░u ─æiß╗çn TP.HCM         | post_office | 0101000020E6100000EC51B81E855B5A40C3F5285C8FC22440 | 2026-10-30 14:55:21.926829+00
-  4 | test:4 | Qu├ín c├á ph├¬ test 360    | cafe        | 0101000020E61000008B8BA372135C5A40B742588D25C42440 | 2026-10-30 15:16:12.795803+00
-(4 rows)
+ id | osm_id | name | category | geom | created_at 
+----+--------+------+----------+------+------------
+(0 rows)
 
 ========== 6.4 public.streetview_images (5 newest) ==========
  id |    lng     |    lat    |      image_url       | heading | next_ids |                                                link_positions                                                | captured_at 
@@ -348,18 +342,15 @@ Access method: heap
 ========== 7.1 CATEGORIES user_data.pois ==========
  category | count 
 ----------+-------
- cafe     |     1
-(1 row)
+(0 rows)
 
 ========== 7.2 CATEGORIES public.pois (top 50) ==========
-  category   | count 
--------------+-------
- cafe        |     2
- pharmacy    |     1
- post_office |     1
-(3 rows)
+ category | count 
+----------+-------
+(0 rows)
 
 ========== 7.3 CATEGORIES clean.pois (top 50) ==========
+========== 7.4 GEOMETRY VALIDITY ==========
 docker : ERROR:  column "kind" does not exist
 At line:1 char:31
 + ... cover.sql | docker exec -i postgis-webmap psql -U postgres -d webmap_ ...
@@ -370,7 +361,6 @@ At line:1 char:31
  
 LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
                ^
-========== 7.4 GEOMETRY VALIDITY ==========
            tbl            | invalid 
 --------------------------+---------
  public.streetview_images |       0
@@ -381,7 +371,7 @@ LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
 ========== 7.5 NULL CHECK user_data.pois ==========
  no_name | no_cat | no_geom | no_addr | total 
 ---------+--------+---------+---------+-------
-       0 |      0 |       0 |       0 |     1
+       0 |      0 |       0 |       0 |     0
 (1 row)
 
 ========== 7.6 tile_reader PERMISSIONS ==========

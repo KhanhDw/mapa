@@ -11,3 +11,7 @@
 ```powershell
 docker exec -it postgis-webmap psql -U postgres -d webmap_db
 ```
+
+```powershell
+Get-Content db\discover.sql | docker exec -i postgis-webmap psql -U postgres -d webmap_db 2>&1 | Out-File -Encoding utf8 db\discover_output_2.txt
+```

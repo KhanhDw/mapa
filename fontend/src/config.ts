@@ -29,3 +29,5 @@ export const OSM_TILE_URLS = [
 export function getMapLibreWorkerUrl(version: string): string {
     return `https://cdn.jsdelivr.net/npm/maplibre-gl@${version}/dist/maplibre-gl-worker.mjs`;
 }
+
+export const CONTRIBUTE_BASE = `${API_BASE}/api/contribute`;
