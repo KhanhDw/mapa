@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
+
 import {
     ReactPhotoSphereViewer,
     type PluginConfig,
@@ -34,41 +36,73 @@ interface StreetViewModalProps {
     onNodeChange?: (point: StreetViewPoint) => void;
 }
 
-function computeBearing(
-    lng1: number,
-    lat1: number,
-    lng2: number,
-    lat2: number
-): number {
-    const toRad = (d: number) => (d * Math.PI) / 180;
-    const φ1 = toRad(lat1);
-    const φ2 = toRad(lat2);
-    const Δλ = toRad(lng2 - lng1);
+/** Một đường nối từ node hiện tại tới node lân cận (đã gộp next + previous). */
+interface Link {
+    point: StreetViewPoint;
+    distance: number; // mét
+    bearing: number; // hướng la bàn tuyệt đối 0..360 (0 = Bắc)
+}
 
+/* ------------------------------------------------------------------ */
+/* Cấu hình                                                            */
+/* ------------------------------------------------------------------ */
+
+/** Độ cao camera so với mặt đất (m) – dùng để ước lượng điểm bấm trên đường. */
+const CAMERA_HEIGHT_M = 2.5;
+/** Chỉ coi là "bấm xuống đường" khi pitch thấp hơn ngưỡng này. */
+const GROUND_PITCH_DEG = -7;
+/** Góc lệch tối đa giữa điểm bấm và hướng của link khi bấm trên đường. */
+const GROUND_CONE_DEG = 40;
+/** Góc lệch tối đa để nút / phím "Tiến" và "Lùi" chọn được link. */
+const MOVE_CONE_DEG = 80;
+const ROTATE_STEP_DEG = 20;
+const TRANSITION_MS = 700;
+const MAX_PRELOAD = 6;
+/**
+ * true  → dùng `link_positions` đã lưu (index khớp với `next_ids`) để đặt mũi tên.
+ * false → tính vị trí mũi tên từ GPS + heading (mặc định).
+ */
+const USE_STORED_LINK_POSITIONS = false;
+
+/* ------------------------------------------------------------------ */
+/* Hàm tiện ích                                                        */
+/* ------------------------------------------------------------------ */
+
+const toRad = (d: number) => (d * Math.PI) / 180;
+const toDeg = (r: number) => (r * 180) / Math.PI;
+const clamp = (v: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, v));
+
+/** Đưa góc về khoảng (-180, 180]. */
+function normalizeDeg(angle: number): number {
+    const a = ((angle % 360) + 360) % 360;
+    return a > 180 ? a - 360 : a;
+}
+
+function bearingBetween(a: StreetViewPoint, b: StreetViewPoint): number {
+    const φ1 = toRad(a.lat);
+    const φ2 = toRad(b.lat);
+    const Δλ = toRad(b.lng - a.lng);
     const y = Math.sin(Δλ) * Math.cos(φ2);
     const x =
         Math.cos(φ1) * Math.sin(φ2) -
         Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-
-    const bearing = (Math.atan2(y, x) * 180) / Math.PI;
-    return (bearing + 360) % 360;
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
 function distanceBetween(a: StreetViewPoint, b: StreetViewPoint): number {
-    const toRad = (d: number) => (d * Math.PI) / 180;
     const lat1 = toRad(a.lat);
     const lat2 = toRad(b.lat);
-    const deltaLat = lat2 - lat1;
-    const deltaLng = toRad(b.lng - a.lng);
-    const haversine =
-        Math.sin(deltaLat / 2) ** 2 +
-        Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLng / 2) ** 2;
-
-    return 6371000 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+    const dLat = lat2 - lat1;
+    const dLng = toRad(b.lng - a.lng);
+    const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
 function formatDistance(distance: number): string {
-    if (distance < 1000) return `${Math.round(distance)} m`;
+    if (distance < 1000) return `${Math.max(1, Math.round(distance))} m`;
     return `${(distance / 1000).toFixed(1)} km`;
 }
 
@@ -77,130 +111,216 @@ function resolveImageUrl(url: string): string {
     return `${API_BASE}${url}`;
 }
 
+/**
+ * Chọn link phù hợp nhất với một hướng nhìn.
+ * Khi biết khoảng cách điểm bấm trên mặt đường (groundDistance), ưu tiên link
+ * có khoảng cách gần nhất với điểm đó – giúp phân biệt các node nằm cùng hướng.
+ */
+function pickLink(
+    links: Link[],
+    bearing: number,
+    maxDiff: number,
+    groundDistance?: number
+): Link | null {
+    let best: Link | null = null;
+    let bestScore = Infinity;
+    for (const link of links) {
+        const diff = Math.abs(normalizeDeg(link.bearing - bearing));
+        if (diff > maxDiff) continue;
+        const score =
+            diff +
+            (groundDistance === undefined
+                ? 0
+                : Math.abs(link.distance - groundDistance) * 1.5);
+        if (score < bestScore) {
+            best = link;
+            bestScore = score;
+        }
+    }
+    return best;
+}
+
+/** Tìm link nằm dưới con trỏ (toạ độ tính theo viewer). Null nếu không bấm xuống đường. */
+function findLinkAt(
+    viewer: Viewer,
+    x: number,
+    y: number,
+    links: Link[],
+    heading: number
+): Link | null {
+    if (links.length === 0) return null;
+    try {
+        const pos = viewer.dataHelper.viewerCoordsToSphericalCoords({ x, y });
+        if (!pos) return null;
+        const pitchDeg = toDeg(pos.pitch);
+        if (pitchDeg > GROUND_PITCH_DEG) return null;
+
+        const groundDistance = Math.min(
+            80,
+            CAMERA_HEIGHT_M / Math.tan(toRad(-pitchDeg))
+        );
+        const bearing = heading + toDeg(pos.yaw);
+        return pickLink(links, bearing, GROUND_CONE_DEG, groundDistance);
+    } catch {
+        return null;
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Component                                                           */
+/* ------------------------------------------------------------------ */
+
 export function StreetViewModal({
     startId,
     allPoints,
     onClose,
     onNodeChange,
 }: StreetViewModalProps) {
-    const [currentId, setCurrentId] = useState(startId);
+    const [currentId, setCurrentId] = useState(Number(startId));
     const [isNavigating, setIsNavigating] = useState(false);
+    const [viewerReady, setViewerReady] = useState(false);
+    const [showHint, setShowHint] = useState(true);
+    const [nav, setNav] = useState<{
+        forward: number | null;
+        backward: number | null;
+    }>({ forward: null, backward: null });
+
+    const rootRef = useRef<HTMLDivElement>(null);
+    const stageRef = useRef<HTMLDivElement>(null);
+    const ringRef = useRef<HTMLDivElement>(null);
+    const ringLabelRef = useRef<HTMLSpanElement>(null);
+    const compassRef = useRef<HTMLDivElement>(null);
+
     const viewerRef = useRef<Viewer | null>(null);
     const navigationIdRef = useRef(0);
-    const navigationHandlerRef = useRef<(targetId: number) => void>(() => {});
+    const pendingTargetRef = useRef<number | null>(null);
+    const currentIdRef = useRef(currentId);
+    const linksRef = useRef<Link[]>([]);
+    const headingRef = useRef(0);
+    const navigateRef = useRef<(targetId: number) => void>(() => { });
+
+    /* ---------- Dữ liệu đồ thị ---------- */
+
     const pointsById = useMemo(
-        () => new Map(allPoints.map((point) => [Number(point.id), point])),
+        () => new Map(allPoints.map((p) => [Number(p.id), p])),
         [allPoints]
     );
-    const currentNode = pointsById.get(Number(currentId));
-    const heading = currentNode?.heading ?? 0;
-    const [initialImageUrl] = useState(() =>
-        currentNode ? resolveImageUrl(currentNode.image_url) : ""
+
+    /** Đồ thị ngược: node nào trỏ tới node này. Tính một lần thay vì lọc mỗi lần render. */
+    const prevIdsMap = useMemo(() => {
+        const map = new Map<number, number[]>();
+        for (const p of allPoints) {
+            for (const id of p.next_ids) {
+                const key = Number(id);
+                const list = map.get(key);
+                if (list) list.push(Number(p.id));
+                else map.set(key, [Number(p.id)]);
+            }
+        }
+        return map;
+    }, [allPoints]);
+
+    const getNeighbors = useCallback(
+        (node: StreetViewPoint) => {
+            const next = node.next_ids
+                .map((id) => pointsById.get(Number(id)))
+                .filter((p): p is StreetViewPoint => Boolean(p));
+            const prev = (prevIdsMap.get(Number(node.id)) ?? [])
+                .map((id) => pointsById.get(id))
+                .filter((p): p is StreetViewPoint => Boolean(p));
+            return { next, prev };
+        },
+        [pointsById, prevIdsMap]
     );
 
-    const previousPoints = useMemo(() => {
+    /**
+     * Heading = hướng la bàn của tâm ảnh panorama.
+     * Nếu dữ liệu thiếu heading, suy ra từ node lân cận thay vì mặc định 0
+     * (mặc định 0 làm mũi tên chỉ sai hướng hoàn toàn).
+     */
+    const getHeading = useCallback(
+        (node: StreetViewPoint): number => {
+            if (typeof node.heading === "number" && Number.isFinite(node.heading)) {
+                return node.heading;
+            }
+            const { next, prev } = getNeighbors(node);
+            if (next[0]) return bearingBetween(node, next[0]);
+            if (prev[0]) return bearingBetween(prev[0], node);
+            return 0;
+        },
+        [getNeighbors]
+    );
+
+    const currentNode = pointsById.get(currentId);
+    const heading = currentNode ? getHeading(currentNode) : 0;
+    const [initialImageUrl] = useState(() => {
+        const node = pointsById.get(Number(startId));
+        return node ? resolveImageUrl(node.image_url) : "";
+    });
+
+    /** Tất cả node lân cận (next + previous, bỏ trùng), gần nhất trước. */
+    const links = useMemo<Link[]>(() => {
         if (!currentNode) return [];
-        return allPoints
-            .filter((point) =>
-                point.next_ids.some((id) => Number(id) === Number(currentNode.id))
-            )
-            .sort(
-                (a, b) =>
-                    distanceBetween(currentNode, a) - distanceBetween(currentNode, b)
-            );
-    }, [allPoints, currentNode]);
+        const { next, prev } = getNeighbors(currentNode);
+        const unique = new Map<number, StreetViewPoint>();
+        [...next, ...prev].forEach((p) => unique.set(Number(p.id), p));
+        return Array.from(unique.values())
+            .map((point) => ({
+                point,
+                distance: distanceBetween(currentNode, point),
+                bearing: bearingBetween(currentNode, point),
+            }))
+            .sort((a, b) => a.distance - b.distance);
+    }, [currentNode, getNeighbors]);
 
-    const nextPoints = useMemo(
-        () =>
-            currentNode
-                ? currentNode.next_ids
-                      .map((id) => pointsById.get(Number(id)))
-                      .filter((point): point is StreetViewPoint => Boolean(point))
-                : [],
-        [currentNode, pointsById]
-    );
+    linksRef.current = links;
+    headingRef.current = heading;
+    currentIdRef.current = currentId;
+
+    /* ---------- Đồng bộ la bàn + nút Tiến/Lùi theo hướng nhìn ---------- */
+
+    const syncView = useCallback(() => {
+        const viewer = viewerRef.current;
+        if (!viewer) return;
+        const viewBearing = headingRef.current + toDeg(viewer.getPosition().yaw);
+
+        if (compassRef.current) {
+            compassRef.current.style.transform = `rotate(${-viewBearing}deg)`;
+        }
+        const forward =
+            pickLink(linksRef.current, viewBearing, MOVE_CONE_DEG)?.point.id ?? null;
+        const backward =
+            pickLink(linksRef.current, viewBearing + 180, MOVE_CONE_DEG)?.point.id ??
+            null;
+        setNav((prev) =>
+            prev.forward === forward && prev.backward === backward
+                ? prev
+                : { forward, backward }
+        );
+    }, []);
 
     useEffect(() => {
-        if (!currentNode) return;
+        syncView();
+    }, [links, heading, viewerReady, syncView]);
 
-        [...nextPoints, ...previousPoints].forEach((point) => {
-            if (point.image_url) {
-                const img = new Image();
-                img.src = resolveImageUrl(point.image_url);
-            }
-        });
-    }, [currentNode, nextPoints, previousPoints]);
-
-    const markerConfigs = useMemo<MarkerCfg[]>(() => {
-        if (!currentNode) return [];
-
-        const connections = new Map<number, { point: StreetViewPoint; isPrevious: boolean }>();
-        nextPoints.forEach((point) => {
-            connections.set(Number(point.id), { point, isPrevious: false });
-        });
-        previousPoints.forEach((point) => {
-            if (!connections.has(Number(point.id))) {
-                connections.set(Number(point.id), { point, isPrevious: true });
-            }
-        });
-
-        return Array.from(connections.values()).map(({ point, isPrevious }) => {
-            const distance = distanceBetween(currentNode, point);
-            const bearing = computeBearing(
-                currentNode.lng,
-                currentNode.lat,
-                point.lng,
-                point.lat
-            );
-            let yaw = bearing - heading;
-            while (yaw > 180) yaw -= 360;
-            while (yaw < -180) yaw += 360;
-
-            const scaleByDistance = Math.max(
-                0.72,
-                Math.min(1.16, 1.16 - distance / 55)
-            );
-            const label = isPrevious ? "Ảnh trước" : "Ảnh tiếp theo";
-
-            return {
-                id: `arrow-${point.id}`,
-                position: {
-                    yaw: `${yaw.toFixed(1)}deg`,
-                    pitch: "-25deg",
-                },
-                html: `<div class="sv-arrow${isPrevious ? " sv-arrow--previous" : ""}" role="button" aria-label="${label} #${point.id}">
-                    <svg class="sv-arrow__icon" viewBox="0 0 32 32" aria-hidden="true">
-                        <path d="M16 3 28 17h-7v12h-10V17H4L16 3Z" />
-                    </svg>
-                </div>`,
-                anchor: "center center",
-                scale: (zoomLevel) =>
-                    scaleByDistance * (0.78 + zoomLevel / 220),
-                tooltip: `${label} #${point.id} · ${formatDistance(distance)}`,
-                data: { targetId: Number(point.id) },
-            };
-        });
-    }, [currentNode, heading, nextPoints, previousPoints]);
+    /* ---------- Di chuyển giữa các node ---------- */
 
     const navigateTo = useCallback(
         async (targetId: number) => {
-            const target = pointsById.get(Number(targetId));
-            const current = pointsById.get(Number(currentId));
             const viewer = viewerRef.current;
-            if (!target || !current || target.id === current.id || !viewer) return;
+            const current = pointsById.get(currentIdRef.current);
+            const target = pointsById.get(Number(targetId));
+            if (!viewer || !current || !target || target.id === current.id) return;
+            // Đang tải đúng node này rồi → bỏ qua (tránh bấm đúp làm tải lại)
+            if (pendingTargetRef.current === target.id) return;
 
             const requestId = ++navigationIdRef.current;
-            const distance = distanceBetween(current, target);
-            const bearing = computeBearing(
-                current.lng,
-                current.lat,
-                target.lng,
-                target.lat
+            pendingTargetRef.current = target.id;
+
+            // Sau khi tới nơi, nhìn theo hướng vừa đi
+            const yaw = normalizeDeg(
+                bearingBetween(current, target) - getHeading(target)
             );
-            let yaw = bearing - (target.heading ?? 0);
-            while (yaw > 180) yaw -= 360;
-            while (yaw < -180) yaw += 360;
-            const zoom = Math.max(30, Math.min(56, 56 - distance * 0.45));
 
             setIsNavigating(true);
             try {
@@ -208,9 +328,9 @@ export function StreetViewModal({
                     resolveImageUrl(target.image_url),
                     {
                         position: { yaw: `${yaw}deg`, pitch: "0deg" },
-                        zoom,
+                        zoom: viewer.getZoomLevel(), // giữ nguyên mức zoom, không nhảy
                         transition: {
-                            speed: 1200,
+                            speed: TRANSITION_MS,
                             rotation: true,
                             effect: "fade",
                         },
@@ -218,184 +338,434 @@ export function StreetViewModal({
                 );
                 if (!loaded || requestId !== navigationIdRef.current) return;
 
+                currentIdRef.current = target.id;
                 setCurrentId(target.id);
                 onNodeChange?.(target);
             } catch (error) {
                 if (requestId !== navigationIdRef.current) return;
-                console.error("[StreetViewModal] Could not load the next panorama.", error);
-                viewer.showError("Không thể tải ảnh Street View tiếp theo.");
+                console.error("[StreetViewModal] Could not load panorama.", error);
+                viewer.showError("Không thể tải ảnh Street View này.");
             } finally {
-                if (requestId === navigationIdRef.current) setIsNavigating(false);
+                if (requestId === navigationIdRef.current) {
+                    pendingTargetRef.current = null;
+                    setIsNavigating(false);
+                }
             }
         },
-        [currentId, onNodeChange, pointsById]
+        [getHeading, onNodeChange, pointsById]
     );
-    useEffect(() => {
-        navigationHandlerRef.current = (targetId) => {
-            void navigateTo(targetId);
-        };
-    }, [navigateTo]);
+    navigateRef.current = (id) => void navigateTo(id);
+
+    /** dir = 1: tiến theo hướng đang nhìn, dir = -1: lùi lại. */
+    const moveByView = useCallback((dir: 1 | -1) => {
+        const viewer = viewerRef.current;
+        if (!viewer) return;
+        const viewBearing = headingRef.current + toDeg(viewer.getPosition().yaw);
+        const link = pickLink(
+            linksRef.current,
+            dir === 1 ? viewBearing : viewBearing + 180,
+            MOVE_CONE_DEG
+        );
+        if (link) navigateRef.current(link.point.id);
+    }, []);
+
+    /* ---------- Điều khiển camera ---------- */
+
+    const rotateBy = useCallback((deg: number) => {
+        const viewer = viewerRef.current;
+        if (!viewer) return;
+        const pos = viewer.getPosition();
+        void viewer.animate({
+            yaw: pos.yaw + toRad(deg),
+            pitch: pos.pitch,
+            speed: 220,
+        });
+    }, []);
+
+    const faceNorth = useCallback(() => {
+        const viewer = viewerRef.current;
+        if (!viewer) return;
+        void viewer.animate({
+            yaw: `${-headingRef.current}deg`,
+            pitch: viewer.getPosition().pitch,
+            speed: 500,
+        });
+    }, []);
+
+    /* ---------- Bàn phím (chuẩn Google: ↑↓ đi, ←→ xoay) ---------- */
 
     useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            const target = event.target;
+        const onKeyDown = (event: KeyboardEvent) => {
+            const el = event.target;
             const isEditing =
-                target instanceof HTMLElement &&
-                (target.isContentEditable ||
-                    target.matches("input, textarea, select, [role='textbox']"));
+                el instanceof HTMLElement &&
+                (el.isContentEditable ||
+                    el.matches("input, textarea, select, [role='textbox']"));
 
             if (event.key === "Escape") {
                 onClose();
                 return;
             }
-            if (isEditing) return;
-            if (event.key === "ArrowLeft" && previousPoints[0]) {
-                event.preventDefault();
-                navigateTo(previousPoints[0].id);
-            } else if (event.key === "ArrowRight" && nextPoints[0]) {
-                event.preventDefault();
-                navigateTo(nextPoints[0].id);
+            if (isEditing || event.ctrlKey || event.metaKey || event.altKey) return;
+            setShowHint(false);
+
+            switch (event.key) {
+                case "ArrowUp":
+                case "w":
+                case "W":
+                    event.preventDefault();
+                    moveByView(1);
+                    break;
+                case "ArrowDown":
+                case "s":
+                case "S":
+                    event.preventDefault();
+                    moveByView(-1);
+                    break;
+                case "ArrowLeft":
+                case "a":
+                case "A":
+                    event.preventDefault();
+                    rotateBy(-ROTATE_STEP_DEG);
+                    break;
+                case "ArrowRight":
+                case "d":
+                case "D":
+                    event.preventDefault();
+                    rotateBy(ROTATE_STEP_DEG);
+                    break;
+                case "+":
+                case "=":
+                    viewerRef.current?.zoomIn(10);
+                    break;
+                case "-":
+                case "_":
+                    viewerRef.current?.zoomOut(10);
+                    break;
             }
         };
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [navigateTo, nextPoints, onClose, previousPoints]);
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [moveByView, onClose, rotateBy]);
+
+    /* ---------- Khoá cuộn trang + focus khi mở ---------- */
 
     useEffect(() => {
-        if (!currentNode || !viewerRef.current) return;
-        const plugin = viewerRef.current.getPlugin<MarkersPlugin>(MarkersPlugin);
-        plugin?.setMarkers(markerConfigs);
-    }, [currentNode, markerConfigs]);
+        const previous = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        rootRef.current?.focus();
+        return () => {
+            document.body.style.overflow = previous;
+        };
+    }, []);
 
-    const plugins = useMemo<PluginConfig[]>(() => [[MarkersPlugin, {}]], []);
-    const handleReady = (viewer: Viewer) => {
-        viewerRef.current = viewer;
+    useEffect(() => {
+        const timer = window.setTimeout(() => setShowHint(false), 8000);
+        return () => window.clearTimeout(timer);
+    }, []);
+
+    /* ---------- Tải trước ảnh lân cận ---------- */
+
+    useEffect(() => {
+        const controller = new AbortController();
+        links.slice(0, MAX_PRELOAD).forEach(({ point }) => {
+            if (!point.image_url) return;
+            fetch(resolveImageUrl(point.image_url), { signal: controller.signal })
+                .then((res) => res.blob())
+                .catch(() => { });
+        });
+        return () => controller.abort();
+    }, [links]);
+
+    /* ---------- Mũi tên trên đường ---------- */
+
+    const markerConfigs = useMemo<MarkerCfg[]>(() => {
+        if (!currentNode) return [];
+        const nextIds = currentNode.next_ids.map(Number);
+        const canUseStored =
+            USE_STORED_LINK_POSITIONS &&
+            currentNode.link_positions?.length === currentNode.next_ids.length;
+
+        return links.map(({ point, distance, bearing }) => {
+            const storedIndex = nextIds.indexOf(Number(point.id));
+            const stored =
+                canUseStored && storedIndex >= 0
+                    ? currentNode.link_positions[storedIndex]
+                    : null;
+
+            // Càng xa càng gần đường chân trời & nhỏ hơn → cảm giác chiều sâu
+            const nearness = clamp(1 - (distance - 4) / 36, 0, 1);
+            const pitch = -(14 + 24 * nearness);
+            const baseScale = clamp(1.25 - distance / 50, 0.6, 1.15);
+
+            return {
+                id: `arrow-${point.id}`,
+                position: stored
+                    ? { textureX: stored.textureX, textureY: stored.textureY }
+                    : {
+                        yaw: `${normalizeDeg(bearing - heading).toFixed(1)}deg`,
+                        pitch: `${pitch.toFixed(1)}deg`,
+                    },
+                html: `<div class="sv-arrow" role="button" aria-label="Đi tới ảnh #${point.id}, cách ${formatDistance(distance)}">
+                    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 33 24 11l20 22-6 6-14-16-14 16z"/></svg>
+                </div>`,
+                anchor: "center center",
+                scale: (zoomLevel: number) => baseScale * (0.8 + zoomLevel / 200),
+                tooltip: `Ảnh #${point.id} · ${formatDistance(distance)}`,
+                data: { targetId: Number(point.id) },
+            };
+        });
+    }, [currentNode, heading, links]);
+
+    // Ẩn mũi tên khi đang chuyển cảnh (tránh mũi tên cũ nằm trên ảnh mới)
+    useEffect(() => {
+        const viewer = viewerRef.current;
+        if (!viewerReady || !viewer) return;
         const plugin = viewer.getPlugin<MarkersPlugin>(MarkersPlugin);
-        if (!plugin) {
-            console.error("[StreetViewModal] MarkersPlugin is unavailable.");
+        if (!plugin) return;
+        if (isNavigating) plugin.clearMarkers();
+        else plugin.setMarkers(markerConfigs);
+    }, [viewerReady, isNavigating, markerConfigs]);
+
+    /* ---------- Con trỏ hình vòng tròn trên mặt đường ---------- */
+
+    const hideRing = useCallback(() => {
+        ringRef.current?.classList.remove("is-visible");
+        stageRef.current?.classList.remove("is-link-hover");
+    }, []);
+
+    const handleStagePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+        if (event.pointerType === "touch" || event.buttons !== 0) {
+            hideRing();
             return;
         }
+        if (
+            pendingTargetRef.current !== null ||
+            (event.target as Element).closest(".sv-ui, .psv-marker")
+        ) {
+            hideRing();
+            return;
+        }
+        const viewer = viewerRef.current;
+        const stage = stageRef.current;
+        const ring = ringRef.current;
+        if (!viewer || !stage || !ring) return;
 
-        plugin.setMarkers(markerConfigs);
-        plugin.addEventListener("select-marker", (event) => {
-            const targetId: unknown = event.marker.data?.targetId;
-            if (typeof targetId === "number") {
-                navigationHandlerRef.current(targetId);
-            }
-        });
+        const rect = stage.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const link = findLinkAt(viewer, x, y, linksRef.current, headingRef.current);
+        if (!link) {
+            hideRing();
+            return;
+        }
+        ring.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        if (ringLabelRef.current) {
+            ringLabelRef.current.textContent = formatDistance(link.distance);
+        }
+        ring.classList.add("is-visible");
+        stage.classList.add("is-link-hover");
     };
+
+    /* ---------- Khởi tạo viewer ---------- */
+
+    const plugins = useMemo<PluginConfig[]>(() => [[MarkersPlugin, {}]], []);
+
+    const handleReady = useCallback(
+        (viewer: Viewer) => {
+            viewerRef.current = viewer;
+
+            const markers = viewer.getPlugin<MarkersPlugin>(MarkersPlugin);
+            markers?.addEventListener("select-marker", (event) => {
+                const targetId: unknown = event.marker.data?.targetId;
+                if (typeof targetId === "number") navigateRef.current(targetId);
+            });
+
+            viewer.addEventListener("position-updated", syncView);
+
+            // Bấm (không kéo) xuống mặt đường → đi tới node gần điểm bấm nhất
+            viewer.addEventListener("click", ({ data }) => {
+                if (data.rightclick) return;
+                const link = findLinkAt(
+                    viewer,
+                    data.viewerX,
+                    data.viewerY,
+                    linksRef.current,
+                    headingRef.current
+                );
+                if (link) navigateRef.current(link.point.id);
+            });
+
+            setViewerReady(true);
+        },
+        [syncView]
+    );
+
+    /* ---------- Render ---------- */
+
+    const forwardLink = links.find((l) => l.point.id === nav.forward);
+    const backwardLink = links.find((l) => l.point.id === nav.backward);
 
     return (
         <div
-            className="sv-modal-overlay"
-            onClick={(event) => {
-                if (event.target === event.currentTarget) onClose();
-            }}
+            ref={rootRef}
+            className="sv-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Xem ảnh toàn cảnh Street View"
+            tabIndex={-1}
         >
-            <div
-                className="sv-modal-content"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Xem ảnh toàn cảnh"
-                tabIndex={-1}
-            >
-                {!currentNode ? (
-                    <div className="sv-modal-empty" role="status">
-                        <h2>Không tìm thấy ảnh panorama</h2>
-                        <p>
-                            Ảnh #{currentId} không có trong dữ liệu hiện tại
-                            ({allPoints.length} ảnh).
-                        </p>
+            {!currentNode ? (
+                <div className="sv-empty" role="status">
+                    <h2>Không tìm thấy ảnh panorama</h2>
+                    <p>
+                        Ảnh #{currentId} không có trong dữ liệu hiện tại ({allPoints.length} ảnh).
+                    </p>
+                    <button type="button" className="sv-empty__close" onClick={onClose}>
+                        Đóng
+                    </button>
+                </div>
+            ) : (
+                <div
+                    ref={stageRef}
+                    className="sv-stage"
+                    onPointerMove={handleStagePointerMove}
+                    onPointerLeave={hideRing}
+                    onPointerDown={() => {
+                        hideRing();
+                        setShowHint(false);
+                    }}
+                >
+                    <ReactPhotoSphereViewer
+                        src={initialImageUrl}
+                        height="100%"
+                        width="100%"
+                        adapter={[EquirectangularAdapter, { resolution: 128 }]}
+                        plugins={plugins}
+                        onReady={handleReady}
+                        navbar={false}
+                        defaultZoomLvl={45}
+                        defaultYaw={0}
+                        defaultPitch={0}
+                        mousewheel
+                        mousemove
+                        keyboard={false}
+                        defaultTransition={{
+                            speed: TRANSITION_MS,
+                            rotation: true,
+                            effect: "fade",
+                        }}
+                    />
+
+                    {/* Vòng tròn bám con trỏ trên mặt đường */}
+                    <div ref={ringRef} className="sv-ground-ring" aria-hidden="true">
+                        <div className="sv-ground-ring__disc" />
+                        <span ref={ringLabelRef} className="sv-ground-ring__label" />
                     </div>
-                ) : (
-                    <>
-                        <ReactPhotoSphereViewer
-                            src={initialImageUrl}
-                            height="100%"
-                            width="100%"
-                            adapter={[EquirectangularAdapter, { resolution: 128 }]}
-                            plugins={plugins}
-                            onReady={handleReady}
-                            navbar={["zoom", "caption", "fullscreen"]}
-                            defaultZoomLvl={45}
-                            defaultYaw={0}
-                            defaultPitch={0}
-                            mousewheel
-                            mousemove
-                            keyboard={false}
-                            defaultTransition={{
-                                speed: 1200,
-                                rotation: true,
-                                effect: "fade",
-                            }}
-                        />
-                        <div className="sv-modal-topbar">
-                            <div className="sv-modal-location">
-                                <span className="sv-modal-kicker">STREET VIEW</span>
-                                <strong>Ảnh #{currentNode.id}</strong>
+
+                    {isNavigating && <div className="sv-progress" role="progressbar" aria-label="Đang tải ảnh" />}
+
+                    {/* Thẻ vị trí – góc trên trái như Google */}
+                    <header className="sv-card sv-ui">
+                        <button
+                            type="button"
+                            className="sv-card__back"
+                            onClick={onClose}
+                            aria-label="Đóng Street View"
+                            title="Đóng (Esc)"
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z" />
+                            </svg>
+                        </button>
+                        <div className="sv-card__text">
+                            <strong>Street View</strong>
+                            <span>
+                                Ảnh #{currentNode.id} · {currentNode.lat.toFixed(5)}, {currentNode.lng.toFixed(5)}
+                            </span>
+                        </div>
+                    </header>
+
+                    {/* La bàn + zoom – góc dưới phải */}
+                    <aside className="sv-controls sv-ui" aria-label="Điều khiển camera">
+                        <button
+                            type="button"
+                            className="sv-compass"
+                            onClick={faceNorth}
+                            aria-label="Quay về hướng Bắc"
+                            title="Quay về hướng Bắc"
+                        >
+                            <div ref={compassRef} className="sv-compass__dial">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path className="sv-compass__north" d="M12 2 17 13H7z" />
+                                    <path className="sv-compass__south" d="M12 22 7 13h10z" />
+                                </svg>
                             </div>
+                        </button>
+                        <div className="sv-zoom">
                             <button
                                 type="button"
-                                className="sv-modal-close"
-                                onClick={onClose}
-                                aria-label="Đóng ảnh toàn cảnh"
-                                title="Đóng"
+                                onClick={() => viewerRef.current?.zoomIn(15)}
+                                aria-label="Phóng to"
+                                title="Phóng to (+)"
                             >
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-                                    <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => viewerRef.current?.zoomOut(15)}
+                                aria-label="Thu nhỏ"
+                                title="Thu nhỏ (−)"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M19 13H5v-2h14z" />
                                 </svg>
                             </button>
                         </div>
-                        <div className="sv-modal-bottom">
-                            <p className="sv-modal-hint">
-                                Kéo để nhìn quanh <span>·</span> Cuộn để phóng to
-                                <span>·</span> Dùng phím ← →
-                            </p>
-                            <nav className="sv-navigation" aria-label="Điều hướng Street View">
-                                <button
-                                    type="button"
-                                    className="sv-navigation-button"
-                                    onClick={() => previousPoints[0] && navigateTo(previousPoints[0].id)}
-                                    disabled={!previousPoints[0] || isNavigating}
-                                    title={
-                                        previousPoints[0]
-                                            ? `Quay lại ảnh #${previousPoints[0].id}`
-                                            : "Không có ảnh trước"
-                                    }
-                                >
-                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="m15 18-6-6 6-6" />
-                                    </svg>
-                                    <span>
-                                        <strong>Quay lại</strong>
-                                        <small>{previousPoints[0] ? `Ảnh #${previousPoints[0].id}` : "Không có ảnh trước"}</small>
-                                    </span>
-                                </button>
-                                <span className="sv-navigation-divider" aria-hidden="true" />
-                                <button
-                                    type="button"
-                                    className="sv-navigation-button sv-navigation-button--next"
-                                    onClick={() => nextPoints[0] && navigateTo(nextPoints[0].id)}
-                                    disabled={!nextPoints[0] || isNavigating}
-                                    title={
-                                        nextPoints[0]
-                                            ? `Đi tới ảnh #${nextPoints[0].id}`
-                                            : "Không có ảnh tiếp theo"
-                                    }
-                                >
-                                    <span>
-                                        <strong>Đi tiếp</strong>
-                                        <small>{nextPoints[0] ? `Ảnh #${nextPoints[0].id}` : "Không có ảnh tiếp theo"}</small>
-                                    </span>
-                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="m9 18 6-6-6-6" />
-                                    </svg>
-                                </button>
-                            </nav>
-                        </div>
-                    </>
-                )}
-            </div>
+                    </aside>
+
+                    {/* Tiến / Lùi theo hướng đang nhìn */}
+                    <nav className="sv-pill sv-ui" aria-label="Di chuyển">
+                        <button
+                            type="button"
+                            onClick={() => moveByView(-1)}
+                            disabled={!backwardLink}
+                            title="Lùi lại (↓)"
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m20 12-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8z" />
+                            </svg>
+                            <span>
+                                <strong>Lùi lại</strong>
+                                <small>{backwardLink ? formatDistance(backwardLink.distance) : "Hết đường"}</small>
+                            </span>
+                        </button>
+                        <i className="sv-pill__divider" aria-hidden="true" />
+                        <button
+                            type="button"
+                            onClick={() => moveByView(1)}
+                            disabled={!forwardLink}
+                            title="Đi tiếp (↑)"
+                        >
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m4 12 1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8z" />
+                            </svg>
+                            <span>
+                                <strong>Đi tiếp</strong>
+                                <small>{forwardLink ? formatDistance(forwardLink.distance) : "Hết đường"}</small>
+                            </span>
+                        </button>
+                    </nav>
+
+                    {showHint && (
+                        <p className="sv-hint" role="note">
+                            Kéo để nhìn quanh · Bấm xuống đường hoặc nhấn ↑ để đi tới
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
