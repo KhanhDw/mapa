@@ -380,9 +380,18 @@ export function CoordSidebar({
                         </div>
                         <button
                             type="button"
-                            className={`cs-copy-btn ${copy === "ok" ? "is-success" : ""}`}
+                            className={`cs-copy-btn${copy === "ok" ? " is-success" : copy === "fail" ? " is-error" : ""}`}
                             onClick={handleCopy}
-                            title="Sao chép tọa độ"
+                            title={
+                                copy === "fail"
+                                    ? "Thử sao chép tọa độ lại"
+                                    : "Sao chép tọa độ"
+                            }
+                            aria-label={
+                                copy === "fail"
+                                    ? "Thử sao chép tọa độ lại"
+                                    : "Sao chép tọa độ"
+                            }
                         >
                             {copy === "ok" ? (
                                 <>
@@ -391,6 +400,8 @@ export function CoordSidebar({
                                     </svg>
                                     Đã chép
                                 </>
+                            ) : copy === "fail" ? (
+                                <>Thử lại</>
                             ) : (
                                 <>
                                     <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none">
@@ -401,6 +412,13 @@ export function CoordSidebar({
                                 </>
                             )}
                         </button>
+                        <span className="cs-visually-hidden" role="status" aria-live="polite">
+                            {copy === "ok"
+                                ? "Đã sao chép tọa độ."
+                                : copy === "fail"
+                                  ? "Không thể sao chép tọa độ. Vui lòng thử lại."
+                                  : ""}
+                        </span>
                     </div>
 
                     <div className="cs-coords-card__body">
@@ -520,14 +538,14 @@ export function CoordSidebar({
                         ) : pois && pois.length > 0 ? (
                             <ul className="cs-poi-list">
                                 {pois.map((poi) => {
-                                    const hasSv = poi.streetview_id != null;
+                                    const streetviewId = poi.streetview_id;
                                     return (
-                                        // <li key={String(poi.id)} className="cs-poi-item">
                                         <li key={`${poi.source ?? "osm"}-${poi.id}`} className="cs-poi-item">
                                             <button
                                                 type="button"
                                                 className="cs-poi-item__action"
                                                 onClick={() => onPoiClick?.(poi)}
+                                                aria-label={`Xem ${poi.name?.trim() || "địa điểm chưa đặt tên"} trên bản đồ`}
                                             >
                                                 <div className="cs-poi-item__content">
                                                     <span className="cs-poi-item__title">
@@ -549,14 +567,19 @@ export function CoordSidebar({
                                                     )}
                                                 </div>
                                             </button>
-                                            {hasSv && onPoiStreetView && (
+                                            {streetviewId != null && onPoiStreetView && (
                                                 <button
                                                     type="button"
                                                     className="cs-btn-360"
-                                                    onClick={() => onPoiStreetView(poi.streetview_id!)}
+                                                    onClick={() => onPoiStreetView(streetviewId)}
                                                     title={
                                                         poi.streetview_distance_m != null
                                                             ? `Xem 360° (${formatDistance(poi.streetview_distance_m)})`
+                                                            : "Xem ảnh 360°"
+                                                    }
+                                                    aria-label={
+                                                        poi.streetview_distance_m != null
+                                                            ? `Xem ảnh 360°, cách ${formatDistance(poi.streetview_distance_m)}`
                                                             : "Xem ảnh 360°"
                                                     }
                                                 >
@@ -577,8 +600,6 @@ export function CoordSidebar({
                     </Section>
                 )}
 
-                {/* Khối Ảnh 360 */}
-                {/* Khối Ảnh toàn cảnh gần nhất */}
                 {showSv && (
                     <Section
                         title="Ảnh toàn cảnh gần nhất"

@@ -3,15 +3,15 @@
    ========================================================================== */
 
 .activity-bar {
-  width: 56px;
+  width: 60px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 12px 0;
   background: #ffffff;
   border-right: 1px solid #e4e4e7;
-  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.02);
+  box-shadow: 1px 0 8px rgba(15, 23, 42, 0.04);
   z-index: 50;
   user-select: none;
 }
@@ -19,7 +19,7 @@
 .activity-bar__group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -42,7 +42,10 @@
   color: #71717a;
   cursor: pointer;
   border-radius: 8px;
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .activity-bar__btn:hover {
@@ -52,7 +55,7 @@
 
 .activity-bar__btn.is-active {
   color: #2563eb;
-  background: #eff6ff;
+  background: #eaf2ff;
 }
 
 .activity-bar__btn.is-active::before {
@@ -69,4 +72,24 @@
 .activity-bar__btn:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: -2px;
+}
+
+.activity-bar__btn:active {
+  transform: scale(0.94);
+}
+
+@media (max-height: 520px) {
+  .activity-bar {
+    padding: 8px 0;
+  }
+
+  .activity-bar__group {
+    gap: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activity-bar__btn {
+    transition-duration: 0.01ms;
+  }
 }
