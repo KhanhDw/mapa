@@ -1,44 +1,67 @@
 .sv-modal-overlay {
     position: fixed;
     inset: 0;
-    padding: 24px;
-    background: rgba(8, 15, 28, 0.78);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     z-index: 9999;
+    background: #070b11;
 }
 
 .sv-modal-content {
     position: relative;
-    width: min(100%, 1440px);
-    height: min(86vh, 900px);
+    width: 100%;
+    height: 100%;
     min-height: 320px;
-    background: #101318;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
+    background: #101318;
     outline: none;
     animation: sv-modal-enter 180ms ease-out;
 }
 
-.sv-modal-close {
+.sv-modal-content .psv-navbar--open {
+    bottom: 102px;
+}
+
+.sv-modal-topbar {
     position: absolute;
-    top: 16px;
-    right: 16px;
-    z-index: 10000;
+    inset: 0 0 auto;
+    z-index: 20;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 22px 24px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.62), transparent);
+}
+
+.sv-modal-location {
+    display: grid;
+    gap: 5px;
+    color: #fff;
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.7);
+}
+
+.sv-modal-kicker {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: 0.16em;
+}
+
+.sv-modal-location strong {
+    font-size: 17px;
+    font-weight: 650;
+}
+
+.sv-modal-close {
     display: grid;
     place-items: center;
-    width: 40px;
-    height: 40px;
-    border: 1px solid rgba(255, 255, 255, 0.24);
-    border-radius: 12px;
-    background: rgba(15, 23, 42, 0.64);
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.68);
     color: #fff;
     cursor: pointer;
+    pointer-events: auto;
     backdrop-filter: blur(8px);
     transition:
         background-color 0.18s ease,
@@ -47,14 +70,122 @@
 }
 
 .sv-modal-close:hover {
-    border-color: rgba(255, 255, 255, 0.46);
+    border-color: rgba(255, 255, 255, 0.55);
     background: rgba(37, 99, 235, 0.9);
-    transform: translateY(-1px);
+    transform: scale(1.05);
 }
 
-.sv-modal-close:focus-visible {
+.sv-modal-close:focus-visible,
+.sv-navigation-button:focus-visible {
     outline: 2px solid #93c5fd;
     outline-offset: 3px;
+}
+
+.sv-modal-bottom {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 20;
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    padding: 36px 20px 24px;
+    pointer-events: none;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.72), transparent);
+}
+
+.sv-modal-hint {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 12px;
+    font-weight: 500;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.sv-modal-hint span {
+    margin: 0 7px;
+    color: rgba(255, 255, 255, 0.56);
+}
+
+.sv-navigation {
+    display: flex;
+    align-items: center;
+    min-width: min(460px, 100%);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    background: rgba(16, 24, 38, 0.82);
+    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.32);
+    pointer-events: auto;
+    backdrop-filter: blur(14px);
+}
+
+.sv-navigation-button {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 14px 18px;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.18s ease;
+}
+
+.sv-navigation-button--next {
+    justify-content: flex-end;
+    text-align: right;
+}
+
+.sv-navigation-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.sv-navigation-button:disabled {
+    color: rgba(255, 255, 255, 0.43);
+    cursor: not-allowed;
+}
+
+.sv-navigation-button svg {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.27);
+    border-radius: 50%;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+}
+
+.sv-navigation-button span {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.sv-navigation-button strong {
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.sv-navigation-button small {
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sv-navigation-divider {
+    align-self: stretch;
+    width: 1px;
+    margin: 12px 0;
+    background: rgba(255, 255, 255, 0.18);
 }
 
 .sv-modal-empty {
@@ -82,81 +213,136 @@
     line-height: 1.6;
 }
 
+.sv-arrow {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    border-radius: 50%;
+    background: rgba(26, 115, 232, 0.88);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.58);
+    color: #fff;
+    cursor: pointer;
+    user-select: none;
+    transition:
+        background-color 0.16s ease,
+        box-shadow 0.16s ease,
+        transform 0.16s ease;
+    transform: perspective(90px) rotateX(12deg);
+}
+
+.sv-arrow--previous {
+    background: rgba(15, 23, 42, 0.9);
+}
+
+.sv-arrow__icon {
+    width: 29px;
+    height: 29px;
+    fill: currentColor;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.sv-arrow:hover {
+    background: #1a73e8;
+    box-shadow: 0 6px 24px rgba(26, 115, 232, 0.58);
+    transform: perspective(90px) rotateX(12deg) scale(1.18) translateY(-2px);
+}
+
+.sv-arrow--previous:hover {
+    background: #334155;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.65);
+}
+
 @keyframes sv-modal-enter {
     from {
         opacity: 0;
-        transform: translateY(8px) scale(0.99);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
     }
-}
-
-.sv-arrow {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: 3px solid rgba(255, 255, 255, 0.95);
-    background: rgba(26, 115, 232, 0.85);
-    color: #fff;
-    font-size: 28px;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-    transition: transform 0.15s, background 0.15s;
-    user-select: none;
-}
-
-.sv-arrow:hover {
-    transform: scale(1.15);
-    background: rgba(26, 115, 232, 1);
 }
 
 @media (max-width: 640px) {
-    .sv-modal-overlay {
-        padding: 10px;
-    }
-
-    .sv-modal-content {
-        width: 100%;
-        height: 88vh;
-        min-height: 240px;
-        border-radius: 12px;
+    .sv-modal-topbar {
+        padding: 16px;
     }
 
     .sv-modal-close {
-        top: 10px;
-        right: 10px;
         width: 38px;
         height: 38px;
+    }
+
+    .sv-modal-bottom {
+        gap: 10px;
+        padding: 28px 12px 14px;
+    }
+
+    .sv-modal-hint {
+        font-size: 10px;
+    }
+
+    .sv-modal-hint span {
+        margin: 0 4px;
+    }
+
+    .sv-navigation {
+        min-width: 0;
+        width: 100%;
+        border-radius: 13px;
+    }
+
+    .sv-navigation-button {
+        gap: 8px;
+        padding: 12px 10px;
+    }
+
+    .sv-navigation-button svg {
+        flex-basis: 25px;
+        width: 25px;
+        height: 25px;
+    }
+
+    .sv-navigation-button strong {
+        font-size: 12px;
+    }
+
+    .sv-navigation-button small {
+        max-width: 104px;
+        font-size: 10px;
     }
 
     .sv-arrow {
         width: 48px;
         height: 48px;
-        font-size: 24px;
+    }
+
+    .sv-arrow__icon {
+        width: 26px;
+        height: 26px;
     }
 }
 
-@media (max-height: 520px) {
-    .sv-modal-overlay {
-        padding: 12px;
+@media (max-width: 360px) {
+    .sv-modal-hint {
+        font-size: 9px;
     }
 
-    .sv-modal-content {
-        height: calc(100vh - 24px);
-        min-height: 0;
+    .sv-modal-hint span {
+        margin: 0 2px;
+    }
+
+    .sv-navigation-button {
+        gap: 5px;
+        padding: 10px 7px;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .sv-modal-content,
     .sv-modal-close,
+    .sv-navigation-button,
     .sv-arrow {
         animation-duration: 0.01ms;
         transition-duration: 0.01ms;
