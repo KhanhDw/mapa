@@ -6,7 +6,13 @@ import type {
     Map as MapLibreMap,
 } from "maplibre-gl";
 import type { LayerKey } from "../../../layout/panels/types";
-import { ICON_MATCH, registerPoiIcons } from "../utils/createPoiIcon";
+import {
+    ICON_MATCH,
+    USER_ICON_MATCH,
+    USER_PIN_PREFIX,
+    registerPoiIcons,
+    registerUserPoiIcons,
+} from "../utils/createPoiIcon";
 
 export type LayerCategory =
     | "sv"
@@ -71,6 +77,8 @@ export interface ExtraLayerDef {
     maxzoom?: number;
     beforeAdd?: (map: MapLibreMap) => void;
     spec: (sourceId: string, layerId: string) => LayerSpecification;
+    tilePath?: string;
+
 }
 
 function matchExpr(
@@ -82,6 +90,20 @@ function matchExpr(
     for (const [k, v] of Object.entries(mapping)) out.push(k, v);
     out.push(fallback);
     return out as unknown as ExpressionSpecification;
+}
+
+
+// Gọi cùng origin để Vite proxy chuyển request đến backend.
+// const MVT_BASE = "/mvt";
+const MVT_BASE = `${window.location.origin}/mvt`;
+const TILE_PROXY_BASE = `${window.location.origin}/tiles`;
+
+export function extraTileUrl(def: ExtraLayerDef, bust = false): string {
+    const base = def.tilePath
+        ? `${MVT_BASE}/${def.tilePath}`
+        : `${TILE_PROXY_BASE}/${def.schemaTable}`;
+
+    return `${base}/{z}/{x}/{y}.pbf${bust ? `?v=${Date.now()}` : ""}`;
 }
 
 export const EXTRA_LAYERS: ExtraLayerDef[] = [
@@ -344,7 +366,7 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
             minzoom: 5,
             layout: {
                 "text-field": ["coalesce", ["get", "name"], ""],
-                "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+                "text-font": ["Noto Sans Regular"],
                 "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 10, 13, 16, 16],
                 "text-allow-overlap": false,
                 "text-padding": 4,
@@ -375,7 +397,7 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
                 "icon-allow-overlap": true,
                 "icon-ignore-placement": false,
                 "text-field": ["coalesce", ["get", "name"], ""],
-                "text-font": ["Open Sans Regular"],
+                "text-font": ["Noto Sans Regular"],
                 "text-size": ["interpolate", ["linear"], ["zoom"], 13, 9, 16, 11, 19, 13],
                 "text-offset": [0, 1.4],
                 "text-anchor": "top",
@@ -397,34 +419,37 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
         layerId: "lay-user-pois",
         schemaTable: "user_data.pois",
         sourceLayer: "user_data.pois",
-        beforeAdd: registerPoiIcons,
+        tilePath: "user_data.pois",
+        beforeAdd: (map) => {
+            registerPoiIcons(map);
+            registerUserPoiIcons(map);
+        },
         spec: (src, id) => ({
             id,
             type: "symbol",
             source: src,
             "source-layer": "user_data.pois",
-            minzoom: 12,
+            minzoom: 10,
             layout: {
-                "icon-image": matchExpr("category", ICON_MATCH, "poi-icon-default"),
-                "icon-size": ["interpolate", ["linear"], ["zoom"], 12, 0.6, 16, 0.9, 19, 1.1],
+                "icon-image": matchExpr("category", USER_ICON_MATCH, USER_PIN_PREFIX + "default"),
+                "icon-anchor": "bottom",
+                "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.7, 15, 0.9, 19, 1.1],
                 "icon-allow-overlap": true,
-                "icon-ignore-placement": false,
+                "icon-ignore-placement": true,
                 "text-field": ["coalesce", ["get", "name"], ""],
-                "text-font": ["Open Sans Regular"],
-                "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 16, 12, 19, 14],
-                "text-offset": [0, 1.5],
+                "text-font": ["Noto Sans Regular"],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 10, 11, 16, 13, 19, 15],
                 "text-anchor": "top",
-                "text-allow-overlap": false,
-                "text-padding": 2,
+                "text-offset": [0, 0.3],
+                "text-optional": true,      // nhãn bị chồng thì ẩn nhãn, giữ icon
                 "text-max-width": 8,
+                "text-padding": 2,
             },
             paint: {
                 "icon-opacity": 1,
-                "icon-halo-color": "#fbbf24",
-                "icon-halo-width": 2,
-                "text-color": "#0f172a",
-                "text-halo-color": "#fef3c7",
-                "text-halo-width": 1.5,
+                "text-color": "#7c2d12",
+                "text-halo-color": "#fff7ed",
+                "text-halo-width": 2,
             },
         }),
     },

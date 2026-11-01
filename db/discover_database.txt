@@ -98,15 +98,15 @@ Expanded display is used automatically.
            tbl            |  count  
 --------------------------+---------
  public.streetview_images |       4
- user_data.pois           |       0
+ user_data.pois           |       1
  public.pois              |       0
- user_data.poi_photos     |       0
+ user_data.poi_photos     |       1
  clean.places             |   14699
  clean.water_areas        |   39758
  clean.pois               |   74933
  public.osm_roads         | 1004652
- public.vietnam_roads     | 3140236
  clean.buildings          | 1272265
+ public.vietnam_roads     | 3140236
 (10 rows)
 
 
@@ -305,14 +305,16 @@ Access method: heap
 
 
 ========== 6.1 user_data.pois (5 newest) ==========
- id | name | category | address | phone | description | lng | lat | created_at 
-----+------+----------+---------+-------+-------------+-----+-----+------------
-(0 rows)
+ id |        name         | category |                  address                   | phone | description |    lng     |    lat    |          created_at           
+----+---------------------+----------+--------------------------------------------+-------+-------------+------------+-----------+-------------------------------
+  3 | Công viên Quyanh Na | other    | 38, Đinh Thiên Hoàng, Long Xuyên, An Giang |       |             | 105.438873 | 10.385251 | 2026-11-01 03:59:22.970441+00
+(1 row)
 
 ========== 6.2 user_data.poi_photos (5 newest) ==========
- id | poi_id | file_path | thumb_path | width | height 
-----+--------+-----------+------------+-------+--------
-(0 rows)
+ id | poi_id |               file_path                |                thumb_path                | width | height 
+----+--------+----------------------------------------+------------------------------------------+-------+--------
+  2 |      3 | 3/3f57c52211544d3ba9d089a85bb3fc40.jpg | 3/3f57c52211544d3ba9d089a85bb3fc40_t.jpg |  1880 |    422
+(1 row)
 
 ========== 6.3 public.pois (5 rows) ==========
  id | osm_id | name | category | geom | created_at 
@@ -332,7 +334,7 @@ Access method: heap
    osm_id   |  fclass  | category  |    name    | has_name |                        geom                        
 ------------+----------+-----------+------------+----------+----------------------------------------------------
  1000087196 | pharmacy | y_te      |            | f        | 0101000020E610000024BFD94180755A40FAEE5696E8063540
- 1000087283 | cafe     | an_uong   | C├á Ph├¬ Huy | t        | 0101000020E6100000B7A62F3A8F755A40C5B2F4FCC4063540
+ 1000087283 | cafe     | an_uong   | Cà Phê Huy | t        | 0101000020E6100000B7A62F3A8F755A40C5B2F4FCC4063540
  1000087307 | toilet   | khac      |            | f        | 0101000020E6100000845DB9837D755A40B10EEC9D76073540
  1000087314 | pharmacy | y_te      |            | f        | 0101000020E61000009F44DF3884755A40802D0A16E2063540
  1000087341 | atm      | tai_chinh |            | f        | 0101000020E6100000AF92342493755A40F0ADA305C3063540
@@ -342,7 +344,8 @@ Access method: heap
 ========== 7.1 CATEGORIES user_data.pois ==========
  category | count 
 ----------+-------
-(0 rows)
+ other    |     1
+(1 row)
 
 ========== 7.2 CATEGORIES public.pois (top 50) ==========
  category | count 
@@ -350,7 +353,6 @@ Access method: heap
 (0 rows)
 
 ========== 7.3 CATEGORIES clean.pois (top 50) ==========
-========== 7.4 GEOMETRY VALIDITY ==========
 docker : ERROR:  column "kind" does not exist
 At line:1 char:31
 + ... cover.sql | docker exec -i postgis-webmap psql -U postgres -d webmap_ ...
@@ -361,6 +363,7 @@ At line:1 char:31
  
 LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
                ^
+========== 7.4 GEOMETRY VALIDITY ==========
            tbl            | invalid 
 --------------------------+---------
  public.streetview_images |       0
@@ -371,7 +374,7 @@ LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
 ========== 7.5 NULL CHECK user_data.pois ==========
  no_name | no_cat | no_geom | no_addr | total 
 ---------+--------+---------+---------+-------
-       0 |      0 |       0 |       0 |     0
+       0 |      0 |       0 |       0 |     1
 (1 row)
 
 ========== 7.6 tile_reader PERMISSIONS ==========
