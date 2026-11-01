@@ -49,6 +49,7 @@ interface Props {
     error?: string | null;
     onOpenStreetView?: (id: number) => void;
     onPoiClick?: (poi: PoiInfo) => void;
+    onPoiDetails?: (poi: PoiInfo) => void;
     onPoiStreetView?: (streetviewId: number) => void;
 }
 
@@ -260,6 +261,7 @@ export function CoordSidebar({
     error = null,
     onOpenStreetView,
     onPoiClick,
+    onPoiDetails,
     onPoiStreetView,
 }: Props) {
     const [format, setFormat] = useState<CoordFormat>("decimal");
@@ -567,6 +569,16 @@ export function CoordSidebar({
                                                     )}
                                                 </div>
                                             </button>
+                                            {onPoiDetails && (
+                                                <button
+                                                    type="button"
+                                                    className="cs-poi-details"
+                                                    onClick={() => onPoiDetails(poi)}
+                                                    aria-label={`Xem chi tiết ${poi.name?.trim() || "địa điểm chưa đặt tên"}`}
+                                                >
+                                                    Chi tiết
+                                                </button>
+                                            )}
                                             {streetviewId != null && onPoiStreetView && (
                                                 <button
                                                     type="button"
