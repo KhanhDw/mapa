@@ -1,350 +1,529 @@
-.sv-modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: #070b11;
+/* ==========================================================
+   Street View – giao diện theo phong cách Google Maps
+   ========================================================== */
+
+.sv-overlay {
+  --sv-surface: #fff;
+  --sv-text: #202124;
+  --sv-muted: #5f6368;
+  --sv-hover: #f1f3f4;
+  --sv-accent: #1a73e8;
+  --sv-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  --sv-inset-top: max(16px, env(safe-area-inset-top));
+  --sv-inset-right: max(16px, env(safe-area-inset-right));
+  --sv-inset-bottom: max(20px, env(safe-area-inset-bottom));
+  --sv-inset-left: max(16px, env(safe-area-inset-left));
+
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0b0d10;
+  color: var(--sv-text);
+  font-family:
+    "Google Sans",
+    Roboto,
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  outline: none;
 }
 
-.sv-modal-content {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    min-height: 320px;
-    overflow: hidden;
-    background: #101318;
-    outline: none;
-    animation: sv-modal-enter 180ms ease-out;
+.sv-overlay button {
+  font-family: inherit;
 }
 
-.sv-modal-content .psv-navbar--open {
-    bottom: 102px;
+.sv-overlay svg {
+  fill: currentColor;
 }
 
-.sv-modal-topbar {
-    position: absolute;
-    inset: 0 0 auto;
-    z-index: 20;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 22px 24px;
-    pointer-events: none;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.62), transparent);
+.sv-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #101318;
 }
 
-.sv-modal-location {
-    display: grid;
-    gap: 5px;
-    color: #fff;
-    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.7);
+.sv-stage .psv-container {
+  outline: none;
 }
 
-.sv-modal-kicker {
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 10px;
-    font-weight: 750;
-    letter-spacing: 0.16em;
+/* Con trỏ "bàn tay" chuyển thành ngón trỏ khi đang trỏ vào link */
+.sv-stage.is-link-hover .psv-container,
+.sv-stage.is-link-hover .psv-container canvas {
+  cursor: pointer !important;
 }
 
-.sv-modal-location strong {
-    font-size: 17px;
-    font-weight: 650;
+/* ---------- Thẻ vị trí (trên trái) ---------- */
+
+.sv-card {
+  position: absolute;
+  top: var(--sv-inset-top);
+  left: var(--sv-inset-left);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(
+    420px,
+    calc(100% - var(--sv-inset-left) - var(--sv-inset-right))
+  );
+  padding: 4px 20px 4px 4px;
+  border-radius: 12px;
+  background: var(--sv-surface);
+  box-shadow: var(--sv-shadow);
 }
 
-.sv-modal-close {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    background: rgba(15, 23, 42, 0.68);
-    color: #fff;
-    cursor: pointer;
-    pointer-events: auto;
-    backdrop-filter: blur(8px);
-    transition:
-        background-color 0.18s ease,
-        border-color 0.18s ease,
-        transform 0.18s ease;
+.sv-card__back {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sv-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
-.sv-modal-close:hover {
-    border-color: rgba(255, 255, 255, 0.55);
-    background: rgba(37, 99, 235, 0.9);
-    transform: scale(1.05);
+.sv-card__back:hover {
+  background: var(--sv-hover);
 }
 
-.sv-modal-close:focus-visible,
-.sv-navigation-button:focus-visible {
-    outline: 2px solid #93c5fd;
-    outline-offset: 3px;
+.sv-card__back svg {
+  width: 24px;
+  height: 24px;
 }
 
-.sv-modal-bottom {
-    position: absolute;
-    inset: auto 0 0;
-    z-index: 20;
-    display: grid;
-    justify-items: center;
-    gap: 14px;
-    padding: 36px 20px 24px;
-    pointer-events: none;
-    background: linear-gradient(0deg, rgba(0, 0, 0, 0.72), transparent);
+.sv-card__text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
 }
 
-.sv-modal-hint {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.86);
-    font-size: 12px;
-    font-weight: 500;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+.sv-card__text strong {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
-.sv-modal-hint span {
-    margin: 0 7px;
-    color: rgba(255, 255, 255, 0.56);
+.sv-card__text span {
+  overflow: hidden;
+  color: var(--sv-muted);
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.sv-navigation {
-    display: flex;
-    align-items: center;
-    min-width: min(460px, 100%);
-    overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
-    background: rgba(16, 24, 38, 0.82);
-    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.32);
-    pointer-events: auto;
-    backdrop-filter: blur(14px);
+/* ---------- La bàn + zoom (dưới phải) ---------- */
+
+.sv-controls {
+  position: absolute;
+  right: var(--sv-inset-right);
+  bottom: var(--sv-inset-bottom);
+  z-index: 20;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
 }
 
-.sv-navigation-button {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    padding: 14px 18px;
-    border: 0;
-    background: transparent;
-    color: #fff;
-    text-align: left;
-    cursor: pointer;
-    transition: background-color 0.18s ease;
+.sv-compass,
+.sv-zoom {
+  background: var(--sv-surface);
+  box-shadow: var(--sv-shadow);
 }
 
-.sv-navigation-button--next {
-    justify-content: flex-end;
-    text-align: right;
+.sv-compass {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
-.sv-navigation-button:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.12);
+.sv-compass:hover {
+  background: var(--sv-hover);
 }
 
-.sv-navigation-button:disabled {
-    color: rgba(255, 255, 255, 0.43);
-    cursor: not-allowed;
+.sv-compass__dial {
+  width: 28px;
+  height: 28px;
+  will-change: transform;
 }
 
-.sv-navigation-button svg {
-    flex: 0 0 28px;
-    width: 28px;
-    height: 28px;
-    padding: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.27);
-    border-radius: 50%;
-    fill: none;
-    stroke: currentColor;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 2;
+.sv-compass__dial svg {
+  width: 100%;
+  height: 100%;
 }
 
-.sv-navigation-button span {
-    display: grid;
-    gap: 3px;
-    min-width: 0;
+.sv-compass__north {
+  fill: #ea4335;
 }
 
-.sv-navigation-button strong {
-    font-size: 13px;
-    font-weight: 650;
+.sv-compass__south {
+  fill: #9aa0a6;
 }
 
-.sv-navigation-button small {
-    overflow: hidden;
-    color: rgba(255, 255, 255, 0.68);
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.sv-zoom {
+  display: grid;
+  overflow: hidden;
+  border-radius: 10px;
 }
 
-.sv-navigation-divider {
-    align-self: stretch;
-    width: 1px;
-    margin: 12px 0;
-    background: rgba(255, 255, 255, 0.18);
+.sv-zoom button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: #5f6368;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
-.sv-modal-empty {
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 10px;
-    height: 100%;
-    padding: 32px;
-    color: #fff;
-    text-align: center;
+.sv-zoom button + button {
+  border-top: 1px solid #e8eaed;
 }
 
-.sv-modal-empty h2 {
-    margin: 0;
-    font-size: clamp(18px, 2vw, 24px);
-    font-weight: 650;
+.sv-zoom button:hover {
+  background: var(--sv-hover);
+  color: var(--sv-text);
 }
 
-.sv-modal-empty p {
-    max-width: 440px;
-    margin: 0;
-    color: #cbd5e1;
-    font-size: 14px;
-    line-height: 1.6;
+.sv-zoom svg {
+  width: 22px;
+  height: 22px;
 }
+
+/* ---------- Nút Tiến / Lùi (dưới giữa) ---------- */
+
+.sv-pill {
+  position: absolute;
+  bottom: var(--sv-inset-bottom);
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--sv-surface);
+  box-shadow: var(--sv-shadow);
+  transform: translateX(-50%);
+}
+
+.sv-pill button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 132px;
+  padding: 10px 18px 10px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--sv-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.sv-pill button:hover:not(:disabled) {
+  background: var(--sv-hover);
+}
+
+.sv-pill button:disabled {
+  color: #9aa0a6;
+  cursor: not-allowed;
+}
+
+.sv-pill svg {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  color: var(--sv-accent);
+}
+
+.sv-pill button:disabled svg {
+  color: #bdc1c6;
+}
+
+.sv-pill span {
+  display: grid;
+  gap: 1px;
+}
+
+.sv-pill strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sv-pill small {
+  color: var(--sv-muted);
+  font-size: 11px;
+}
+
+.sv-pill button:disabled small {
+  color: #9aa0a6;
+}
+
+.sv-pill__divider {
+  width: 1px;
+  margin: 10px 0;
+  background: #e8eaed;
+}
+
+/* ---------- Gợi ý (biến mất sau lần tương tác đầu) ---------- */
+
+.sv-hint {
+  position: absolute;
+  bottom: calc(var(--sv-inset-bottom) + 70px);
+  left: 50%;
+  z-index: 20;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(32, 33, 36, 0.86);
+  color: #fff;
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
+  transform: translateX(-50%);
+  animation: sv-fade-in 240ms ease-out;
+}
+
+/* ---------- Thanh tiến trình khi đang tải ảnh ---------- */
+
+.sv-progress {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 30;
+  height: 3px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+}
+
+.sv-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  background: #8ab4f8;
+  animation: sv-progress 1s ease-in-out infinite;
+}
+
+/* ---------- Vòng tròn bám con trỏ trên mặt đường ---------- */
+
+.sv-ground-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 15;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.sv-ground-ring.is-visible {
+  opacity: 1;
+}
+
+.sv-ground-ring__disc {
+  position: absolute;
+  top: -34px;
+  left: -34px;
+  width: 68px;
+  height: 68px;
+  box-sizing: border-box;
+  border: 3px solid rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.22),
+    0 3px 10px rgba(0, 0, 0, 0.35);
+  transform: perspective(240px) rotateX(62deg);
+}
+
+.sv-ground-ring__label {
+  position: absolute;
+  top: 22px;
+  left: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(32, 33, 36, 0.82);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* ---------- Mũi tên chevron nằm trên mặt đường (marker) ---------- */
 
 .sv-arrow {
-    display: grid;
-    place-items: center;
-    width: 54px;
-    height: 54px;
-    border: 2px solid rgba(255, 255, 255, 0.95);
-    border-radius: 50%;
-    background: rgba(26, 115, 232, 0.88);
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.58);
-    color: #fff;
-    cursor: pointer;
-    user-select: none;
-    transition:
-        background-color 0.16s ease,
-        box-shadow 0.16s ease,
-        transform 0.16s ease;
-    transform: perspective(90px) rotateX(12deg);
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  cursor: pointer;
+  transform: perspective(220px) rotateX(58deg);
 }
 
-.sv-arrow--previous {
-    background: rgba(15, 23, 42, 0.9);
+.sv-arrow svg {
+  width: 100%;
+  height: 100%;
+  fill: rgba(255, 255, 255, 0.88);
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+  transition:
+    fill 0.15s ease,
+    filter 0.15s ease,
+    transform 0.15s ease;
 }
 
-.sv-arrow__icon {
-    width: 29px;
-    height: 29px;
-    fill: currentColor;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+.sv-arrow:hover svg {
+  fill: #fff;
+  filter: drop-shadow(0 0 8px rgba(138, 180, 248, 0.95))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+  transform: scale(1.12);
 }
 
-.sv-arrow:hover {
-    background: #1a73e8;
-    box-shadow: 0 6px 24px rgba(26, 115, 232, 0.58);
-    transform: perspective(90px) rotateX(12deg) scale(1.18) translateY(-2px);
+.sv-arrow:focus-visible {
+  outline: 2px solid #8ab4f8;
+  outline-offset: 2px;
 }
 
-.sv-arrow--previous:hover {
-    background: #334155;
-    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.65);
+/* ---------- Trạng thái không tìm thấy ảnh ---------- */
+
+.sv-empty {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 32px;
+  color: #fff;
+  text-align: center;
 }
 
-@keyframes sv-modal-enter {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+.sv-empty h2 {
+  margin: 0;
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 500;
 }
+
+.sv-empty p {
+  max-width: 440px;
+  margin: 0;
+  color: #bdc1c6;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.sv-empty__close {
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #8ab4f8;
+  color: #202124;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sv-empty__close:hover {
+  background: #aecbfa;
+}
+
+/* ---------- Focus bàn phím ---------- */
+
+.sv-overlay button:focus-visible {
+  outline: 2px solid var(--sv-accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Animation ---------- */
+
+@keyframes sv-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sv-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+/* ---------- Mobile ---------- */
 
 @media (max-width: 640px) {
-    .sv-modal-topbar {
-        padding: 16px;
-    }
+  .sv-pill {
+    right: var(--sv-inset-right);
+    left: var(--sv-inset-left);
+    transform: none;
+  }
 
-    .sv-modal-close {
-        width: 38px;
-        height: 38px;
-    }
+  /* Nút Tiến/Lùi chiếm cả chiều ngang; đẩy la bàn + zoom lên phía trên */
+  .sv-pill button {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    padding: 12px 10px;
+  }
 
-    .sv-modal-bottom {
-        gap: 10px;
-        padding: 28px 12px 14px;
-    }
+  .sv-controls {
+    bottom: calc(var(--sv-inset-bottom) + 68px);
+  }
 
-    .sv-modal-hint {
-        font-size: 10px;
-    }
+  .sv-hint {
+    bottom: calc(var(--sv-inset-bottom) + 76px);
+    max-width: calc(100% - 96px);
+    left: var(--sv-inset-left);
+    font-size: 12px;
+    text-align: left;
+    transform: none;
+  }
 
-    .sv-modal-hint span {
-        margin: 0 4px;
-    }
-
-    .sv-navigation {
-        min-width: 0;
-        width: 100%;
-        border-radius: 13px;
-    }
-
-    .sv-navigation-button {
-        gap: 8px;
-        padding: 12px 10px;
-    }
-
-    .sv-navigation-button svg {
-        flex-basis: 25px;
-        width: 25px;
-        height: 25px;
-    }
-
-    .sv-navigation-button strong {
-        font-size: 12px;
-    }
-
-    .sv-navigation-button small {
-        max-width: 104px;
-        font-size: 10px;
-    }
-
-    .sv-arrow {
-        width: 48px;
-        height: 48px;
-    }
-
-    .sv-arrow__icon {
-        width: 26px;
-        height: 26px;
-    }
-}
-
-@media (max-width: 360px) {
-    .sv-modal-hint {
-        font-size: 9px;
-    }
-
-    .sv-modal-hint span {
-        margin: 0 2px;
-    }
-
-    .sv-navigation-button {
-        gap: 5px;
-        padding: 10px 7px;
-    }
+  .sv-arrow {
+    width: 56px;
+    height: 56px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .sv-modal-content,
-    .sv-modal-close,
-    .sv-navigation-button,
-    .sv-arrow {
-        animation-duration: 0.01ms;
-        transition-duration: 0.01ms;
-    }
+  .sv-hint,
+  .sv-progress::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+
+  .sv-card__back,
+  .sv-compass,
+  .sv-zoom button,
+  .sv-pill button,
+  .sv-arrow svg,
+  .sv-ground-ring {
+    transition-duration: 0.01ms;
+  }
 }

@@ -149,3 +149,4 @@ labs/*.7z
 tmp/mapa_tree_*.txt
 mapa_tree_*.txt
 *.tree.txt
+.aider*
