@@ -36,10 +36,10 @@ async def lifespan(app):
 
 
 class CachedStaticFiles(StaticFiles):
-    """StaticFiles + Cache-Control cho ảnh tĩnh (panorama & POI photo)."""
-
     async def get_response(self, path, scope):
+        logger.info("[static] request path=%r", path)
         resp = await super().get_response(path, scope)
+        logger.info("[static] status=%s", resp.status_code)
         if resp.status_code == 200:
             resp.headers.setdefault(
                 "Cache-Control", "public, max-age=86400, immutable"
@@ -48,6 +48,14 @@ class CachedStaticFiles(StaticFiles):
 
 
 def create_app() -> FastAPI:
+
+     # DEBUG
+    logger.info("[MOUNT] CWD = %s", __import__("os").getcwd())
+    logger.info("[MOUNT] PANORAMAS_DIR = %s", settings.PANORAMAS_DIR)
+    logger.info("[MOUNT] pano exists = %s", settings.PANORAMAS_DIR.exists())
+    logger.info("[MOUNT] pano files = %s",
+                list(settings.PANORAMAS_DIR.iterdir()) if settings.PANORAMAS_DIR.exists() else "N/A")
+
     app = FastAPI(
         lifespan=lifespan,
         title="Webmap API",

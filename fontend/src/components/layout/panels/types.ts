@@ -32,7 +32,7 @@ export const DEFAULT_LAYERS: LayerVisibility = {
     roadsMinor: false,
     roadsLocal: false,
     railways: false,
-    water: true,
+    water: false,
     waterways: false,
     landuse: false,
     natural: false,

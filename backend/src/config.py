@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     DB_COMMAND_TIMEOUT: int = 10
 
     # ---- Đường dẫn media ----
-    PANORAMAS_DIR: Path = BACKEND_DIR / "data" / "panoramas"
-    USER_MEDIA_DIR: Path = BACKEND_DIR / "data" / "user_media"
+    PANORAMAS_DIR: Path = BACKEND_DIR / "panoramas"
+    USER_MEDIA_DIR: Path = BACKEND_DIR / "user_media"
 
     # ---- CORS ----
     # "*" cho dev; prod đặt dạng "https://a.com,https://b.com"
