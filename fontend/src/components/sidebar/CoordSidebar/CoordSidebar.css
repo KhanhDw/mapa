@@ -568,6 +568,24 @@
   cursor: pointer;
 }
 
+.cs-poi-details {
+  flex-shrink: 0;
+  padding: 5px 8px;
+  border: 1px solid #e4e4e7;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #52525b;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cs-poi-details:hover {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .cs-poi-item__title {
   display: block;
 
@@ -703,6 +721,7 @@
 .cs-copy-btn:focus-visible,
 .cs-seg__tab:focus-visible,
 .cs-poi-item__action:focus-visible,
+.cs-poi-details:focus-visible,
 .cs-btn-360:focus-visible {
   outline: 2px solid var(--cs-primary);
   outline-offset: 2px;

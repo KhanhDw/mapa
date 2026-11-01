@@ -7,6 +7,7 @@ import "./EsriSatelliteMap.css";
 import { addExtraLayers } from "./layers/addExtraLayers";
 import { StreetViewModal } from "../../streetview/StreetViewModal/StreetViewModal";
 import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSidebar";
+import { PlaceDetailSidebar } from "../../sidebar/PlaceDetailSidebar/PlaceDetailSidebar";
 import type { PanelType } from "../../layout/Activitybar";
 import { ContributePanel } from "../../contribute/ContributePanel";
 import { EXTRA_LAYERS, extraTileUrl } from "./layers/registry";
@@ -74,6 +75,10 @@ function EsriSatelliteMap({
         mapInstance,
         activePanel === "contribute"
     );
+    const [selectedPoi, setSelectedPoi] = useState<{
+        poi: PoiInfo;
+        clickKey: string;
+    } | null>(null);
 
     useEffect(() => {
         if (activePanel !== "info") clear();
@@ -196,7 +201,25 @@ function EsriSatelliteMap({
         });
     };
 
+    const handlePoiDetails = (poi: PoiInfo) => {
+        setSelectedPoi({
+            poi,
+            clickKey: clickInfo ? `${clickInfo.lng}|${clickInfo.lat}` : "",
+        });
+        mapRef.current?.flyTo({
+            center: [poi.lng, poi.lat],
+            zoom: 17,
+            duration: 600,
+        });
+    };
+
     const handleClose = () => onPanelClose?.();
+    const handleClosePlaceDetails = () => {
+        setSelectedPoi(null);
+        onPanelClose?.();
+    };
+    const clickKey = clickInfo ? `${clickInfo.lng}|${clickInfo.lat}` : "";
+    const activePoi = selectedPoi?.clickKey === clickKey ? selectedPoi.poi : null;
 
     // Refresh layer userPois + fly to POI mới
     const handleContributeCreated = useCallback(
@@ -237,7 +260,15 @@ function EsriSatelliteMap({
         <div className={`map-wrapper${hasSidebar ? " has-sidebar" : ""}`}>
             <div ref={mapContainer} className="map-container" />
 
-            {showInfo && (
+            {showInfo && activePoi ? (
+                <PlaceDetailSidebar
+                    place={activePoi}
+                    apiBase={API_BASE}
+                    onBack={() => setSelectedPoi(null)}
+                    onClose={handleClosePlaceDetails}
+                    onOpenStreetView={handleOpenStreetViewById}
+                />
+            ) : showInfo && (
                 <CoordSidebar
                     info={clickInfo}
                     onClose={handleClose}
@@ -251,6 +282,7 @@ function EsriSatelliteMap({
                     error={pointInfoError?.message ?? null}
                     onOpenStreetView={handleOpenStreetViewById}
                     onPoiClick={handlePoiClick}
+                    onPoiDetails={handlePoiDetails}
                     onPoiStreetView={handleOpenStreetViewById}
                 />
             )}
