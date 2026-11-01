@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import "../sidebar/CoordSidebar/CoordSidebar.css";
 import "./ContributePanel.css";
@@ -20,8 +20,15 @@ export function ContributePanel({ onClose, mapInstance, onCreated }: Props) {
         submitting, error, created,
     } = useContributeForm();
 
-    // Bật chế độ click map chọn vị trí khi chưa submit
-    useLocationPicker(mapInstance, !created, setLocation);
+    // Chỉ bật chế độ pick khi user bấm "Lấy tọa độ" và chưa submit xong
+    const [picking, setPicking] = useState(false);
+
+    const handlePick = (lng: number, lat: number) => {
+        setLocation(lng, lat);
+        setPicking(false); // chọn xong 1 điểm thì tự thoát chế độ pick
+    };
+
+    useLocationPicker(mapInstance, !created && picking, handlePick);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,13 +45,23 @@ export function ContributePanel({ onClose, mapInstance, onCreated }: Props) {
 
     const handleSubmit = async () => {
         const res = await submit();
-        if (res) onCreated?.(res);
+        if (res) {
+            setPicking(false);
+            onCreated?.(res);
+        }
     };
 
     const handleReset = () => {
         reset();
+        setPicking(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
+
+    const location =
+        draft.lng != null && draft.lat != null
+            ? { lng: draft.lng, lat: draft.lat }
+            : null;
+
 
     return (
         <aside className="coord-sidebar contribute-panel" aria-label="Đóng góp địa điểm">
@@ -87,15 +104,37 @@ export function ContributePanel({ onClose, mapInstance, onCreated }: Props) {
                                 <span className="contribute-badge">1</span>
                                 Vị trí <span className="contribute-required">*</span>
                             </div>
-                            {draft.lng != null && draft.lat != null ? (
+
+                            {location && (
                                 <div className="contribute-location">
-                                    📍 {draft.lat.toFixed(6)}, {draft.lng.toFixed(6)}
-                                    <span className="cs-muted">(Click map để đổi)</span>
+                                    📍 {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                                </div>
+                            )}
+
+                            {picking ? (
+                                <div className="contribute-hint contribute-hint--active">
+                                    👆 Click một điểm trên bản đồ để chọn vị trí
+                                    <button
+                                        type="button"
+                                        className="cs-btn"
+                                        onClick={() => setPicking(false)}
+                                    >
+                                        Huỷ
+                                    </button>
                                 </div>
                             ) : (
-                                <div className="contribute-hint">
-                                    Click một điểm trên bản đồ để chọn vị trí
-                                </div>
+                                <button
+                                    type="button"
+                                    className="cs-btn cs-btn--pick"
+                                    onClick={() => setPicking(true)}
+                                    disabled={submitting}
+                                >
+                                    {location ? "Đổi vị trí" : "Lấy tọa độ"}
+                                </button>
+                            )}
+
+                            {!location && !picking && (
+                                <div className="contribute-hint">Chưa chọn vị trí</div>
                             )}
                         </section>
 
@@ -216,7 +255,7 @@ export function ContributePanel({ onClose, mapInstance, onCreated }: Props) {
                                 type="button"
                                 className="cs-btn cs-btn--primary"
                                 onClick={handleSubmit}
-                                disabled={submitting || draft.lng == null}
+                                disabled={submitting || !location || picking}
                             >
                                 {submitting ? "Đang gửi..." : "Gửi địa điểm"}
                             </button>

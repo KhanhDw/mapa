@@ -216,3 +216,59 @@ export function registerPoiIcons(map: MapLibreMap): void {
         map.addImage(id, imageData, { pixelRatio: dpr });
     }
 }
+
+export const USER_PIN_PREFIX = "user-pin-";
+
+/** Cùng bảng ánh xạ category → glyph, nhưng trỏ sang icon dạng pin */
+export const USER_ICON_MATCH: Record<string, string> = Object.fromEntries(
+    Object.entries(ICON_MATCH).map(([k, v]) => [
+        k,
+        v.replace(POI_ICON_PREFIX, USER_PIN_PREFIX),
+    ])
+);
+
+/** Pin hình giọt nước, đầu nhọn ở đáy (dùng với icon-anchor: "bottom") */
+function createUserPinIcon(glyph: PoiGlyph, w = 36, h = 46): ImageData {
+    const dpr = window.devicePixelRatio || 1;
+    const canvas = document.createElement("canvas");
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext("2d")!;
+    ctx.scale(dpr, dpr);
+
+    const cx = w / 2;
+    const r = w / 2 - 3;
+    const cy = r + 3;
+
+    // Thân pin
+    ctx.beginPath();
+    ctx.moveTo(cx, h - 2);
+    ctx.lineTo(cx - r * Math.SQRT1_2, cy + r * Math.SQRT1_2);
+    ctx.arc(cx, cy, r, (3 * Math.PI) / 4, Math.PI / 4 + 2 * Math.PI, false);
+    ctx.closePath();
+    ctx.fillStyle = glyph === "default" ? "#f59e0b" : GLYPH_COLORS[glyph];
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineJoin = "round";
+    ctx.stroke();
+
+    // Glyph trắng ở giữa (drawGlyph vẽ quanh (c, c) nên dịch trục y)
+    ctx.save();
+    ctx.translate(0, cy - cx);
+    ctx.strokeStyle = "#ffffff";
+    ctx.fillStyle = "#ffffff";
+    drawGlyph(ctx, glyph, cx, r * 0.55);
+    ctx.restore();
+
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+export function registerUserPoiIcons(map: MapLibreMap): void {
+    const dpr = window.devicePixelRatio || 1;
+    for (const g of ALL_GLYPHS) {
+        const id = USER_PIN_PREFIX + g;
+        if (map.hasImage(id)) continue;
+        map.addImage(id, createUserPinIcon(g), { pixelRatio: dpr });
+    }
+}

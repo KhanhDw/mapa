@@ -9,14 +9,14 @@ import { StreetViewModal } from "../../streetview/StreetViewModal/StreetViewModa
 import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSidebar";
 import type { PanelType } from "../../layout/Activitybar";
 import { ContributePanel } from "../../contribute/ContributePanel";
-
+import { EXTRA_LAYERS, extraTileUrl } from "./layers/registry";
 import {
     API_BASE,
     ESRI_SATELLITE_TILE_URL,
-    TILE_BASE,
+    // TILE_BASE,
     getMapLibreWorkerUrl,
 } from "../../../config";
-
+import { bindUserPoiHover } from "./layers/bindUserPoiHover";
 import { ESRI_INITIAL_VIEW } from "./constants";
 
 import { addRoadsLayer } from "./layers/roadsLayer";
@@ -29,7 +29,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LayersPanel, SettingsPanel, DEFAULT_LAYERS } from "../../layout/panels";
 import type { LayerKey, LayerVisibility } from "../../layout/panels";
 import { applyLayerVisibility } from "./layers/applyLayerVisibility";
-import { EXTRA_LAYERS } from "./layers/registry";
 
 interface Props {
     activePanel?: PanelType | null;
@@ -105,7 +104,7 @@ function EsriSatelliteMap({
             ...ESRI_INITIAL_VIEW,
             style: {
                 version: 8,
-                glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+                glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
                 sources: {
                     "satellite-esri": {
                         type: "raster",
@@ -137,7 +136,7 @@ function EsriSatelliteMap({
 
         map.on("load", () => {
             addRoadsLayer(map);
-            addExtraLayers(map);
+            addExtraLayers(map); bindUserPoiHover(map);
             ensureStreetViewLayer({
                 map,
                 onIconClick: (id) => setSvModal({ open: true, startId: id }),
@@ -215,9 +214,10 @@ function EsriSatelliteMap({
 
             map.addSource(def.sourceId, {
                 type: "vector",
-                tiles: [
-                    `${TILE_BASE}/${def.schemaTable}/{z}/{x}/{y}.pbf?v=${Date.now()}`,
-                ],
+                // tiles: [
+                //     `${TILE_BASE}/${def.schemaTable}/{z}/{x}/{y}.pbf?v=${Date.now()}`,
+                // ],
+                tiles: [extraTileUrl(def, true)],
                 minzoom: 0,
                 maxzoom: def.maxzoom ?? 14,
             });

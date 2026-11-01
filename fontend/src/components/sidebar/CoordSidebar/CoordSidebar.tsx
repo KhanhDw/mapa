@@ -522,7 +522,8 @@ export function CoordSidebar({
                                 {pois.map((poi) => {
                                     const hasSv = poi.streetview_id != null;
                                     return (
-                                        <li key={String(poi.id)} className="cs-poi-item">
+                                        // <li key={String(poi.id)} className="cs-poi-item">
+                                        <li key={`${poi.source ?? "osm"}-${poi.id}`} className="cs-poi-item">
                                             <button
                                                 type="button"
                                                 className="cs-poi-item__action"
@@ -535,15 +536,17 @@ export function CoordSidebar({
                                                     <div className="cs-poi-item__details">
                                                         {(poi.fclass || poi.category) && (
                                                             <span className="cs-poi-item__cat">
-                                                                {poi.fclass
-                                                                    ? categoryLabel(poi.fclass)
-                                                                    : categoryLabel(poi.category)}
+                                                                {poi.fclass ? categoryLabel(poi.fclass) : categoryLabel(poi.category)}
                                                             </span>
                                                         )}
-                                                        <span className="cs-poi-item__dist">
-                                                            {formatDistance(poi.distance_m)}
-                                                        </span>
+                                                        {poi.source === "user" && (
+                                                            <span className="cs-poi-item__cat cs-poi-item__cat--user">★ Đóng góp</span>
+                                                        )}
+                                                        <span className="cs-poi-item__dist">{formatDistance(poi.distance_m)}</span>
                                                     </div>
+                                                    {poi.source === "user" && (
+                                                        <span className="cs-muted">{poi.lat.toFixed(6)}, {poi.lng.toFixed(6)}</span>
+                                                    )}
                                                 </div>
                                             </button>
                                             {hasSv && onPoiStreetView && (

@@ -57,7 +57,7 @@ export function addRoadsLayer(map: MapLibreMap): void {
             minzoom: 15,
             layout: {
                 "text-field": ["coalesce", ["get", "name"], ["get", "ref"], ""],
-                "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+                "text-font": ["Noto Sans Regular"],
                 "text-size": ["interpolate", ["linear"], ["zoom"], 15, 11, 20, 16],
                 "symbol-placement": "line",
                 "text-rotation-alignment": "map",

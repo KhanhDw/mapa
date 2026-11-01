@@ -68,6 +68,7 @@ _TABLE_COLUMNS = {
     "public.pois":              "id, name, category",
     "public.vietnam_roads":     "osm_id AS id, name, fclass AS category",
     "public.streetview_images": "id, NULL::text AS name, 'streetview'::text AS category",
+     "user_data.pois":           "id, name, category, address",
 }
 
 # Cho phép client dùng tên ngắn thay vì qualified name.
@@ -75,6 +76,7 @@ _TABLE_ALIASES = {
     "pois":       "public.pois",
     "roads":      "public.vietnam_roads",
     "streetview": "public.streetview_images",
+     "user_pois":  "user_data.pois",   
 }
 
 _MIN_ZOOM = 0
@@ -112,15 +114,17 @@ async def close_client() -> None:
 
 
 def _is_immutable_tile(path: str) -> bool:
-    """z/x/y ở cuối path → nội dung bất biến, cache mạnh được.
+    """Chỉ cache immutable cho bảng tĩnh (clean.*, public.vietnam_roads, ...).
+    user_data.* là data động — không bao giờ cache immutable."""
+    # Data người dùng thay đổi liên tục — không cache
+    if "user_data." in path:
+        return False
 
-    Hỗ trợ cả dạng có đuôi file: .../10/512/340.pbf
-    """
     parts = [p for p in path.split("/") if p]
     if len(parts) < 3:
         return False
     z, x, y_raw = parts[-3], parts[-2], parts[-1]
-    y = y_raw.rsplit(".", 1)[0]  # bỏ .pbf / .png / .jpg nếu có
+    y = y_raw.rsplit(".", 1)[0]
     return z.isdigit() and x.isdigit() and y.isdigit()
 
 
@@ -148,8 +152,14 @@ async def _proxy(base: str, path: str, request: Request) -> Response:
 
     # CHỈ set immutable khi upstream thực sự trả 200. 404/500 có thể do cấu
     # hình tạm thời; cache 1 ngày sẽ khiến client "kẹt" rất khó debug.
-    if r.status_code == 200 and _is_immutable_tile(path):
-        out_headers.setdefault("cache-control", "public, max-age=86400, immutable")
+    if r.status_code == 200:
+        if "user_data." in path:
+            # Data động: cấm mọi tầng cache
+            out_headers["cache-control"] = "no-cache, no-store, must-revalidate"
+            out_headers["pragma"] = "no-cache"
+            out_headers["expires"] = "0"
+        elif _is_immutable_tile(path):
+            out_headers.setdefault("cache-control", "public, max-age=86400, immutable")
 
     # HEAD: không có body (RFC 7231 §4.3.2).
     content = b"" if request.method == "HEAD" else r.content
@@ -182,56 +192,88 @@ async def proxy_versatiles(path: str, request: Request):
 # ---------- MVT tự sinh (fallback khi không dùng pg_tileserv) ----------
 @router.get("/mvt/{table}/{z}/{x}/{y}.pbf", include_in_schema=False)
 async def mvt_tile(
-    table: str, z: int, x: int, y: int,
+    table: str,
+    z: int,
+    x: int,
+    y: int,
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     real = _TABLE_ALIASES.get(table, table)
+
     if real not in _TABLE_COLUMNS:
         raise HTTPException(404, "bảng không được phép")
+
     if not (_MIN_ZOOM <= z <= _MAX_ZOOM):
-        raise HTTPException(400, f"zoom phải trong [{_MIN_ZOOM}, {_MAX_ZOOM}]")
+        raise HTTPException(
+            400,
+            f"zoom phải trong [{_MIN_ZOOM}, {_MAX_ZOOM}]",
+        )
+
+    # Tọa độ tile hợp lệ ở zoom z: 0 <= x,y < 2**z.
+    if not (0 <= x < 2**z and 0 <= y < 2**z):
+        raise HTTPException(400, "tọa độ tile không hợp lệ")
 
     cols = _TABLE_COLUMNS[real]
-    layer_name = real.split(".")[-1]        # "pois" thay vì "public.pois"
+    layer_name = (
+        real if real.startswith("user_data.")
+        else real.split(".")[-1]
+    )
+
     limit = _feature_limit(z)
     tol = _simplify_tolerance(z)
 
-    # SRID: bounds là 3857 (Web Mercator), geom là 4326.
-    #   - Filter  : geom && ST_Transform(bounds, 4326) → transform CHỈ bounds
-    #               (1 row), vẫn dùng được GiST index trên geom (SRID 4326).
-    #   - Render  : ST_Transform(geom, 3857) → transform TỪNG row nhưng chỉ
-    #               trên tập đã lọc nhỏ; dùng ST_SimplifyPreserveTopology để
-    #               giảm số điểm theo mức zoom trước khi transform.
-    #
-    # {cols}, {real} đến từ whitelist → an toàn SQL injection. Không dùng
-    # tham số $n cho identifier vì PostgreSQL không hỗ trợ.
+    cache = (
+        "no-cache, no-store, must-revalidate"
+        if real.startswith("user_data.")
+        else "public, max-age=86400, immutable"
+    )
+
     sql = f"""
         WITH bounds AS (
-            SELECT ST_TileEnvelope($1::int, $2::int, $3::int) AS geom_3857
+            SELECT ST_TileEnvelope(
+                $1::int, $2::int, $3::int
+            ) AS geom_3857
         ),
         mvt AS (
             SELECT ST_AsMVT(t.*, $4) AS tile
             FROM (
-                SELECT {cols},
-                       ST_AsMVTGeom(
-                           ST_Transform(
-                               ST_SimplifyPreserveTopology(geom, $6::float8),
-                               3857
-                           ),
-                           bounds.geom_3857,
-                           4096, 256, true
-                       ) AS geom
+                SELECT
+                    {cols},
+                    ST_AsMVTGeom(
+                        ST_Transform(
+                            ST_SimplifyPreserveTopology(
+                                geom, $6::float8
+                            ),
+                            3857
+                        ),
+                        bounds.geom_3857,
+                        4096,
+                        256,
+                        true
+                    ) AS geom
                 FROM {real}, bounds
-                WHERE geom && ST_Transform(bounds.geom_3857, 4326)
+                WHERE geom && ST_Transform(
+                    bounds.geom_3857, 4326
+                )
                 LIMIT $5::int
             ) t
         )
         SELECT tile FROM mvt
     """
-    tile = await pool.fetchval(sql, z, x, y, layer_name, limit, tol)
-    # Tile rỗng: trả body rỗng, vẫn 200 để client cache được.
+
+    try:
+        tile = await pool.fetchval(
+            sql, z, x, y, layer_name, limit, tol
+        )
+    except Exception:
+        logger.exception(
+            "Tạo MVT thất bại: table=%s z=%s x=%s y=%s",
+            real, z, x, y,
+        )
+        raise HTTPException(500, "Không thể tạo vector tile")
+
     return Response(
         content=tile or b"",
         media_type="application/x-protobuf",
-        headers={"cache-control": "public, max-age=86400, immutable"},
+        headers={"cache-control": cache},
     )
