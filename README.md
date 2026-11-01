@@ -6,7 +6,8 @@
 4. run command fontend: npm run dev
 5. run command backend: python -m backend.main
 
+# truy cập vào docker database
+
 ```powershell
-#  truy cập vào docker database
 docker exec -it postgis-webmap psql -U postgres -d webmap_db
 ```

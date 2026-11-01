@@ -20,31 +20,22 @@ interface Result {
     error: Error | null;
 }
 
-/**
- * Fetch /api/point-info khi click map (spec §4.3).
- * Params: lng, lat, radius_m, poi_limit — KHÔNG gửi zoom.
- */
 export function useClickPointInfo(
     apiBase: string,
     clickInfo: ClickInfo | null
 ): Result {
-    const [data, setData] = useState<PointInfoResponse | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<Error | null>(null);
+    const [result, setResult] = useState<{
+        key: string;
+        data: PointInfoResponse | null;
+        error: Error | null;
+    }>({ key: "", data: null, error: null });
+
+    const key = clickInfo ? `${clickInfo.lng}|${clickInfo.lat}` : "";
 
     useEffect(() => {
-        if (!clickInfo) {
-            setData(null);
-            setError(null);
-            setLoading(false);
-            return;
-        }
+        if (!clickInfo) return;
 
         const controller = new AbortController();
-        setLoading(true);
-        setData(null);
-        setError(null);
-
         const params = new URLSearchParams({
             lng: String(clickInfo.lng),
             lat: String(clickInfo.lat),
@@ -59,16 +50,20 @@ export function useClickPointInfo(
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 return r.json() as Promise<PointInfoResponse>;
             })
-            .then((d) => setData(d))
+            .then((d) => setResult({ key, data: d, error: null }))
             .catch((err: Error) => {
-                if (err.name !== "AbortError") setError(err);
-            })
-            .finally(() => {
-                if (!controller.signal.aborted) setLoading(false);
+                if (err.name !== "AbortError") {
+                    setResult({ key, data: null, error: err });
+                }
             });
 
         return () => controller.abort();
-    }, [apiBase, clickInfo?.lat, clickInfo?.lng]);
+    }, [apiBase, clickInfo, key]);
 
-    return { data, loading, error };
+    const matched = result.key === key;
+    return {
+        data: matched ? result.data : null,
+        loading: clickInfo !== null && !matched,
+        error: matched ? result.error : null,
+    };
 }

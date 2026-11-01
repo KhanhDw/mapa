@@ -5,6 +5,7 @@ import {
     SV_MIN_ZOOM,
     SV_SOURCE_ID,
 } from "../constants";
+import type { StreetViewGeoJSON } from "../hooks/useStreetViewPoints";
 import { createStreetViewXIcon } from "../utils/createStreetViewXIcon";
 
 interface EnsureOptions {
@@ -68,7 +69,10 @@ export function ensureStreetViewLayer({ map, onIconClick }: EnsureOptions): void
 }
 
 /** Cập nhật GeoJSON data cho source đã tồn tại. */
-export function setStreetViewData(map: MapLibreMap, geojson: any): void {
+export function setStreetViewData(
+    map: MapLibreMap,
+    geojson: StreetViewGeoJSON
+): void {
     const src = map.getSource(SV_SOURCE_ID) as GeoJSONSource | undefined;
     src?.setData(geojson);
 }

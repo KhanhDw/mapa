@@ -8,7 +8,8 @@
     "devh": "vite --host && ngrok http 5173",
     "build": "tsc -b && vite build --mode staging",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "npx tsc -b"
   },
   "dependencies": {
     "@photo-sphere-viewer/core": "^5.15.1",
