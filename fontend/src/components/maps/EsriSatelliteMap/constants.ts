@@ -5,8 +5,9 @@ export const ESRI_INITIAL_VIEW: Pick<
     MapOptions,
     "center" | "zoom" | "minZoom" | "maxZoom"
 > = {
-    center: [105.243684, 10.799102], // [lng, lat]
-    zoom: 14,
+    // center: [105.243684, 10.799102], // [lng, lat] tân châu
+    center: [105.4385, 10.3832], //long xuyên
+    zoom: 16,
     minZoom: 3,
     maxZoom: 19,
 };
@@ -30,7 +31,3 @@ export const SV_SOURCE_ID = "sv-points";
 export const SV_LAYER_ID = "sv-points-layer";
 export const SV_ICON_ID = "sv-x-icon";
 
-
-export const POIS_SOURCE_ID = "pois-pg";
-export const POIS_LAYER_ID = "pois-pg-layer";
-export const POI_MIN_ZOOM = 11;

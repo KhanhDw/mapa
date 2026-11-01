@@ -38,6 +38,7 @@ const ICONS: Partial<Record<LayerKey, React.ReactNode>> = {
     admin: <svg {...svg}><path d="M3 8l4-3 5 3 5-3 4 3v10l-4 3-5-3-5 3-4-3V8z" /></svg>,
     places: <svg {...svg}><circle cx="12" cy="10" r="3" /><path d="M12 21c4-5 8-8 8-12a8 8 0 1 0-16 0c0 4 4 7 8 12z" /></svg>,
     pois: <svg {...svg}><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="9" strokeDasharray="2 2" /></svg>,
+    userPois: <svg {...svg}><circle cx="12" cy="12" r="4" fill="currentColor" /><circle cx="12" cy="12" r="9" strokeDasharray="2 3" /></svg>,
 };
 
 export function LayersPanel({ layers, onToggle, onClose }: Props) {
@@ -77,7 +78,9 @@ export function LayersPanel({ layers, onToggle, onClose }: Props) {
                                             aria-checked={layers[key]}
                                             onClick={() => onToggle(key)}
                                         >
-                                            <span className="layer-row__icon">{ICONS[key] ?? <svg {...svg}><circle cx="12" cy="12" r="6" /></svg>}</span>
+                                            <span className="layer-row__icon">
+                                                {ICONS[key] ?? <svg {...svg}><circle cx="12" cy="12" r="6" /></svg>}
+                                            </span>
                                             <span className="layer-row__text">
                                                 <span className="layer-row__title">{title}</span>
                                                 <span className="layer-row__desc">{description}</span>

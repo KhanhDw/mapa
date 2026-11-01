@@ -2,12 +2,10 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { TILE_BASE } from "../../../../config";
 import { EXTRA_LAYERS } from "./registry";
 
-/**
- * Thêm toàn bộ source + layer từ registry.
- * Gọi 1 lần khi map load. Idempotent (guard getSource/getLayer).
- */
 export function addExtraLayers(map: MapLibreMap): void {
     for (const def of EXTRA_LAYERS) {
+        if (def.beforeAdd) def.beforeAdd(map);
+
         if (!map.getSource(def.sourceId)) {
             map.addSource(def.sourceId, {
                 type: "vector",

@@ -1,13 +1,13 @@
 """Thông tin tại 1 điểm: đường gần nhất, street view gần nhất, các POI quanh đó.
 
-Performance note:
-    Filter không gian dùng pattern 2 bước:
-        geom && ST_Expand(pt, radius_m / 60000)   -- prefilter bằng GiST index (nhanh)
-        AND ST_DWithin(geom::geography, pt::geography, radius_m)  -- exact distance
-    Nếu chỉ dùng ST_DWithin(geom::geography,...) thì planner KHÔNG dùng được
-    GiST index của geom và sẽ seq scan toàn bảng.
+Nguồn POI (spec DB §5):
+    - clean.pois (74k rows) — OSM thật, category VN + fclass EN
+    - user_data.pois (user contribute) — category EN, không có fclass
+    BỎ public.pois — chỉ là test data, đã xoá.
 
-    Hệ số 60000.0 (≈ 60 km/deg) an toàn cho vĩ độ ≤ ~57°, dư sức cho Việt Nam.
+Performance:
+    geom && ST_Expand(pt, radius_m / 60000)   -- prefilter GiST
+    AND ST_DWithin(geom::geography, pt::geography, radius_m)  -- exact
 """
 import logging
 
@@ -55,20 +55,45 @@ _SV_SQL = """
     LIMIT 1
 """
 
-# POI = public.pois (nguồn OSM) + user_data.pois (người dùng thêm).
-# Hai bảng dùng hai sequence riêng nên id có thể trùng -> luôn trả kèm "source".
+# clean.pois: osm_id (varchar) làm id, category VN, fclass EN.
+# user_data.pois: id (bigint), category EN, fclass NULL.
+# Khóa POI là cặp (source, id) — OSM và user dùng id hệ riêng.
 _POI_SQL = """
     WITH ref AS (
         SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326) AS pt
     ),
     cand AS (
-        SELECT 'osm'::text AS source, p.id, p.name, p.category, p.geom,
+        -- OSM POI (74k real data từ clean.pois materialized view)
+        SELECT 'osm'::text AS source,
+               p.osm_id::text AS id,
+               p.name,
+               p.category,                  -- VN: an_uong, y_te, ...
+               p.fclass,                    -- EN: restaurant, cafe, pharmacy, ...
+               p.geom,
                0 AS photo_count
-        FROM public.pois p CROSS JOIN ref
+        FROM clean.pois p CROSS JOIN ref
         WHERE p.geom && ST_Expand(ref.pt, $3::float8 / 60000.0)
           AND ST_DWithin(p.geom::geography, ref.pt::geography, $3::float8)
+          AND (
+                p.has_name = true                                    -- ưu tiên có tên
+                OR p.fclass IN (                                     -- hoặc fclass quan trọng
+                    'fuel', 'parking', 'charging_station',
+                    'hospital', 'clinic', 'pharmacy',
+                    'school', 'university', 'kindergarten',
+                    'bank', 'atm', 'post_office', 'police', 'fire_station',
+                    'supermarket', 'convenience', 'mall', 'market_place',
+                    'hotel', 'motel', 'hostel', 'guesthouse',
+                    'attraction', 'museum', 'viewpoint', 'tourist_info'
+                )
+            )
         UNION ALL
-        SELECT 'user'::text, u.id, u.name, u.category, u.geom,
+        -- User POI
+        SELECT 'user'::text,
+               u.id::text,
+               u.name,
+               u.category,                  -- EN: cafe, hotel, ...
+               NULL::varchar(28) AS fclass, -- user POI không có fclass
+               u.geom,
                (SELECT count(*)::int FROM user_data.poi_photos ph WHERE ph.poi_id = u.id)
         FROM user_data.pois u CROSS JOIN ref
         WHERE u.geom && ST_Expand(ref.pt, $3::float8 / 60000.0)
@@ -80,7 +105,7 @@ _POI_SQL = """
         ORDER BY distance_m, c.source, c.id
         LIMIT $4
     )
-    SELECT t.source, t.id, t.name, t.category, t.photo_count,
+    SELECT t.source, t.id, t.name, t.category, t.fclass, t.photo_count,
            ST_X(t.geom) AS lng, ST_Y(t.geom) AS lat, t.distance_m,
            sv.id AS streetview_id, sv.dist AS streetview_distance_m
     FROM top t
@@ -113,10 +138,11 @@ def _to_road(row) -> dict | None:
 
 def _to_poi(row) -> dict:
     return {
-        "source": row["source"],                # "osm" | "user" -> khóa là (source, id)
-        "id": int(row["id"]),
+        "source": row["source"],                 # "osm" | "user"
+        "id": row["id"],                         # string (osm_id hoặc user id as text)
         "name": row["name"],
-        "category": row["category"],
+        "category": row["category"],             # VN (osm) hoặc EN (user)
+        "fclass": row["fclass"],                 # EN (osm) hoặc null (user)
         "photo_count": int(row["photo_count"]),
         "lng": float(row["lng"]),
         "lat": float(row["lat"]),
@@ -146,7 +172,6 @@ async def get_point_info(
             poi_rows = await conn.fetch(_POI_SQL, lng, lat, radius_m, poi_limit)
     except Exception:
         logger.exception("point-info failed lng=%s lat=%s radius=%s", lng, lat, radius_m)
-        # Không leak SQL / schema ra client khi production
         msg = "DB error" if not settings.is_dev else "DB error (xem log server)"
         raise HTTPException(500, msg)
 

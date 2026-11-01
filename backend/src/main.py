@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .db import _close_pool, _init_pool, get_pool
-from .routers import contribute, point_info, streetview, tiles
+from .routers import contribute, contribute_public, point_info, streetview, tiles
 
 logging.basicConfig(
     level=logging.DEBUG if settings.is_dev else logging.INFO,
@@ -81,6 +81,7 @@ def create_app() -> FastAPI:
     app.include_router(streetview.router)
     app.include_router(point_info.router)
     app.include_router(contribute.router)
+    app.include_router(contribute_public.router)   
     app.include_router(tiles.router)
 
     # Static assets

@@ -1,8 +1,12 @@
-// Registry khai báo cho tất cả layer bổ sung trên EsriSatelliteMap.
-// Thêm layer mới: 1 object trong EXTRA_LAYERS + 1 dòng trong LAYER_META +
-// 1 key trong LayerVisibility (types.ts). Không sửa logic map.
-import type { LayerSpecification } from "maplibre-gl";
+// Registry cho toàn bộ layer bổ sung. Thêm layer mới = 3 chỗ (LAYER_META,
+// EXTRA_LAYERS, LayerKey ở panels/types.ts).
+import type {
+    ExpressionSpecification,
+    LayerSpecification,
+    Map as MapLibreMap,
+} from "maplibre-gl";
 import type { LayerKey } from "../../../layout/panels/types";
+import { ICON_MATCH, registerPoiIcons } from "../utils/createPoiIcon";
 
 export type LayerCategory =
     | "sv"
@@ -33,12 +37,9 @@ export interface LayerMeta {
     description: string;
 }
 
-/** Metadata cho toàn bộ layer (kể cả 3 layer hard-coded trong roads/SV). */
 export const LAYER_META: LayerMeta[] = [
-    // Ảnh 360
     { key: "streetview", category: "sv", title: "Đường có ảnh 360°", description: "Dấu X xanh, zoom ≥ 17" },
 
-    // Giao thông
     { key: "roads", category: "transport", title: "Đường (tổng hợp)", description: "fclass từ OSM, zoom ≥ 14" },
     { key: "roadNames", category: "transport", title: "Tên đường (tổng hợp)", description: "Nhãn tên, zoom ≥ 15" },
     { key: "roadsMajor", category: "transport", title: "Đường lớn", description: "Cao tốc, quốc lộ" },
@@ -46,36 +47,41 @@ export const LAYER_META: LayerMeta[] = [
     { key: "roadsLocal", category: "transport", title: "Đường nội bộ", description: "Phố, ngõ, zoom ≥ 14" },
     { key: "railways", category: "transport", title: "Đường sắt", description: "Tuyến đường sắt" },
 
-    // Tự nhiên
     { key: "water", category: "nature", title: "Mặt nước", description: "Sông, hồ, biển" },
     { key: "waterways", category: "nature", title: "Dòng chảy", description: "Sông, suối, kênh" },
     { key: "landuse", category: "nature", title: "Sử dụng đất", description: "Khu dân cư, nông nghiệp" },
     { key: "natural", category: "nature", title: "Tự nhiên", description: "Rừng, bãi biển" },
     { key: "protected", category: "nature", title: "Khu bảo tồn", description: "Vườn quốc gia" },
 
-    // Xây dựng
     { key: "buildings", category: "built", title: "Nhà / công trình", description: "Tòa nhà, zoom ≥ 15" },
 
-    // Hành chính
     { key: "admin", category: "admin", title: "Ranh giới hành chính", description: "Tỉnh, huyện, xã" },
 
-    // Địa danh & POI
     { key: "places", category: "place", title: "Địa danh", description: "Tên thành phố, làng" },
     { key: "pois", category: "place", title: "POI (địa điểm)", description: "Điểm quan tâm từ OSM" },
+    { key: "userPois", category: "place", title: "POI đóng góp", description: "Địa điểm do người dùng gửi" },
 ];
 
 export interface ExtraLayerDef {
     key: LayerKey;
     sourceId: string;
     layerId: string;
-    /** "<schema>.<table>" — dùng trong URL tile */
     schemaTable: string;
-    /** Layer name trong PBF (pg_tileserv emit schema.table) */
     sourceLayer: string;
-    /** maxzoom của source — default 14 */
     maxzoom?: number;
-    /** Trả về LayerSpecification đầy đủ (id/source được inject) */
+    beforeAdd?: (map: MapLibreMap) => void;
     spec: (sourceId: string, layerId: string) => LayerSpecification;
+}
+
+function matchExpr(
+    key: string,
+    mapping: Record<string, string>,
+    fallback: string
+): ExpressionSpecification {
+    const out: unknown[] = ["match", ["get", key]];
+    for (const [k, v] of Object.entries(mapping)) out.push(k, v);
+    out.push(fallback);
+    return out as unknown as ExpressionSpecification;
 }
 
 export const EXTRA_LAYERS: ExtraLayerDef[] = [
@@ -356,25 +362,69 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
         layerId: "lay-pois",
         schemaTable: "clean.pois",
         sourceLayer: "clean.pois",
+        beforeAdd: registerPoiIcons,
         spec: (src, id) => ({
             id,
-            type: "circle",
+            type: "symbol",
             source: src,
             "source-layer": "clean.pois",
             minzoom: 13,
+            layout: {
+                "icon-image": matchExpr("fclass", ICON_MATCH, "poi-icon-default"),
+                "icon-size": ["interpolate", ["linear"], ["zoom"], 13, 0.5, 16, 0.8, 19, 1.0],
+                "icon-allow-overlap": true,
+                "icon-ignore-placement": false,
+                "text-field": ["coalesce", ["get", "name"], ""],
+                "text-font": ["Open Sans Regular"],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 13, 9, 16, 11, 19, 13],
+                "text-offset": [0, 1.4],
+                "text-anchor": "top",
+                "text-allow-overlap": false,
+                "text-padding": 2,
+                "text-max-width": 8,
+            },
             paint: {
-                "circle-radius": ["interpolate", ["linear"], ["zoom"], 13, 3, 16, 6, 19, 9],
-                "circle-color": ["match", ["get", "kind"],
-                    "restaurant", "#ef4444",
-                    "cafe", "#b45309",
-                    "hotel", "#3b82f6",
-                    "school", "#8b5cf6",
-                    "hospital", "#dc2626",
-                    "shop", "#10b981",
-                    "#f59e0b"],
-                "circle-stroke-color": "#ffffff",
-                "circle-stroke-width": 1.5,
-                "circle-opacity": 0.92,
+                "icon-opacity": 0.95,
+                "text-color": "#0f172a",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1.5,
+            },
+        }),
+    },
+    {
+        key: "userPois",
+        sourceId: "src-user-pois",
+        layerId: "lay-user-pois",
+        schemaTable: "user_data.pois",
+        sourceLayer: "user_data.pois",
+        beforeAdd: registerPoiIcons,
+        spec: (src, id) => ({
+            id,
+            type: "symbol",
+            source: src,
+            "source-layer": "user_data.pois",
+            minzoom: 12,
+            layout: {
+                "icon-image": matchExpr("category", ICON_MATCH, "poi-icon-default"),
+                "icon-size": ["interpolate", ["linear"], ["zoom"], 12, 0.6, 16, 0.9, 19, 1.1],
+                "icon-allow-overlap": true,
+                "icon-ignore-placement": false,
+                "text-field": ["coalesce", ["get", "name"], ""],
+                "text-font": ["Open Sans Regular"],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 16, 12, 19, 14],
+                "text-offset": [0, 1.5],
+                "text-anchor": "top",
+                "text-allow-overlap": false,
+                "text-padding": 2,
+                "text-max-width": 8,
+            },
+            paint: {
+                "icon-opacity": 1,
+                "icon-halo-color": "#fbbf24",
+                "icon-halo-width": 2,
+                "text-color": "#0f172a",
+                "text-halo-color": "#fef3c7",
+                "text-halo-width": 1.5,
             },
         }),
     },
