@@ -3,8 +3,11 @@ import {
     ReactPhotoSphereViewer,
     type PluginConfig,
 } from "react-photo-sphere-viewer";
-import { EquirectangularAdapter } from "@photo-sphere-viewer/core";
-import { MarkersPlugin } from "@photo-sphere-viewer/markers-plugin";
+import { EquirectangularAdapter, type Viewer } from "@photo-sphere-viewer/core";
+import {
+    MarkersPlugin,
+    type MarkerConfig,
+} from "@photo-sphere-viewer/markers-plugin";
 import "@photo-sphere-viewer/markers-plugin/index.css";
 import "./StreetViewModal.css";
 import { API_BASE } from "../../../config";
@@ -19,14 +22,7 @@ export interface StreetViewPoint {
     lat: number;
 }
 
-interface MarkerCfg {
-    id: string;
-    position: { yaw: string; pitch: string };
-    html: string;
-    anchor: string;
-    tooltip: string;
-    data: { targetId: number };
-}
+type MarkerCfg = MarkerConfig & { data: { targetId: number } };
 
 interface StreetViewModalProps {
     startId: number;
@@ -67,43 +63,30 @@ export function StreetViewModal({
     onNodeChange,
 }: StreetViewModalProps) {
     const [currentId, setCurrentId] = useState(startId);
-
-    const currentNode = allPoints.find((p) => Number(p.id) === Number(currentId));
+    const pointsById = useMemo(
+        () => new Map(allPoints.map((point) => [Number(point.id), point])),
+        [allPoints]
+    );
+    const currentNode = pointsById.get(Number(currentId));
     const heading = currentNode?.heading ?? 0;
 
-    // ---- DEBUG: in ra khi state thay đổi ----
-    useEffect(() => {
-        console.log("[SV] allPoints count:", allPoints.length);
-        console.log("[SV] startId:", startId, "currentId:", currentId);
-        console.log("[SV] currentNode:", currentNode);
-        if (!currentNode) {
-            console.warn(
-                "[SV] currentNode KHÔNG tìm thấy. Các id có sẵn:",
-                allPoints.map((p) => p.id)
-            );
-        }
-    }, [allPoints, startId, currentId, currentNode]);
-
-    // Prefetch ảnh kế tiếp
     useEffect(() => {
         if (!currentNode) return;
         currentNode.next_ids.forEach((id) => {
-            const t = allPoints.find((p) => Number(p.id) === Number(id));
-            if (t?.image_url) {
+            const target = pointsById.get(Number(id));
+            if (target?.image_url) {
                 const img = new Image();
-                img.src = resolveImageUrl(t.image_url);
+                img.src = resolveImageUrl(target.image_url);
             }
         });
-    }, [currentNode, allPoints]);
+    }, [currentNode, pointsById]);
 
     const markerConfigs = useMemo<MarkerCfg[]>(() => {
         if (!currentNode) return [];
 
         return currentNode.next_ids
             .map((nextId): MarkerCfg | null => {
-                const target = allPoints.find(
-                    (p) => Number(p.id) === Number(nextId)
-                );
+                const target = pointsById.get(Number(nextId));
                 if (!target) return null;
 
                 const bearing = computeBearing(
@@ -130,101 +113,98 @@ export function StreetViewModal({
                 };
             })
             .filter((m): m is MarkerCfg => m !== null);
-    }, [currentNode, allPoints, heading]);
+    }, [currentNode, pointsById, heading]);
 
-    // Keyboard shortcuts
     useEffect(() => {
-        const h = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            const target = event.target;
+            const isEditing =
+                target instanceof HTMLElement &&
+                (target.isContentEditable ||
+                    target.matches("input, textarea, select, [role='textbox']"));
+
+            if (event.key === "Escape") {
                 onClose();
                 return;
             }
-            if (e.key === "ArrowRight") {
+            if (event.key === "ArrowRight" && !isEditing) {
                 const firstTargetId = markerConfigs[0]?.data.targetId;
                 if (firstTargetId != null) {
-                    const target = allPoints.find(
-                        (p) => Number(p.id) === Number(firstTargetId)
-                    );
-                    if (target) {
-                        setCurrentId(target.id);
-                        onNodeChange?.(target);
+                    const nextPoint = pointsById.get(Number(firstTargetId));
+                    if (nextPoint) {
+                        event.preventDefault();
+                        setCurrentId(nextPoint.id);
+                        onNodeChange?.(nextPoint);
                     }
                 }
             }
         };
-        window.addEventListener("keydown", h);
-        return () => window.removeEventListener("keydown", h);
-    }, [markerConfigs, allPoints, onClose, onNodeChange]);
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [markerConfigs, pointsById, onClose, onNodeChange]);
 
     const plugins = useMemo<PluginConfig[]>(() => [[MarkersPlugin, {}]], []);
 
     const panoSrc = currentNode ? resolveImageUrl(currentNode.image_url) : "";
 
-    const handleReady = (instance: unknown) => {
-        console.log("[SV] onReady fired");
-
-        const viewer = instance as {
-            getPlugin: (
-                p: typeof MarkersPlugin
-            ) => InstanceType<typeof MarkersPlugin> | null;
-        };
-        const plugin = viewer.getPlugin(MarkersPlugin);
+    const handleReady = (viewer: Viewer) => {
+        const plugin = viewer.getPlugin<MarkersPlugin>(MarkersPlugin);
         if (!plugin) {
-            console.error("[SV] MarkersPlugin không tìm thấy");
+            console.error("[StreetViewModal] MarkersPlugin is unavailable.");
             return;
         }
 
-        markerConfigs.forEach((m) =>
-            plugin.addMarker(m as Parameters<typeof plugin.addMarker>[0])
-        );
+        markerConfigs.forEach((marker) => plugin.addMarker(marker));
 
-        plugin.addEventListener("select-marker", (e) => {
-            const ev = e as unknown as {
-                marker?: {
-                    config?: { data?: { targetId?: number } };
-                    data?: { targetId?: number };
-                };
-            };
-            const targetId =
-                ev.marker?.config?.data?.targetId ?? ev.marker?.data?.targetId;
-            if (targetId == null) return;
-            const target = allPoints.find(
-                (p) => Number(p.id) === Number(targetId)
-            );
-            if (target) {
-                setCurrentId(target.id);
-                onNodeChange?.(target);
-            }
+        plugin.addEventListener("select-marker", (event) => {
+            const targetId: unknown = event.marker.data?.targetId;
+            if (typeof targetId !== "number") return;
+            const target = pointsById.get(targetId);
+            if (!target) return;
+            setCurrentId(target.id);
+            onNodeChange?.(target);
         });
     };
 
     return (
-        <div className="sv-modal-overlay" onClick={onClose}>
+        <div
+            className="sv-modal-overlay"
+            onClick={(event) => {
+                if (event.target === event.currentTarget) onClose();
+            }}
+        >
             <div
                 className="sv-modal-content"
-                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Xem ảnh toàn cảnh"
+                tabIndex={-1}
             >
-                <button className="sv-modal-close" onClick={onClose}>
-                    ✕
+                <button
+                    type="button"
+                    className="sv-modal-close"
+                    onClick={onClose}
+                    aria-label="Đóng ảnh toàn cảnh"
+                    title="Đóng"
+                    autoFocus
+                >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
                 </button>
                 {!currentNode ? (
-                    <div
-                        style={{
-                            color: "#fff",
-                            padding: 32,
-                            textAlign: "center",
-                            fontSize: 14,
-                        }}
-                    >
-                        Không tìm thấy ảnh panorama #{currentId}.
-                        <br />
-                        Có {allPoints.length} ảnh trong dữ liệu.
+                    <div className="sv-modal-empty" role="status">
+                        <h2>Không tìm thấy ảnh panorama</h2>
+                        <p>
+                            Ảnh #{currentId} không có trong dữ liệu hiện tại
+                            ({allPoints.length} ảnh).
+                        </p>
                     </div>
                 ) : (
                     <ReactPhotoSphereViewer
                         key={currentId}
                         src={panoSrc}
-                        height="85vh"
+                        height="100%"
                         width="100%"
                         adapter={[EquirectangularAdapter, { resolution: 128 }]}
                         plugins={plugins}
