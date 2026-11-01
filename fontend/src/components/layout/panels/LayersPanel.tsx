@@ -85,7 +85,10 @@ export function LayersPanel({ layers, onToggle, onClose }: Props) {
                                                 <span className="layer-row__title">{title}</span>
                                                 <span className="layer-row__desc">{description}</span>
                                             </span>
-                                            <span className={`layer-switch${layers[key] ? " is-on" : ""}`}>
+                                            <span
+                                                className={`layer-switch${layers[key] ? " is-on" : ""}`}
+                                                aria-hidden="true"
+                                            >
                                                 <span className="layer-switch__knob" />
                                             </span>
                                         </button>
