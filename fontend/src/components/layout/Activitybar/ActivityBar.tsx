@@ -45,7 +45,7 @@ export function ActivityBar({
 }: Props) {
     return (
         <nav className="activity-bar" aria-label="Thanh công cụ">
-            <div className="activity-bar__group">
+            <div className="activity-bar__group" role="group" aria-label="Chọn lớp bản đồ">
                 <ActivityButton
                     active={activePanel === "info"}
                     onClick={() => onPanelToggle("info")}
