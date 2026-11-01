@@ -177,11 +177,17 @@ export function CoordSidebar({
     onPoiStreetView,
 }: Props) {
     const [format, setFormat] = useState<CoordFormat>("decimal");
-    const [copy, setCopy] = useState<CopyState>("idle");
+    const [copyState, setCopyState] = useState<{ key: string; value: CopyState }>({
+        key: "",
+        value: "idle",
+    });
     const timer = useRef<number | undefined>(undefined);
 
     useEffect(() => () => window.clearTimeout(timer.current), []);
-    useEffect(() => setCopy("idle"), [info?.lat, info?.lng]);
+
+    const infoKey = info ? `${info.lng}|${info.lat}` : "";
+    const copy: CopyState = copyState.key === infoKey ? copyState.value : "idle";
+    const setCopy = (value: CopyState) => setCopyState({ key: infoKey, value });
 
     if (!info) {
         return (

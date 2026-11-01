@@ -19,6 +19,15 @@ export interface StreetViewPoint {
     lat: number;
 }
 
+interface MarkerCfg {
+    id: string;
+    position: { yaw: string; pitch: string };
+    html: string;
+    anchor: string;
+    tooltip: string;
+    data: { targetId: number };
+}
+
 interface StreetViewModalProps {
     startId: number;
     allPoints: StreetViewPoint[];
@@ -46,6 +55,11 @@ function computeBearing(
     return (bearing + 360) % 360;
 }
 
+function resolveImageUrl(url: string): string {
+    if (url.startsWith("http")) return url;
+    return `${API_BASE}${url}`;
+}
+
 export function StreetViewModal({
     startId,
     allPoints,
@@ -54,30 +68,42 @@ export function StreetViewModal({
 }: StreetViewModalProps) {
     const [currentId, setCurrentId] = useState(startId);
 
-    const currentNode = allPoints.find((p) => p.id === currentId);
+    const currentNode = allPoints.find((p) => Number(p.id) === Number(currentId));
     const heading = currentNode?.heading ?? 0;
 
-    // Prefetch ảnh kế tiếp để giảm flash khi chuyển
+    // ---- DEBUG: in ra khi state thay đổi ----
+    useEffect(() => {
+        console.log("[SV] allPoints count:", allPoints.length);
+        console.log("[SV] startId:", startId, "currentId:", currentId);
+        console.log("[SV] currentNode:", currentNode);
+        if (!currentNode) {
+            console.warn(
+                "[SV] currentNode KHÔNG tìm thấy. Các id có sẵn:",
+                allPoints.map((p) => p.id)
+            );
+        }
+    }, [allPoints, startId, currentId, currentNode]);
+
+    // Prefetch ảnh kế tiếp
     useEffect(() => {
         if (!currentNode) return;
         currentNode.next_ids.forEach((id) => {
-            const t = allPoints.find((p) => p.id === id);
+            const t = allPoints.find((p) => Number(p.id) === Number(id));
             if (t?.image_url) {
                 const img = new Image();
-                img.src = t.image_url.startsWith("http")
-                    ? t.image_url
-                    : `${API_BASE}${t.image_url}`;
+                img.src = resolveImageUrl(t.image_url);
             }
         });
     }, [currentNode, allPoints]);
 
-    // Tính marker cho ảnh hiện tại
-    const markerConfigs = useMemo(() => {
+    const markerConfigs = useMemo<MarkerCfg[]>(() => {
         if (!currentNode) return [];
 
         return currentNode.next_ids
-            .map((nextId) => {
-                const target = allPoints.find((p) => p.id === nextId);
+            .map((nextId): MarkerCfg | null => {
+                const target = allPoints.find(
+                    (p) => Number(p.id) === Number(nextId)
+                );
                 if (!target) return null;
 
                 const bearing = computeBearing(
@@ -100,13 +126,13 @@ export function StreetViewModal({
                     html: `<div class="sv-arrow">↑</div>`,
                     anchor: "center center",
                     tooltip: `Đi tới ảnh ${target.id}`,
-                    data: { targetId: target.id },
+                    data: { targetId: Number(target.id) },
                 };
             })
-            .filter(Boolean) as any[];
+            .filter((m): m is MarkerCfg => m !== null);
     }, [currentNode, allPoints, heading]);
 
-    // Keyboard shortcuts: Esc đóng, → chuyển ảnh đầu tiên
+    // Keyboard shortcuts
     useEffect(() => {
         const h = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
@@ -114,9 +140,11 @@ export function StreetViewModal({
                 return;
             }
             if (e.key === "ArrowRight") {
-                const firstTargetId = markerConfigs[0]?.data?.targetId;
+                const firstTargetId = markerConfigs[0]?.data.targetId;
                 if (firstTargetId != null) {
-                    const target = allPoints.find((p) => p.id === firstTargetId);
+                    const target = allPoints.find(
+                        (p) => Number(p.id) === Number(firstTargetId)
+                    );
                     if (target) {
                         setCurrentId(target.id);
                         onNodeChange?.(target);
@@ -130,24 +158,39 @@ export function StreetViewModal({
 
     const plugins = useMemo<PluginConfig[]>(() => [[MarkersPlugin, {}]], []);
 
-    const panoSrc = currentNode
-        ? currentNode.image_url.startsWith("http")
-            ? currentNode.image_url
-            : `${API_BASE}${currentNode.image_url}`
-        : "";
+    const panoSrc = currentNode ? resolveImageUrl(currentNode.image_url) : "";
 
-    const handleReady = (instance: any) => {
-        const plugin = instance.getPlugin(MarkersPlugin);
+    const handleReady = (instance: unknown) => {
+        console.log("[SV] onReady fired");
+
+        const viewer = instance as {
+            getPlugin: (
+                p: typeof MarkersPlugin
+            ) => InstanceType<typeof MarkersPlugin> | null;
+        };
+        const plugin = viewer.getPlugin(MarkersPlugin);
         if (!plugin) {
             console.error("[SV] MarkersPlugin không tìm thấy");
             return;
         }
-        markerConfigs.forEach((m) => plugin.addMarker(m));
-        plugin.addEventListener("select-marker", (e: any) => {
+
+        markerConfigs.forEach((m) =>
+            plugin.addMarker(m as Parameters<typeof plugin.addMarker>[0])
+        );
+
+        plugin.addEventListener("select-marker", (e) => {
+            const ev = e as unknown as {
+                marker?: {
+                    config?: { data?: { targetId?: number } };
+                    data?: { targetId?: number };
+                };
+            };
             const targetId =
-                e.marker?.config?.data?.targetId ?? e.marker?.data?.targetId;
+                ev.marker?.config?.data?.targetId ?? ev.marker?.data?.targetId;
             if (targetId == null) return;
-            const target = allPoints.find((p) => p.id === targetId);
+            const target = allPoints.find(
+                (p) => Number(p.id) === Number(targetId)
+            );
             if (target) {
                 setCurrentId(target.id);
                 onNodeChange?.(target);
@@ -164,16 +207,31 @@ export function StreetViewModal({
                 <button className="sv-modal-close" onClick={onClose}>
                     ✕
                 </button>
-                <ReactPhotoSphereViewer
-                    key={currentId}
-                    src={panoSrc}
-                    height="85vh"
-                    width="100%"
-                    adapter={[EquirectangularAdapter, { resolution: 128 }]}
-                    plugins={plugins}
-                    onReady={handleReady}
-                    navbar={["zoom", "caption", "fullscreen"]}
-                />
+                {!currentNode ? (
+                    <div
+                        style={{
+                            color: "#fff",
+                            padding: 32,
+                            textAlign: "center",
+                            fontSize: 14,
+                        }}
+                    >
+                        Không tìm thấy ảnh panorama #{currentId}.
+                        <br />
+                        Có {allPoints.length} ảnh trong dữ liệu.
+                    </div>
+                ) : (
+                    <ReactPhotoSphereViewer
+                        key={currentId}
+                        src={panoSrc}
+                        height="85vh"
+                        width="100%"
+                        adapter={[EquirectangularAdapter, { resolution: 128 }]}
+                        plugins={plugins}
+                        onReady={handleReady}
+                        navbar={["zoom", "caption", "fullscreen"]}
+                    />
+                )}
             </div>
         </div>
     );

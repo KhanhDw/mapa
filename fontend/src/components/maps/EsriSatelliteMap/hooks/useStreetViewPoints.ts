@@ -2,26 +2,37 @@ import { useEffect, useState } from "react";
 import type { StreetViewPoint } from "../../../streetview/StreetViewModal/StreetViewModal";
 import { SV_LIMIT } from "../constants";
 
+export interface StreetViewFeatureProps {
+    id: number;
+    image_url: string;
+    heading: number | null;
+    next_ids: number[];
+    link_positions: Array<{ textureX: number; textureY: number }>;
+}
+
+export interface StreetViewGeoJSON {
+    type: "FeatureCollection";
+    features: Array<{
+        type: "Feature";
+        geometry: { type: "Point"; coordinates: [number, number] };
+        properties: StreetViewFeatureProps;
+    }>;
+}
+
 interface Result {
     points: StreetViewPoint[];
-    /** GeoJSON gốc từ API — dùng để addSource vào map */
-    geojson: any | null;
+    geojson: StreetViewGeoJSON | null;
     error: Error | null;
 }
 
-/**
- * Fetch street view points 1 lần khi mount (spec §4.2).
- * Thiếu bbox → backend trả `limit` điểm đầu tiên theo `id`.
- */
 export function useStreetViewPoints(apiBase: string): Result {
     const [points, setPoints] = useState<StreetViewPoint[]>([]);
-    const [geojson, setGeojson] = useState<any | null>(null);
+    const [geojson, setGeojson] = useState<StreetViewGeoJSON | null>(null);
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
         const controller = new AbortController();
         const base = apiBase.replace(/\/+$/, "");
-        setError(null);
 
         (async () => {
             try {
@@ -35,7 +46,7 @@ export function useStreetViewPoints(apiBase: string): Result {
                     );
                 }
 
-                const data = await res.json();
+                const data = (await res.json()) as StreetViewGeoJSON;
                 if (!Array.isArray(data?.features)) {
                     throw new Error(
                         "Phản hồi /api/streetview/points không phải GeoJSON FeatureCollection hợp lệ"
@@ -44,12 +55,12 @@ export function useStreetViewPoints(apiBase: string): Result {
 
                 const parsed: StreetViewPoint[] = data.features
                     .filter(
-                        (f: any) =>
+                        (f) =>
                             f?.geometry?.type === "Point" &&
                             Array.isArray(f.geometry.coordinates) &&
                             f.geometry.coordinates.length >= 2
                     )
-                    .map((f: any) => ({
+                    .map((f) => ({
                         ...f.properties,
                         lng: f.geometry.coordinates[0],
                         lat: f.geometry.coordinates[1],

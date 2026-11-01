@@ -42,6 +42,7 @@ function EsriSatelliteMap({
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
     const [mapReady, setMapReady] = useState(false);
+    const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
 
     const [layers, setLayers] = useState<LayerVisibility>(DEFAULT_LAYERS);
     const toggleLayer = useCallback((key: LayerKey) => {
@@ -66,7 +67,8 @@ function EsriSatelliteMap({
     } = useStreetViewPoints(API_BASE);
 
     // ================= Click marker + point info =================
-    const { clickInfo, clear } = useClickMarker(mapReady ? mapRef.current : null);
+    const { clickInfo, clear } = useClickMarker(mapInstance);
+
 
     useEffect(() => {
         if (activePanel !== "info") clear();
@@ -135,6 +137,8 @@ function EsriSatelliteMap({
                 map,
                 onIconClick: (id) => setSvModal({ open: true, startId: id }),
             });
+            mapRef.current = map;
+            setMapInstance(map);
             setMapReady(true);
         });
 
@@ -143,6 +147,7 @@ function EsriSatelliteMap({
         return () => {
             map.remove();
             mapRef.current = null;
+            setMapInstance(null);
             setMapReady(false);
         };
     }, []);
