@@ -43,6 +43,9 @@ interface Props {
     onPanelClose?: () => void;
     electricPoles: ElectricPole[];
     onElectricPoleSelect: (pole: ElectricPole) => void;
+    isRecordingPoleLocation: boolean;
+    onPoleLocationRecorded: (location: { lng: number; lat: number }) => void;
+    poleNavigationRequest: { pole: ElectricPole; requestId: number } | null;
 }
 
 function EsriSatelliteMap({
@@ -51,6 +54,9 @@ function EsriSatelliteMap({
     onPanelClose,
     electricPoles,
     onElectricPoleSelect,
+    isRecordingPoleLocation,
+    onPoleLocationRecorded,
+    poleNavigationRequest,
 }: Props) {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
@@ -83,7 +89,7 @@ function EsriSatelliteMap({
     // Khi panel Contribute đang mở, disable marker đỏ (tránh conflict với picker)
     const { clickInfo, clear } = useClickMarker(
         mapInstance,
-        activePanel === "contribute"
+        activePanel === "contribute" || isRecordingPoleLocation
     );
     const [selectedPoi, setSelectedPoi] = useState<{
         poi: PoiInfo;
@@ -180,6 +186,7 @@ function EsriSatelliteMap({
         if (!map || !map.getLayer(ELECTRIC_POLE_LAYER_ID)) return;
 
         const onPoleClick = (event: maplibregl.MapLayerMouseEvent) => {
+            if (isRecordingPoleLocation) return;
             const poleId = Number(event.features?.[0]?.properties?.poleId);
             const pole = electricPoles.find((item) => item.id === poleId);
             if (pole) onElectricPoleSelect(pole);
@@ -199,7 +206,30 @@ function EsriSatelliteMap({
             map.off("mouseenter", ELECTRIC_POLE_LAYER_ID, setPointerCursor);
             map.off("mouseleave", ELECTRIC_POLE_LAYER_ID, clearPointerCursor);
         };
-    }, [mapInstance, electricPoles, onElectricPoleSelect]);
+    }, [mapInstance, electricPoles, isRecordingPoleLocation, onElectricPoleSelect]);
+
+    useEffect(() => {
+        if (!mapInstance || !isRecordingPoleLocation) return;
+
+        const handleMapClick = (event: maplibregl.MapMouseEvent) => {
+            onPoleLocationRecorded({
+                lng: event.lngLat.lng,
+                lat: event.lngLat.lat,
+            });
+        };
+        mapInstance.on("click", handleMapClick);
+        return () => {
+            mapInstance.off("click", handleMapClick);
+        };
+    }, [mapInstance, isRecordingPoleLocation, onPoleLocationRecorded]);
+
+    useEffect(() => {
+        if (!mapInstance || !poleNavigationRequest) return;
+        mapInstance.easeTo({
+            center: [poleNavigationRequest.pole.lng, poleNavigationRequest.pole.lat],
+            duration: 700,
+        });
+    }, [mapInstance, poleNavigationRequest]);
 
     // ================= Update SV data =================
     useEffect(() => {
