@@ -23,6 +23,7 @@ _REQUIRED_TABLES = (
     "public.vietnam_roads",
     "user_data.pois",
     "user_data.poi_photos",
+    "user_data.electric_poles",
 )
 
 

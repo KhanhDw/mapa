@@ -121,6 +121,11 @@ tồn tại trong database. Đây không phải một trong các `clean.roads_*`
 - `OsmPolygonMap` dùng các tile server công khai của OpenStreetMap.
 - Vite cấu hình `allowedHosts` cho các domain ngrok và HMR WebSocket HTTPS;
   đây là cấu hình dev, không thay cho reverse proxy hoặc cấu hình production.
-- Frontend không gửi `WRITE_API_KEY`; không đưa khóa ghi vào biến `VITE_*`
-  hoặc bundle trình duyệt. Nếu sau này thêm UI đóng góp, cần thiết kế cơ chế
-  xác thực server-side phù hợp.
+- Không đưa khóa ghi vào biến `VITE_*` hoặc bundle trình duyệt. Các form đóng
+  góp địa điểm không gửi `WRITE_API_KEY`; sidebar quản lý trụ điện cho phép
+  người quản trị nhập khóa và chỉ giữ trong state của phiên.
+- Trụ điện được tải từ `/api/electric-poles` và hiển thị dưới dạng điểm có thể
+  chọn trên bản đồ Esri. Sidebar “Thông tin trụ điện” chỉ đọc trụ đang chọn;
+  sidebar “Quản lý trụ điện” hỗ trợ CRUD. Người quản trị nhập `WRITE_API_KEY`
+  trong sidebar; khóa chỉ giữ trong state của phiên và gửi trong request ghi,
+  không lưu vào bundle hoặc local storage.
