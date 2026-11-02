@@ -52,7 +52,15 @@ export function ActivityBar({
 }: Props) {
     return (
         <nav className="activity-bar" aria-label="Thanh công cụ">
-            <div className="activity-bar__group" role="group" aria-label="Chọn lớp bản đồ">
+            <div className="activity-bar__top">
+                <div className="activity-bar__brand" role="img" aria-label="Mapa">
+                    <svg viewBox="0 0 32 32" width="23" height="23" aria-hidden="true">
+                        <path d="M16 3 28 9.5v13L16 29 4 22.5v-13L16 3Z" fill="currentColor" opacity=".16" />
+                        <path d="m16 7 8.5 4.5v9L16 25l-8.5-4.5v-9L16 7Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                        <circle cx="16" cy="16" r="3" fill="currentColor" />
+                    </svg>
+                </div>
+                <div className="activity-bar__group" role="group" aria-label="Công cụ bản đồ">
                 <ActivityButton
                     active={activePanel === "info"}
                     onClick={() => onPanelToggle("info")}
@@ -130,10 +138,11 @@ export function ActivityBar({
                         <path d="M12 8v8M8 12h8" />
                     </svg>
                 </ActivityButton>
+                </div>
             </div>
 
             {showMapSwitcher && (
-                <>
+                <div className="activity-bar__bottom">
                     <div className="activity-bar__divider" />
                     <div className="activity-bar__group">
                         <ActivityButton
@@ -177,7 +186,7 @@ export function ActivityBar({
                             </svg>
                         </ActivityButton>
                     </div>
-                </>
+                </div>
             )}
         </nav>
     );
