@@ -22,6 +22,12 @@ import { ESRI_INITIAL_VIEW } from "./constants";
 
 import { addRoadsLayer } from "./layers/roadsLayer";
 import { ensureStreetViewLayer, setStreetViewData } from "./layers/streetViewLayer";
+import {
+    addElectricPoleLayer,
+    ELECTRIC_POLE_LAYER_ID,
+    setElectricPoleData,
+} from "./layers/electricPoleLayer";
+import type { ElectricPole } from "../../../api/electricPoles";
 import { useStreetViewPoints } from "./hooks/useStreetViewPoints";
 import { useClickMarker } from "./hooks/useClickMarker";
 import { useClickPointInfo } from "./hooks/useClickPointInfo";
@@ -35,12 +41,16 @@ interface Props {
     activePanel?: PanelType | null;
     onAutoShowInfo?: () => void;
     onPanelClose?: () => void;
+    electricPoles: ElectricPole[];
+    onElectricPoleSelect: (pole: ElectricPole) => void;
 }
 
 function EsriSatelliteMap({
     activePanel = null,
     onAutoShowInfo,
     onPanelClose,
+    electricPoles,
+    onElectricPoleSelect,
 }: Props) {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
@@ -91,10 +101,10 @@ function EsriSatelliteMap({
     } = useClickPointInfo(API_BASE, clickInfo);
 
     useEffect(() => {
-        if (clickInfo && onAutoShowInfo && activePanel !== "info") {
+        if (clickInfo && onAutoShowInfo) {
             onAutoShowInfo();
         }
-    }, [clickInfo, onAutoShowInfo, activePanel]);
+    }, [clickInfo, onAutoShowInfo]);
 
     // ======================================================
     // Init map (chỉ 1 lần)
@@ -146,6 +156,7 @@ function EsriSatelliteMap({
                 map,
                 onIconClick: (id) => setSvModal({ open: true, startId: id }),
             });
+            addElectricPoleLayer(map);
             mapRef.current = map;
             setMapInstance(map);
             setMapReady(true);
@@ -158,6 +169,37 @@ function EsriSatelliteMap({
             setMapReady(false);
         };
     }, []);
+
+    useEffect(() => {
+        if (!mapReady || !mapRef.current) return;
+        setElectricPoleData(mapRef.current, electricPoles);
+    }, [mapReady, electricPoles]);
+
+    useEffect(() => {
+        const map = mapInstance;
+        if (!map || !map.getLayer(ELECTRIC_POLE_LAYER_ID)) return;
+
+        const onPoleClick = (event: maplibregl.MapLayerMouseEvent) => {
+            const poleId = Number(event.features?.[0]?.properties?.poleId);
+            const pole = electricPoles.find((item) => item.id === poleId);
+            if (pole) onElectricPoleSelect(pole);
+        };
+        const setPointerCursor = () => {
+            map.getCanvas().style.cursor = "pointer";
+        };
+        const clearPointerCursor = () => {
+            map.getCanvas().style.cursor = "";
+        };
+
+        map.on("click", ELECTRIC_POLE_LAYER_ID, onPoleClick);
+        map.on("mouseenter", ELECTRIC_POLE_LAYER_ID, setPointerCursor);
+        map.on("mouseleave", ELECTRIC_POLE_LAYER_ID, clearPointerCursor);
+        return () => {
+            map.off("click", ELECTRIC_POLE_LAYER_ID, onPoleClick);
+            map.off("mouseenter", ELECTRIC_POLE_LAYER_ID, setPointerCursor);
+            map.off("mouseleave", ELECTRIC_POLE_LAYER_ID, clearPointerCursor);
+        };
+    }, [mapInstance, electricPoles, onElectricPoleSelect]);
 
     // ================= Update SV data =================
     useEffect(() => {
@@ -254,7 +296,13 @@ function EsriSatelliteMap({
     const showLayers = activePanel === "layers";
     const showSettings = activePanel === "settings";
     const showContribute = activePanel === "contribute";
-    const hasSidebar = showInfo || showLayers || showSettings || showContribute;
+    const hasSidebar =
+        showInfo ||
+        showLayers ||
+        showSettings ||
+        showContribute ||
+        activePanel === "electric" ||
+        activePanel === "poleManagement";
 
     return (
         <div className={`map-wrapper${hasSidebar ? " has-sidebar" : ""}`}>

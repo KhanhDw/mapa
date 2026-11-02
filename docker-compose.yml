@@ -11,7 +11,8 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d:ro
+      - ./db/init-01-pois.sql:/docker-entrypoint-initdb.d/01-pois.sql:ro
+      - ./db/migrations/06_electric_poles.sql:/docker-entrypoint-initdb.d/02-electric-poles.sql:ro
     # Chỉnh theo RAM máy: shared_buffers ~25% RAM, effective_cache_size ~50-75% RAM
     command: >
       postgres

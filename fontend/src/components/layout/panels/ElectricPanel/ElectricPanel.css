@@ -6,6 +6,18 @@
   /* Ghi đè một số style nếu cần, nhưng cơ bản dùng chung coord-sidebar */
 }
 
+.electric-detail {
+  gap: 18px;
+}
+
+.electric-detail__text {
+  margin: 0;
+  color: #27272a;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 /* --- Danh sách trụ điện --- */
 .electric-search {
   padding: 16px 20px;
