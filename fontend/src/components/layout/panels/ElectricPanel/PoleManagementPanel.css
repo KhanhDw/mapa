@@ -55,10 +55,20 @@
   font-size: 14px;
 }
 
-.pole-management__coordinates {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+.pole-management__location {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pole-management__location-button {
+  width: 100%;
+}
+
+.pole-management__location-button.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .pole-management__actions,

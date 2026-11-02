@@ -5,12 +5,13 @@ import "./ElectricPanel.css";
 interface Props {
     pole: ElectricPole | null;
     onClose: () => void;
+    onGoToPole: (pole: ElectricPole) => void;
 }
 
-export function ElectricPanel({ pole, onClose }: Props) {
+export function ElectricPanel({ pole, onClose, onGoToPole }: Props) {
     return (
         <aside className="coord-sidebar electric-panel" aria-label="Thông tin trụ điện">
-            <PoleDetail pole={pole} onClose={onClose} />
+            <PoleDetail pole={pole} onClose={onClose} onGoToPole={onGoToPole} />
         </aside>
     );
 }
