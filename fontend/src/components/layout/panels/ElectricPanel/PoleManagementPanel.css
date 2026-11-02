@@ -1,0 +1,148 @@
+.pole-management {
+  width: 420px;
+}
+
+.pole-management__content {
+  gap: 16px;
+}
+
+.pole-management__field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: #52525b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pole-management__field input,
+.pole-management__field select,
+.pole-management__field textarea,
+.pole-management__list-header input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e4e4e7;
+  border-radius: 7px;
+  background: #fff;
+  color: #09090b;
+  font: inherit;
+}
+
+.pole-management__field input:focus,
+.pole-management__field select:focus,
+.pole-management__field textarea:focus,
+.pole-management__list-header input:focus {
+  border-color: #2563eb;
+  outline: 2px solid rgba(37, 99, 235, 0.15);
+}
+
+.pole-management__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.pole-management__form h3,
+.pole-management__list-header h3 {
+  margin: 0;
+  color: #09090b;
+  font-size: 14px;
+}
+
+.pole-management__coordinates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pole-management__actions,
+.pole-management__card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.electric-btn--primary {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.electric-btn--primary:hover {
+  background: #1d4ed8;
+}
+
+.electric-btn:disabled,
+.pole-management__card-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.pole-management__error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+.pole-management__list-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pole-management__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pole-management__card {
+  padding: 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.pole-management__card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #09090b;
+  font-size: 13px;
+}
+
+.pole-management__card > p {
+  margin: 7px 0 10px;
+  color: #52525b;
+  font-size: 12px;
+}
+
+.pole-management__card-actions button {
+  padding: 5px 10px;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  background: #fff;
+  color: #27272a;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.pole-management__card-actions button:hover {
+  background: #f4f4f5;
+}
+
+@media (max-width: 480px) {
+  .pole-management {
+    width: min(420px, 100%);
+  }
+}

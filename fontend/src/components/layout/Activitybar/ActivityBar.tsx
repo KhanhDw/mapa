@@ -5,6 +5,7 @@ export type PanelType =
     | "search"
     | "layers"
     | "electric"
+    | "poleManagement"
     | "settings"
     | "contribute";
 export type MapType = "esri" | "selfhost" | "osm" | "test";
@@ -90,10 +91,21 @@ export function ActivityBar({
                 <ActivityButton
                     active={activePanel === "electric"}
                     onClick={() => onPanelToggle("electric")}
-                    label="Điện lực & trụ điện"
+                    label="Thông tin trụ điện"
                 >
                     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
+                    </svg>
+                </ActivityButton>
+
+                <ActivityButton
+                    active={activePanel === "poleManagement"}
+                    onClick={() => onPanelToggle("poleManagement")}
+                    label="Quản lý trụ điện"
+                >
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 3v18M6 7h12M8 7l-3 5h6L8 7zm8 0-3 5h6l-3-5zM9 21h6" />
+                        <circle cx="12" cy="15" r="2" />
                     </svg>
                 </ActivityButton>
 

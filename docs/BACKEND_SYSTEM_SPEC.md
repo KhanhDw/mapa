@@ -4,7 +4,7 @@
 > Frontend chỉ giao tiếp với **một cổng duy nhất `:8000`** — mọi dịch vụ nội bộ
 > (PostGIS, pg_tileserv, versatiles) đều được backend proxy hoặc truy vấn trực tiếp.
 
-- **Phiên bản:** 2.3.0
+- **Phiên bản:** 2.4.0
 - **Cập nhật:** 2026-10-31
 - **Base URL (dev):** `http://127.0.0.1:8000`
 
@@ -78,7 +78,7 @@ PANO_MIN_WIDTH=1024
 
 ---
 
-## 3. Tổng hợp endpoint — 17 API
+## 3. Tổng hợp endpoint — 22 API
 
 | #   | Method   | Path                                      | Auth | Cache | Nhóm        |
 | --- | -------- | ----------------------------------------- | ---- | ----- | ----------- |
@@ -90,15 +90,20 @@ PANO_MIN_WIDTH=1024
 | 6   | GET      | `/api/user-pois/{id}`                     | —    | —     | Contribute  |
 | 7   | POST     | `/api/user-pois/{id}/photos`              | ✅   | —     | Contribute  |
 | 8   | POST     | `/api/user-panoramas`                     | ✅   | —     | Contribute  |
-| 9   | GET/HEAD | `/basemap/vietnam/{z}/{x}/{y}`            | —    | 28d   | Basemap     |
-| 10  | GET/HEAD | `/basemap/satellite/{z}/{x}/{y}`          | —    | 28d   | Basemap     |
-| 11  | GET/HEAD | `/basemap/{name}/tiles.json`              | —    | —     | Basemap     |
-| 12  | GET/HEAD | `/tiles/index.json`                       | —    | 1d    | Tileserv    |
-| 13  | GET/HEAD | `/tiles/{schema}.{table}.json`            | —    | —     | Tileserv    |
-| 14  | GET/HEAD | `/tiles/{schema}.{table}/{z}/{x}/{y}.pbf` | —    | 1d    | Tileserv    |
-| 15  | GET      | `/mvt/{alias}/{z}/{x}/{y}.pbf`            | —    | 1d    | MVT tự sinh |
-| 16  | GET/HEAD | `/panoramas/{filename}`                   | —    | 1d    | Static      |
-| 17  | GET/HEAD | `/user-media/{poi_id}/{filename}`         | —    | 1d    | Static      |
+| 9   | GET      | `/api/electric-poles`                     | —    | —    | Electric poles |
+| 10  | GET      | `/api/electric-poles/{id}`                | —    | —    | Electric poles |
+| 11  | POST     | `/api/electric-poles`                     | ✅   | —    | Electric poles |
+| 12  | PUT      | `/api/electric-poles/{id}`                | ✅   | —    | Electric poles |
+| 13  | DELETE   | `/api/electric-poles/{id}`                | ✅   | —    | Electric poles |
+| 14  | GET/HEAD | `/basemap/vietnam/{z}/{x}/{y}`            | —    | 28d  | Basemap     |
+| 15  | GET/HEAD | `/basemap/satellite/{z}/{x}/{y}`          | —    | 28d  | Basemap     |
+| 16  | GET/HEAD | `/basemap/{name}/tiles.json`              | —    | —    | Basemap     |
+| 17  | GET/HEAD | `/tiles/index.json`                       | —    | 1d   | Tileserv    |
+| 18  | GET/HEAD | `/tiles/{schema}.{table}.json`            | —    | —    | Tileserv    |
+| 19  | GET/HEAD | `/tiles/{schema}.{table}/{z}/{x}/{y}.pbf` | —    | 1d   | Tileserv    |
+| 20  | GET      | `/mvt/{alias}/{z}/{x}/{y}.pbf`            | —    | 1d   | MVT tự sinh |
+| 21  | GET/HEAD | `/panoramas/{filename}`                   | —    | 1d   | Static      |
+| 22  | GET/HEAD | `/user-media/{poi_id}/{filename}`         | —    | 1d   | Static      |
 
 **Auth:** header `X-API-Key: <WRITE_API_KEY>`
 
@@ -117,8 +122,6 @@ Kiểm tra backend + DB còn sống.
 ```json
 { "status": "ok" }
 ```
-
-**Lỗi:** `503` nếu DB pool chưa sẵn sàng.
 
 ---
 
@@ -687,6 +690,21 @@ Cache-Control: public, max-age=86400, immutable
 
 **Ghi chú:** URL tuyệt đối đã được nhúng sẵn trong response của `/api/streetview/*` và `/api/user-pois/*` — frontend không cần tự ghép.
 
+### 4.9. Electric poles
+
+`GET /api/electric-poles` returns `{ "items": [...], "total": n }` for map
+rendering and system management. `GET /api/electric-poles/{id}` returns one
+record. Records contain `id`, `pole_code`, `route`, `status`, `detail`, `lng`,
+`lat`, `created_at`, and `updated_at`. Status values are `good`, `warning`,
+and `error`; `detail` is optional.
+
+`POST /api/electric-poles`, `PUT /api/electric-poles/{id}`, and
+`DELETE /api/electric-poles/{id}` require `X-API-Key`. Create/update accept
+the record fields `pole_code`, `route`, `status`, `detail`, `lng`, and `lat`.
+Pole codes are unique; duplicate codes return `409`, missing IDs return `404`.
+
+**Lỗi:** `503` nếu DB pool chưa sẵn sàng.
+
 ---
 
 ## 5. Bảo mật
@@ -700,6 +718,10 @@ Cache-Control: public, max-age=86400, immutable
 | `/api/user-pois` (POST)         | ✅               | ghi DB          |
 | `/api/user-pois/{id}/photos`    | ✅               | upload file     |
 | `/api/user-panoramas`           | ✅               | upload file     |
+| `/api/electric-poles` (GET)      | ✕    | read-only       |
+| `/api/electric-poles` (POST)     | ✅   | create record   |
+| `/api/electric-poles/{id}` (GET) | ✕    | read-only       |
+| `/api/electric-poles/{id}` (PUT/DELETE) | ✅ | update/delete |
 | `/tiles/*`                      | ✕                | proxy read-only |
 | `/basemap/*`                    | ✕                | proxy read-only |
 | `/mvt/*`                        | ✕                | read-only       |
