@@ -1,5 +1,5 @@
 .pole-management {
-  width: 420px;
+  width: 380px;
 }
 
 .pole-management__content {
@@ -153,6 +153,6 @@
 
 @media (max-width: 480px) {
   .pole-management {
-    width: min(420px, 100%);
+    width: calc(100% - 16px);
   }
 }
