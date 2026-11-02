@@ -3,6 +3,7 @@ import type { ElectricPole } from "../../../../api/electricPoles";
 interface Props {
     pole: ElectricPole | null;
     onClose: () => void;
+    onGoToPole: (pole: ElectricPole) => void;
 }
 
 const STATUS_LABELS = {
@@ -11,7 +12,7 @@ const STATUS_LABELS = {
     error: "Đang có sự cố",
 } as const;
 
-export function PoleDetail({ pole, onClose }: Props) {
+export function PoleDetail({ pole, onClose, onGoToPole }: Props) {
     return (
         <>
             <header className="coord-sidebar__header">
@@ -50,18 +51,17 @@ export function PoleDetail({ pole, onClose }: Props) {
                             <p className="electric-detail__text">{pole.detail}</p>
                         </div>
                     )}
-                    <a
-                        href={`https://maps.google.com/?q=${pole.lat},${pole.lng}`}
-                        target="_blank"
-                        rel="noreferrer"
+                    <button
+                        type="button"
+                        onClick={() => onGoToPole(pole)}
                         className="electric-btn electric-btn--outline"
                     >
-                        Mở Google Maps
-                    </a>
+                        Đến vị trí
+                    </button>
                 </div>
             ) : (
                 <div className="coord-sidebar__scroll">
-                    <p className="cs-muted">Chọn biểu tượng trụ điện trên bản đồ để xem thông tin.</p>
+                    <p className="cs-muted">Chưa có thông tin trụ điện.</p>
                 </div>
             )}
         </>
