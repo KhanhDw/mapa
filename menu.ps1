@@ -1,5 +1,3 @@
-
-
 # PowerShell Script - File and Directory Tree Management Tool
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -10,11 +8,72 @@ New-Item -ItemType Directory -Force -Path .\tmp | Out-Null
 
 # Command definitions
 $commands = @(
-    @{Name="tree"; Description="Show directory tree at current location (exclude node_modules and .next)"}
-    @{Name="CUSTOM_TREE"; Description="Show directory tree of selected subdirectories"}
-    @{Name="PATH_TREE"; Description="Show directory tree at any specified path"}
-    @{Name="CONCAT_TREE"; Description="Combine directory tree and file contents into one file"}
+    @{Name = "tree"; Description = "Show directory tree at current location (auto-skips ignored folders/files)" }
+    @{Name = "CUSTOM_TREE"; Description = "Show directory tree of selected subdirectories" }
+    @{Name = "PATH_TREE"; Description = "Show directory tree at any specified path" }
+    @{Name = "CONCAT_TREE"; Description = "Combine directory tree and file contents into one file" }
 )
+
+# ===================================================================
+# IGNORE LIST - folders and files that are skipped automatically
+# ===================================================================
+# Folders: matched by exact name (case-insensitive) at ANY depth.
+# The whole folder is skipped, including everything inside it.
+$script:ExcludeDirNames = @(
+    # Node.js / Next.js
+    "node_modules", ".next",
+    # Git
+    ".git",
+    # Temp folders
+    "tmp", "temp", ".tmp",
+    # Python virtual environments
+    ".venv", "venv", "env", ".env", "virtualenv",
+    # Python libraries
+    "site-packages",
+    # Python caches
+    "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    # Test environments
+    ".tox", ".nox",
+    # Build output
+    "dist", "build"
+)
+
+# Files: matched by file name, wildcards allowed (case-insensitive)
+$script:ExcludeFilePatterns = @(
+    "package-lock.json",
+    "__init__.*"
+)
+
+# Check if a directory name is in the ignore list
+function Test-IsExcludedDir {
+    param([string]$name)
+    return ($script:ExcludeDirNames -contains $name)
+}
+
+# Check if a file name is in the ignore list
+function Test-IsExcludedFile {
+    param([string]$name)
+    foreach ($pattern in $script:ExcludeFilePatterns) {
+        if ($name -like $pattern) { return $true }
+    }
+    return $false
+}
+
+# Recursively list files, skipping ignored folders WITHOUT entering them
+function Get-FilteredFiles {
+    param([string]$path)
+    $items = Get-ChildItem -LiteralPath $path -Force -ErrorAction SilentlyContinue
+    foreach ($item in $items) {
+        if ($item.PSIsContainer) {
+            if (Test-IsExcludedDir $item.Name) { continue }
+            Get-FilteredFiles -path $item.FullName
+        }
+        else {
+            if (Test-IsExcludedFile $item.Name) { continue }
+            $item
+        }
+    }
+}
 
 # Function to generate timestamp
 function Generate-Timestamp {
@@ -29,53 +88,47 @@ function Clean-Path {
     return $path
 }
 
-# Function to get tree structure (works with or without tree command)
+# Function to get tree structure (skips everything in the ignore list)
 function Get-TreeStructure {
-    param([string]$path, [string]$excludePattern = "node_modules|\.next")
-    
-    if (Get-Command tree -ErrorAction SilentlyContinue) {
-        # Use native tree command if available
-        $result = tree /A /F $path | Select-String -NotMatch $excludePattern
-        return $result -join "`n"
-    } else {
-        # Fallback to PowerShell Get-ChildItem
-        $result = @()
-        $items = Get-ChildItem -Path $path -Force | Sort-Object -Property { if ($_.PSIsContainer) { 0 } else { 1 } }, Name
-        
-        foreach ($item in $items) {
-            if ($item.Name -match $excludePattern) { continue }
-            
-            $indent = ""
-            if ($item.PSIsContainer) {
-                $result += "$indent[$($item.Name)]"
-                # Recursively get sub-items
-                $subItems = Get-TreeStructure -path $item.FullName -excludePattern $excludePattern
-                if ($subItems) {
-                    $subItems.Split("`n") | ForEach-Object {
-                        if ($_) { $result += "  $_" }
-                    }
-                }
-            } else {
-                $sizeKB = :Round($item.Length / 1KB, 2)
+    param([string]$path)
 
-                if ($item.Length -ge 1GB) {
-                    $sizeText = "{0:N2} GB" -f ($item.Length / 1GB)
-                }
-                elseif ($item.Length -ge 1MB) {
-                    $sizeText = "{0:N2} MB" -f ($item.Length / 1MB)
-                }
-                elseif ($item.Length -ge 1KB) {
-                    $sizeText = "{0:N2} KB" -f ($item.Length / 1KB)
-                }
-                else {
-                    $sizeText = "$($item.Length) B"
-                }
+    $result = @()
+    $items = Get-ChildItem -LiteralPath $path -Force -ErrorAction SilentlyContinue |
+    Sort-Object -Property { if ($_.PSIsContainer) { 0 } else { 1 } }, Name
 
-                $result += "$indent$($item.Name) ($sizeText)"
+    foreach ($item in $items) {
+        if ($item.PSIsContainer) {
+            if (Test-IsExcludedDir $item.Name) { continue }
+
+            $result += "[$($item.Name)]"
+            # Recursively get sub-items
+            $subItems = Get-TreeStructure -path $item.FullName
+            if ($subItems) {
+                $subItems.Split("`n") | ForEach-Object {
+                    if ($_) { $result += "  $_" }
+                }
             }
         }
-        return $result -join "`n"
+        else {
+            if (Test-IsExcludedFile $item.Name) { continue }
+
+            if ($item.Length -ge 1GB) {
+                $sizeText = "{0:N2} GB" -f ($item.Length / 1GB)
+            }
+            elseif ($item.Length -ge 1MB) {
+                $sizeText = "{0:N2} MB" -f ($item.Length / 1MB)
+            }
+            elseif ($item.Length -ge 1KB) {
+                $sizeText = "{0:N2} KB" -f ($item.Length / 1KB)
+            }
+            else {
+                $sizeText = "$($item.Length) B"
+            }
+
+            $result += "$($item.Name) ($sizeText)"
+        }
     }
+    return $result -join "`n"
 }
 
 # Function to check if file is text
@@ -84,7 +137,8 @@ function Test-IsTextFile {
     try {
         $content = Get-Content $filePath -ErrorAction Stop -TotalCount 1
         return $true
-    } catch {
+    }
+    catch {
         return $false
     }
 }
@@ -125,7 +179,8 @@ $treeOutput
 "@
             $content | Set-Content -Path $outputFile -Encoding UTF8
             Write-Host "Saved result to file: $outputFile" -ForegroundColor Green
-        } else {
+        }
+        else {
             Write-Host "Directory '$d' does not exist. Skipping." -ForegroundColor Red
         }
     }
@@ -165,7 +220,8 @@ $treeOutput
 "@
         $content | Set-Content -Path $outputFile -Encoding UTF8
         Write-Host "Saved result to file: $outputFile" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "Error: Path '$targetPath' does not exist or is not a directory." -ForegroundColor Red
     }
 }
@@ -196,7 +252,8 @@ function Invoke-ConcatTree {
     
     if ([string]::IsNullOrWhiteSpace($outputFilename)) {
         $outputFile = $defaultOutput
-    } else {
+    }
+    else {
         $outputFile = ".\tmp\$((Split-Path $outputFilename -Leaf))"
     }
     
@@ -208,7 +265,7 @@ function Invoke-ConcatTree {
     Write-Host "Processing... Please wait." -ForegroundColor Yellow
     
     # 1. Write directory tree to output file
-    $treeOutput = Get-TreeStructure -path $targetPath -excludePattern "node_modules|\.next|\.git"
+    $treeOutput = Get-TreeStructure -path $targetPath
     
     $content = @"
 ===============================================================================
@@ -221,19 +278,9 @@ $treeOutput
 
 "@
     
-    # 2. Iterate through all files (excluding node_modules, .next, .git)
-    $excludeDirs = @("node_modules", ".next", ".git")
-    $allFiles = Get-ChildItem -Path $targetPath -Recurse -File -Force | Where-Object {
-        $shouldInclude = $true
-        foreach ($exclude in $excludeDirs) {
-            if ($_.FullName -match "\\$exclude\\") {
-                $shouldInclude = $false
-                break
-            }
-        }
-        $shouldInclude
-    }
-    
+    # 2. Collect all files (ignored folders/files are skipped automatically)
+    $allFiles = Get-FilteredFiles -path $targetPath
+
     $fileCount = 0
     $skippedCount = 0
     
@@ -255,11 +302,13 @@ FILE: $($file.FullName)
                 $content += $fileContent
                 $content += "`n`n"
                 $fileCount++
-            } catch {
+            }
+            catch {
                 $content += "[Error: Unable to read this file]`n`n"
                 $skippedCount++
             }
-        } else {
+        }
+        else {
             $reason = if (-not $isText) { "binary/non-text" } else { "too large (>10MB)" }
             Write-Host "Skipping ($reason): $($file.FullName)" -ForegroundColor Gray
             $skippedCount++
@@ -300,29 +349,34 @@ while ($true) {
         if ($choiceNum -eq 0) {
             Write-Host "Exiting program." -ForegroundColor Green
             break
-        } elseif ($choiceNum -ge 1 -and $choiceNum -le $commands.Count) {
+        }
+        elseif ($choiceNum -ge 1 -and $choiceNum -le $commands.Count) {
             $index = $choiceNum - 1
             $cmd = $commands[$index]
             Write-Host "`nRunning: $($cmd.Description)" -ForegroundColor Green
             
             # Handle special commands
             switch ($cmd.Name) {
+                "tree" { Write-Host (Get-TreeStructure -path (Get-Location).Path) }
                 "CUSTOM_TREE" { Invoke-CustomTree }
                 "PATH_TREE" { Invoke-PathTree }
                 "CONCAT_TREE" { Invoke-ConcatTree }
                 default {
                     if (Get-Command $cmd.Name -ErrorAction SilentlyContinue) {
                         Invoke-Expression $cmd.Name
-                    } else {
+                    }
+                    else {
                         Write-Host "Command '$($cmd.Name)' not found in PowerShell" -ForegroundColor Red
                     }
                 }
             }
             Write-Host "Command execution completed." -ForegroundColor Green
-        } else {
+        }
+        else {
             Write-Host "Invalid choice. Please enter a number from 0 to $($commands.Count)." -ForegroundColor Red
         }
-    } else {
+    }
+    else {
         Write-Host "Please enter a valid number." -ForegroundColor Red
     }
     
