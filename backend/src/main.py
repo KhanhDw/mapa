@@ -10,7 +10,14 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .db import _close_pool, _init_pool, get_pool
-from .routers import contribute, contribute_public, point_info, streetview, tiles
+from .routers import (
+    contribute,
+    contribute_public,
+    electric_poles,
+    point_info,
+    streetview,
+    tiles,
+)
 
 logging.basicConfig(
     level=logging.DEBUG if settings.is_dev else logging.INFO,
@@ -59,7 +66,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         lifespan=lifespan,
         title="Webmap API",
-        version="2.3.0",        # bump vì thêm proxy route
+        version="2.4.0",
     )
 
     app.add_middleware(
@@ -86,6 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(point_info.router)
     app.include_router(contribute.router)
     app.include_router(contribute_public.router)   
+    app.include_router(electric_poles.router)
     app.include_router(tiles.router)
 
     # Static assets

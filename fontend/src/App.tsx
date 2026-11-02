@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityBar,
   type PanelType,
@@ -9,6 +9,9 @@ import {
   ElectricPanel,
   type SearchResult,
 } from "./components/layout/panels";
+import { PoleManagementPanel } from "./components/layout/panels/ElectricPanel/PoleManagementPanel";
+import { fetchElectricPoles } from "./api/electricPoles";
+import type { ElectricPole } from "./api/electricPoles";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import EsriSatelliteMap from "./components/maps/EsriSatelliteMap/EsriSatelliteMap";
 import SatelliteMap from "./components/maps/SatelliteMap/SatelliteMap";
@@ -22,6 +25,23 @@ export default function App() {
   const [mapType, setMapType] = useState<MapType>("esri");
   const [activePanel, setActivePanel] = useState<PanelType | null>(null);
   const [mapKey, setMapKey] = useState(0);
+  const [electricPoles, setElectricPoles] = useState<ElectricPole[]>([]);
+  const [electricPolesVersion, setElectricPolesVersion] = useState(0);
+  const [selectedPoleId, setSelectedPoleId] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchElectricPoles()
+      .then((poles) => {
+        if (active) setElectricPoles(poles);
+      })
+      .catch((error: unknown) => {
+        if (active) console.error("[electric-poles] fetch error:", error);
+      });
+    return () => {
+      active = false;
+    };
+  }, [electricPolesVersion]);
 
   // ── State cho SearchPanel ───────────────────────────────
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -31,6 +51,11 @@ export default function App() {
   const handlePanelToggle = (panel: PanelType) => {
     setActivePanel((prev) => (prev === panel ? null : panel));
   };
+
+  const handleElectricPoleSelect = useCallback((pole: ElectricPole) => {
+    setSelectedPoleId(pole.id);
+    setActivePanel("electric");
+  }, []);
 
   const handleSearch = async (q: string) => {
     if (!q) {
@@ -73,6 +98,8 @@ export default function App() {
               activePanel={activePanel}
               onAutoShowInfo={() => setActivePanel("info")}
               onPanelClose={() => setActivePanel(null)}
+              electricPoles={electricPoles}
+              onElectricPoleSelect={handleElectricPoleSelect}
             />
           )}
           {mapType === "selfhost" && <SatelliteMap />}
@@ -97,7 +124,17 @@ export default function App() {
         )}
 
         {activePanel === "electric" && (
-          <ElectricPanel onClose={() => setActivePanel(null)} />
+          <ElectricPanel
+            pole={electricPoles.find((pole) => pole.id === selectedPoleId) ?? null}
+            onClose={() => setActivePanel(null)}
+          />
+        )}
+
+        {activePanel === "poleManagement" && (
+          <PoleManagementPanel
+            onClose={() => setActivePanel(null)}
+            onChanged={() => setElectricPolesVersion((version) => version + 1)}
+          />
         )}
       </div>
     </div>

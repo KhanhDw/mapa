@@ -32,12 +32,14 @@ backend FastAPI không phải service Compose và kết nối qua cổng host.
 
 ## 3. Init và migration
 
-Compose chỉ mount [`init/01-pois.sql`](../init/01-pois.sql) làm init script.
-Script này tạo `public.pois`, index GiST trên `geom` và index B-tree trên
-`category`. Init script chỉ chạy với data directory mới; thay đổi schema sau
-đó phải được áp dụng rõ ràng.
+Compose mount [`db/init-01-pois.sql`](../db/init-01-pois.sql) và migration
+[`06_electric_poles.sql`](../db/migrations/06_electric_poles.sql) vào thư mục
+init của Postgres. Chúng tạo `public.pois` và `user_data.electric_poles`.
+Init script chỉ chạy với data directory mới; migration cần được chạy thủ công
+trên volume đã tồn tại.
 
-Các SQL trong [`db/migrations/`](../db/migrations/) không tự chạy từ Compose:
+Các migration khác trong [`db/migrations/`](../db/migrations/) không tự chạy
+từ Compose:
 
 | File | Mục đích / điều kiện |
 | --- | --- |
@@ -46,6 +48,7 @@ Các SQL trong [`db/migrations/`](../db/migrations/) không tự chạy từ Com
 | [`03_extra_layers.sql`](../db/migrations/03_extra_layers.sql) | Tạo thêm các layer; chạy sau migration 02. |
 | [`04_grants.sql`](../db/migrations/04_grants.sql) | Kiểm tra GiST index và cấp quyền đọc tile cho `public.vietnam_roads` và `public.streetview_images`; yêu cầu hai bảng đã tồn tại. |
 | [`05_user_data.sql`](../db/migrations/05_user_data.sql) | Tạo `user_data.pois`, `user_data.poi_photos`, role `mapa_api` và quyền backend; yêu cầu các bảng public được migration tham chiếu đã tồn tại. |
+| [`06_electric_poles.sql`](../db/migrations/06_electric_poles.sql) | Tạo bảng `user_data.electric_poles` và index không gian; cấp quyền CRUD cho `mapa_api` nếu role đã tồn tại. Nếu cần tạo role bằng migration 05, chạy migration 05 trước migration 06. |
 
 Migration 05 có mật khẩu phát triển dự phòng trong SQL để tạo role mới. Trước
 khi triển khai, thay bằng thông tin xác thực an toàn và dùng URI tương ứng
@@ -108,6 +111,9 @@ Migration 05 định nghĩa:
   index trên `category`.
 - `user_data.poi_photos`: thông tin đường dẫn ảnh/thumbnail, kích thước và
   thời điểm tạo; `poi_id` tham chiếu `user_data.pois` với `ON DELETE CASCADE`.
+- `user_data.electric_poles`: mã trụ duy nhất, tuyến đường, trạng thái
+  (`good`, `warning`, `error`), thông tin chi tiết tùy chọn, tọa độ `geom`
+  EPSG:4326 và thời điểm tạo/cập nhật; có GiST index trên `geom`.
 
 API hợp nhất POI từ `public.pois` và `user_data.pois`. Các sequence riêng có
 thể sinh ID trùng, vì vậy response `point-info` bao gồm `source` (`osm` hoặc
@@ -155,6 +161,8 @@ migration 04 cũng cấp quyền đọc các bảng public được chỉ địn
 - Role `mapa_api` do migration 05 dùng cho truy vấn/ghi dữ liệu API; role
   `tile_reader` dành cho pg_tileserv. Không dùng `tile_reader` làm tài khoản
   backend ghi dữ liệu.
+- `user_data.electric_poles` không được cấp cho `tile_reader`; lớp điểm bản đồ
+  được tải qua API backend.
 
 ## 7. Sao lưu và vận hành
 
@@ -163,5 +171,7 @@ migration 04 cũng cấp quyền đọc các bảng public được chỉ địn
   `PANORAMAS_DIR` và `USER_MEDIA_DIR`.
 - Init scripts không chạy lại trên volume đã có dữ liệu; migration cần được
   áp dụng có chủ đích.
+- Trên volume đang dùng, áp dụng migration 06 bằng:
+  `Get-Content -Raw .\db\migrations\06_electric_poles.sql | docker compose exec -T postgis psql -v ON_ERROR_STOP=1 -U postgres -d webmap_db`.
 - Sau khi rebuild, xác nhận counts của các layer và kiểm tra
   `http://127.0.0.1:7800/index.html`.

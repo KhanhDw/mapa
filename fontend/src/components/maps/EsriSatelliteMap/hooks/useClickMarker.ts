@@ -3,6 +3,7 @@ import * as maplibregl from "maplibre-gl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ClickInfo } from "../../../sidebar/CoordSidebar/CoordSidebar";
 import { SV_LAYER_ID } from "../constants";
+import { ELECTRIC_POLE_LAYER_ID } from "../layers/electricPoleLayer";
 
 interface Result {
     clickInfo: ClickInfo | null;
@@ -23,6 +24,12 @@ export function useClickMarker(
             if (map.getLayer(SV_LAYER_ID)) {
                 const hit = map.queryRenderedFeatures(e.point, {
                     layers: [SV_LAYER_ID],
+                });
+                if (hit.length > 0) return;
+            }
+            if (map.getLayer(ELECTRIC_POLE_LAYER_ID)) {
+                const hit = map.queryRenderedFeatures(e.point, {
+                    layers: [ELECTRIC_POLE_LAYER_ID],
                 });
                 if (hit.length > 0) return;
             }
