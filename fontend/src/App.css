@@ -3,9 +3,9 @@
    ========================================================================== */
 
 :root {
-  --app-bg: #09090b;
-  --app-border: #e4e4e7;
-  --app-switcher-bg: rgba(255, 255, 255, 0.92);
+  --app-bg: #f1f5f9;
+  --app-border: #e2e8f0;
+  --app-switcher-bg: rgba(255, 255, 255, 0.96);
   --app-primary: #2563eb;
   --app-primary-hover: #1d4ed8;
 }
@@ -57,29 +57,29 @@ body,
 /* Map Switcher Control */
 .map-switcher {
   position: absolute;
-  top: 16px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
 
   display: flex;
   gap: 4px;
-  padding: 4px;
+  padding: 5px;
 
   background: var(--app-switcher-bg);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--app-border);
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
 }
 
 .map-switcher button {
   padding: 8px 14px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
-  color: #52525b;
+  color: #475569;
 
   font-size: 13px;
   font-weight: 500;
@@ -89,8 +89,8 @@ body,
 }
 
 .map-switcher button:hover {
-  background: #f4f4f5;
-  color: #09090b;
+  background: #f1f5f9;
+  color: #172033;
 }
 
 .map-switcher button.active {
