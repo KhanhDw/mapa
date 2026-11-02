@@ -16,6 +16,11 @@ import "./PoleManagementPanel.css";
 interface Props {
     onClose: () => void;
     onChanged: () => void;
+    isRecordingLocation: boolean;
+    onStartLocationRecording: (
+        onLocationRecorded: (location: { lng: number; lat: number }) => void
+    ) => void;
+    onStopLocationRecording: () => void;
 }
 
 interface PoleDraft {
@@ -53,7 +58,13 @@ function toDraft(pole: ElectricPole): PoleDraft {
     };
 }
 
-export function PoleManagementPanel({ onClose, onChanged }: Props) {
+export function PoleManagementPanel({
+    onClose,
+    onChanged,
+    isRecordingLocation,
+    onStartLocationRecording,
+    onStopLocationRecording,
+}: Props) {
     const [poles, setPoles] = useState<ElectricPole[]>([]);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
@@ -96,13 +107,33 @@ export function PoleManagementPanel({ onClose, onChanged }: Props) {
         setDraft((current) => ({ ...current, [key]: value }));
     };
 
+    const stopLocationRecording = () => {
+        if (isRecordingLocation) onStopLocationRecording();
+    };
+
+    const toggleLocationRecording = () => {
+        if (isRecordingLocation) {
+            onStopLocationRecording();
+            return;
+        }
+        onStartLocationRecording(({ lng, lat }) => {
+            setDraft((current) => ({
+                ...current,
+                lng: String(lng),
+                lat: String(lat),
+            }));
+        });
+    };
+
     const beginCreate = () => {
+        stopLocationRecording();
         setEditingPole(null);
         setDraft(EMPTY_DRAFT);
         setError(null);
     };
 
     const beginEdit = (pole: ElectricPole) => {
+        stopLocationRecording();
         setEditingPole(pole);
         setDraft(toDraft(pole));
         setError(null);
@@ -110,6 +141,10 @@ export function PoleManagementPanel({ onClose, onChanged }: Props) {
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        if (!draft.lng.trim() || !draft.lat.trim()) {
+            setError("Hãy ghi nhận vị trí trên bản đồ.");
+            return;
+        }
         if (!apiKey.trim()) {
             setError("Nhập API Key để thêm hoặc cập nhật trụ điện.");
             return;
@@ -241,31 +276,22 @@ export function PoleManagementPanel({ onClose, onChanged }: Props) {
                             ))}
                         </select>
                     </label>
-                    <div className="pole-management__coordinates">
-                        <label className="pole-management__field">
-                            <span>Kinh độ</span>
-                            <input
-                                type="number"
-                                required
-                                min={-180}
-                                max={180}
-                                step="any"
-                                value={draft.lng}
-                                onChange={(event) => updateDraft("lng", event.target.value)}
-                            />
-                        </label>
-                        <label className="pole-management__field">
-                            <span>Vĩ độ</span>
-                            <input
-                                type="number"
-                                required
-                                min={-90}
-                                max={90}
-                                step="any"
-                                value={draft.lat}
-                                onChange={(event) => updateDraft("lat", event.target.value)}
-                            />
-                        </label>
+                    <div className="pole-management__location">
+                        <button
+                            className={`electric-btn electric-btn--outline pole-management__location-button${isRecordingLocation ? " is-active" : ""}`}
+                            type="button"
+                            aria-pressed={isRecordingLocation}
+                            onClick={toggleLocationRecording}
+                        >
+                            {isRecordingLocation ? "Hủy ghi nhận vị trí" : "Ghi nhận vị trí"}
+                        </button>
+                        <p className="cs-muted" role="status">
+                            {isRecordingLocation
+                                ? "Nhấp vào bản đồ để ghi nhận tọa độ trụ điện."
+                                : draft.lng && draft.lat
+                                  ? `Vị trí: ${draft.lat}, ${draft.lng}`
+                                  : "Chưa ghi nhận vị trí."}
+                        </p>
                     </div>
                     <label className="pole-management__field">
                         <span>Thông tin chi tiết (không bắt buộc)</span>

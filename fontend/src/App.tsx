@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityBar,
   type PanelType,
@@ -28,6 +28,14 @@ export default function App() {
   const [electricPoles, setElectricPoles] = useState<ElectricPole[]>([]);
   const [electricPolesVersion, setElectricPolesVersion] = useState(0);
   const [selectedPoleId, setSelectedPoleId] = useState<number | null>(null);
+  const [isRecordingPoleLocation, setIsRecordingPoleLocation] = useState(false);
+  const poleLocationRecordedHandler = useRef<
+    ((location: { lng: number; lat: number }) => void) | null
+  >(null);
+  const [poleNavigationRequest, setPoleNavigationRequest] = useState<{
+    pole: ElectricPole;
+    requestId: number;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -49,13 +57,57 @@ export default function App() {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const handlePanelToggle = (panel: PanelType) => {
-    setActivePanel((prev) => (prev === panel ? null : panel));
+    const next = activePanel === panel ? null : panel;
+    if (activePanel === "electric" || panel === "electric") {
+      setSelectedPoleId(null);
+    }
+    if (panel === "poleManagement") {
+      poleLocationRecordedHandler.current = null;
+      setIsRecordingPoleLocation(false);
+    }
+    if (activePanel === "poleManagement") {
+      poleLocationRecordedHandler.current = null;
+      setIsRecordingPoleLocation(false);
+    }
+    setActivePanel(next);
   };
 
   const handleElectricPoleSelect = useCallback((pole: ElectricPole) => {
     setSelectedPoleId(pole.id);
     setActivePanel("electric");
   }, []);
+
+  const handlePoleLocationRecorded = useCallback((location: { lng: number; lat: number }) => {
+    poleLocationRecordedHandler.current?.(location);
+    poleLocationRecordedHandler.current = null;
+    setIsRecordingPoleLocation(false);
+  }, []);
+
+  const handleGoToPole = useCallback((pole: ElectricPole) => {
+    setPoleNavigationRequest((current) => ({
+      pole,
+      requestId: (current?.requestId ?? 0) + 1,
+    }));
+  }, []);
+
+  const handleStartPoleLocationRecording = useCallback(
+    (onLocationRecorded: (location: { lng: number; lat: number }) => void) => {
+      poleLocationRecordedHandler.current = onLocationRecorded;
+      setIsRecordingPoleLocation(true);
+    },
+    []
+  );
+
+  const handleStopPoleLocationRecording = useCallback(() => {
+    poleLocationRecordedHandler.current = null;
+    setIsRecordingPoleLocation(false);
+  }, []);
+
+  const closePoleManagement = () => {
+    setActivePanel(null);
+    poleLocationRecordedHandler.current = null;
+    setIsRecordingPoleLocation(false);
+  };
 
   const handleSearch = async (q: string) => {
     if (!q) {
@@ -100,6 +152,9 @@ export default function App() {
               onPanelClose={() => setActivePanel(null)}
               electricPoles={electricPoles}
               onElectricPoleSelect={handleElectricPoleSelect}
+              isRecordingPoleLocation={isRecordingPoleLocation}
+              onPoleLocationRecorded={handlePoleLocationRecorded}
+              poleNavigationRequest={poleNavigationRequest}
             />
           )}
           {mapType === "selfhost" && <SatelliteMap />}
@@ -126,14 +181,21 @@ export default function App() {
         {activePanel === "electric" && (
           <ElectricPanel
             pole={electricPoles.find((pole) => pole.id === selectedPoleId) ?? null}
-            onClose={() => setActivePanel(null)}
+            onClose={() => {
+              setSelectedPoleId(null);
+              setActivePanel(null);
+            }}
+            onGoToPole={handleGoToPole}
           />
         )}
 
         {activePanel === "poleManagement" && (
           <PoleManagementPanel
-            onClose={() => setActivePanel(null)}
+            onClose={closePoleManagement}
             onChanged={() => setElectricPolesVersion((version) => version + 1)}
+            isRecordingLocation={isRecordingPoleLocation}
+            onStartLocationRecording={handleStartPoleLocationRecording}
+            onStopLocationRecording={handleStopPoleLocationRecording}
           />
         )}
       </div>
