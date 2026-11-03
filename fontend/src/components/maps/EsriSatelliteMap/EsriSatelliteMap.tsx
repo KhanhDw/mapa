@@ -8,6 +8,8 @@ import { addExtraLayers } from "./layers/addExtraLayers";
 import { StreetViewModal } from "../../streetview/StreetViewModal/StreetViewModal";
 import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSidebar";
 import { PlaceDetailSidebar } from "../../sidebar/PlaceDetailSidebar/PlaceDetailSidebar";
+import { SearchPanel } from "../../sidebar/SearchSidebar/SearchPanel";
+import type { SearchResult } from "../../../api/search";
 import type { PanelType } from "../../layout/Activitybar";
 import { ContributePanel } from "../../contribute/ContributePanel";
 import { EXTRA_LAYERS, extraTileUrl } from "./layers/registry";
@@ -36,6 +38,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LayersPanel, SettingsPanel, DEFAULT_LAYERS } from "../../layout/panels";
 import type { LayerKey, LayerVisibility } from "../../layout/panels";
 import { applyLayerVisibility } from "./layers/applyLayerVisibility";
+import { showSearchResult } from "./layers/searchResultLayer";
 
 interface Props {
     activePanel?: PanelType | null;
@@ -46,6 +49,10 @@ interface Props {
     isRecordingPoleLocation: boolean;
     onPoleLocationRecorded: (location: { lng: number; lat: number }) => void;
     poleNavigationRequest: { pole: ElectricPole; requestId: number } | null;
+    searchResults: SearchResult[];
+    searchLoading: boolean;
+    searchError: string | null;
+    onSearch: (query: string) => void;
 }
 
 function EsriSatelliteMap({
@@ -57,6 +64,10 @@ function EsriSatelliteMap({
     isRecordingPoleLocation,
     onPoleLocationRecorded,
     poleNavigationRequest,
+    searchResults,
+    searchLoading,
+    searchError,
+    onSearch,
 }: Props) {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
@@ -285,6 +296,10 @@ function EsriSatelliteMap({
         });
     };
 
+    const handleSearchResultClick = (result: SearchResult) => {
+        if (mapInstance) showSearchResult(mapInstance, result);
+    };
+
     const handleClose = () => onPanelClose?.();
     const handleClosePlaceDetails = () => {
         setSelectedPoi(null);
@@ -331,6 +346,7 @@ function EsriSatelliteMap({
         showLayers ||
         showSettings ||
         showContribute ||
+        activePanel === "search" ||
         activePanel === "electric" ||
         activePanel === "poleManagement";
 
@@ -374,6 +390,17 @@ function EsriSatelliteMap({
             )}
 
             {showSettings && <SettingsPanel onClose={() => onPanelClose?.()} />}
+
+            {activePanel === "search" && (
+                <SearchPanel
+                    onClose={handleClose}
+                    results={searchResults}
+                    loading={searchLoading}
+                    error={searchError}
+                    onSearch={onSearch}
+                    onResultClick={handleSearchResultClick}
+                />
+            )}
 
             {showContribute && (
                 <ContributePanel
