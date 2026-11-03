@@ -15,6 +15,7 @@ from .routers import (
     contribute_public,
     electric_poles,
     point_info,
+    search,
     streetview,
     tiles,
 )
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     # Routers
     app.include_router(streetview.router)
     app.include_router(point_info.router)
+    app.include_router(search.router)
     app.include_router(contribute.router)
     app.include_router(contribute_public.router)   
     app.include_router(electric_poles.router)
