@@ -90,23 +90,24 @@ Expanded display is used automatically.
  raw               | gis_osm_transport_free         |    18925 | 3448 kB | r
  raw               | gis_osm_water_a_free           |    39758 | 55 MB   | r
  raw               | gis_osm_waterways_free         |    38681 | 40 MB   | r
+ user_data         | electric_poles                 |       -1 | 56 kB   | r
  user_data         | poi_photos                     |       -1 | 48 kB   | r
  user_data         | pois                           |       -1 | 56 kB   | r
-(53 rows)
+(54 rows)
 
 ========== 2.2 EXACT ROW COUNTS ==========
            tbl            |  count  
 --------------------------+---------
  public.streetview_images |       4
- user_data.pois           |       1
+ user_data.pois           |       3
  public.pois              |       0
- user_data.poi_photos     |       1
+ user_data.poi_photos     |       2
  clean.places             |   14699
  clean.water_areas        |   39758
  clean.pois               |   74933
  public.osm_roads         | 1004652
- clean.buildings          | 1272265
  public.vietnam_roads     | 3140236
+ clean.buildings          | 1272265
 (10 rows)
 
 
@@ -300,21 +301,25 @@ Access method: heap
  public         | pois              | geom              |               2 | 4326 | POINT
  public         | streetview_images | geom              |               2 | 4326 | POINT
  public         | vietnam_roads     | geom              |               2 | 4326 | MULTILINESTRING
+ user_data      | electric_poles    | geom              |               2 | 4326 | POINT
  user_data      | pois              | geom              |               2 | 4326 | POINT
-(27 rows)
+(28 rows)
 
 
 ========== 6.1 user_data.pois (5 newest) ==========
- id |        name         | category |                  address                   | phone | description |    lng     |    lat    |          created_at           
-----+---------------------+----------+--------------------------------------------+-------+-------------+------------+-----------+-------------------------------
-  3 | Công viên Quyanh Na | other    | 38, Đinh Thiên Hoàng, Long Xuyên, An Giang |       |             | 105.438873 | 10.385251 | 2026-11-01 03:59:22.970441+00
-(1 row)
+ id |        name         |  category  |                  address                   | phone | description |    lng     |    lat    |          created_at           
+----+---------------------+------------+--------------------------------------------+-------+-------------+------------+-----------+-------------------------------
+  5 | nh├á m├íy sß╗æ 1        | attraction | 982, L├¬ Lß╗úi , Long xuy├¬n, an giang         |       |             | 105.439755 | 10.387240 | 2026-11-01 14:10:00.857401+00
+  4 | Qu├ín ─ân ven ─æã░ß╗Øng   | restaurant | L├¬ Thß╗ï Nhi├¬n                               |       |             | 105.440440 | 10.384922 | 2026-11-01 09:40:16.626282+00
+  3 | C├┤ng vi├¬n Quyanh Na | other      | 38, ─Éinh Thi├¬n Ho├áng, Long Xuy├¬n, An Giang |       |             | 105.438873 | 10.385251 | 2026-11-01 03:59:22.970441+00
+(3 rows)
 
 ========== 6.2 user_data.poi_photos (5 newest) ==========
  id | poi_id |               file_path                |                thumb_path                | width | height 
 ----+--------+----------------------------------------+------------------------------------------+-------+--------
+  3 |      5 | 5/0dcd7d7bbd344de58660bbea378cd339.jpg | 5/0dcd7d7bbd344de58660bbea378cd339_t.jpg |  1880 |    422
   2 |      3 | 3/3f57c52211544d3ba9d089a85bb3fc40.jpg | 3/3f57c52211544d3ba9d089a85bb3fc40_t.jpg |  1880 |    422
-(1 row)
+(2 rows)
 
 ========== 6.3 public.pois (5 rows) ==========
  id | osm_id | name | category | geom | created_at 
@@ -334,7 +339,7 @@ Access method: heap
    osm_id   |  fclass  | category  |    name    | has_name |                        geom                        
 ------------+----------+-----------+------------+----------+----------------------------------------------------
  1000087196 | pharmacy | y_te      |            | f        | 0101000020E610000024BFD94180755A40FAEE5696E8063540
- 1000087283 | cafe     | an_uong   | Cà Phê Huy | t        | 0101000020E6100000B7A62F3A8F755A40C5B2F4FCC4063540
+ 1000087283 | cafe     | an_uong   | C├á Ph├¬ Huy | t        | 0101000020E6100000B7A62F3A8F755A40C5B2F4FCC4063540
  1000087307 | toilet   | khac      |            | f        | 0101000020E6100000845DB9837D755A40B10EEC9D76073540
  1000087314 | pharmacy | y_te      |            | f        | 0101000020E61000009F44DF3884755A40802D0A16E2063540
  1000087341 | atm      | tai_chinh |            | f        | 0101000020E6100000AF92342493755A40F0ADA305C3063540
@@ -342,10 +347,12 @@ Access method: heap
 
 
 ========== 7.1 CATEGORIES user_data.pois ==========
- category | count 
-----------+-------
- other    |     1
-(1 row)
+  category  | count 
+------------+-------
+ restaurant |     1
+ other      |     1
+ attraction |     1
+(3 rows)
 
 ========== 7.2 CATEGORIES public.pois (top 50) ==========
  category | count 
@@ -353,17 +360,16 @@ Access method: heap
 (0 rows)
 
 ========== 7.3 CATEGORIES clean.pois (top 50) ==========
+========== 7.4 GEOMETRY VALIDITY ==========
 docker : ERROR:  column "kind" does not exist
 At line:1 char:31
 + ... cover.sql | docker exec -i postgis-webmap psql -U postgres -d webmap_ ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (ERROR:  column "kind" does not exist:String) [], Rem 
-   oteException
+    + CategoryInfo          : NotSpecified: (ERROR:  column "kind" does not exist:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
  
 LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
                ^
-========== 7.4 GEOMETRY VALIDITY ==========
            tbl            | invalid 
 --------------------------+---------
  public.streetview_images |       0
@@ -374,7 +380,7 @@ LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
 ========== 7.5 NULL CHECK user_data.pois ==========
  no_name | no_cat | no_geom | no_addr | total 
 ---------+--------+---------+---------+-------
-       0 |      0 |       0 |       0 |     1
+       0 |      0 |       0 |       0 |     3
 (1 row)
 
 ========== 7.6 tile_reader PERMISSIONS ==========
@@ -388,6 +394,10 @@ LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
  public       | streetview_images | INSERT
  public       | streetview_images | SELECT
  public       | vietnam_roads     | SELECT
+ user_data    | electric_poles    | DELETE
+ user_data    | electric_poles    | INSERT
+ user_data    | electric_poles    | SELECT
+ user_data    | electric_poles    | UPDATE
  user_data    | poi_photos        | DELETE
  user_data    | poi_photos        | INSERT
  user_data    | poi_photos        | SELECT
@@ -396,27 +406,35 @@ LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
  user_data    | pois              | INSERT
  user_data    | pois              | SELECT
  user_data    | pois              | UPDATE
-(16 rows)
+(20 rows)
 
 ========== 7.7 EXTRA user_data COLUMNS ==========
- table_name | ordinal_position | column_name |        data_type         | max_len | is_nullable |                  column_default                  
-------------+------------------+-------------+--------------------------+---------+-------------+--------------------------------------------------
- poi_photos |                1 | id          | bigint                   |         | NO          | nextval('user_data.poi_photos_id_seq'::regclass)
- poi_photos |                2 | poi_id      | bigint                   |         | NO          | 
- poi_photos |                3 | file_path   | text                     |         | NO          | 
- poi_photos |                4 | thumb_path  | text                     |         | YES         | 
- poi_photos |                5 | width       | integer                  |         | YES         | 
- poi_photos |                6 | height      | integer                  |         | YES         | 
- poi_photos |                7 | created_at  | timestamp with time zone |         | NO          | now()
- pois       |                1 | id          | bigint                   |         | NO          | nextval('user_data.pois_id_seq'::regclass)
- pois       |                2 | name        | text                     |         | NO          | 
- pois       |                3 | category    | text                     |         | NO          | 'other'::text
- pois       |                4 | address     | text                     |         | YES         | 
- pois       |                5 | phone       | text                     |         | YES         | 
- pois       |                6 | description | text                     |         | YES         | 
- pois       |                7 | geom        | USER-DEFINED             |         | NO          | 
- pois       |                8 | created_at  | timestamp with time zone |         | NO          | now()
-(15 rows)
+   table_name   | ordinal_position | column_name |        data_type         | max_len | is_nullable |                    column_default                    
+----------------+------------------+-------------+--------------------------+---------+-------------+------------------------------------------------------
+ electric_poles |                1 | id          | bigint                   |         | NO          | nextval('user_data.electric_poles_id_seq'::regclass)
+ electric_poles |                2 | pole_code   | text                     |         | NO          | 
+ electric_poles |                3 | route       | text                     |         | NO          | 
+ electric_poles |                4 | status      | text                     |         | NO          | 'good'::text
+ electric_poles |                5 | detail      | text                     |         | YES         | 
+ electric_poles |                6 | geom        | USER-DEFINED             |         | NO          | 
+ electric_poles |                7 | created_at  | timestamp with time zone |         | NO          | now()
+ electric_poles |                8 | updated_at  | timestamp with time zone |         | NO          | now()
+ poi_photos     |                1 | id          | bigint                   |         | NO          | nextval('user_data.poi_photos_id_seq'::regclass)
+ poi_photos     |                2 | poi_id      | bigint                   |         | NO          | 
+ poi_photos     |                3 | file_path   | text                     |         | NO          | 
+ poi_photos     |                4 | thumb_path  | text                     |         | YES         | 
+ poi_photos     |                5 | width       | integer                  |         | YES         | 
+ poi_photos     |                6 | height      | integer                  |         | YES         | 
+ poi_photos     |                7 | created_at  | timestamp with time zone |         | NO          | now()
+ pois           |                1 | id          | bigint                   |         | NO          | nextval('user_data.pois_id_seq'::regclass)
+ pois           |                2 | name        | text                     |         | NO          | 
+ pois           |                3 | category    | text                     |         | NO          | 'other'::text
+ pois           |                4 | address     | text                     |         | YES         | 
+ pois           |                5 | phone       | text                     |         | YES         | 
+ pois           |                6 | description | text                     |         | YES         | 
+ pois           |                7 | geom        | USER-DEFINED             |         | NO          | 
+ pois           |                8 | created_at  | timestamp with time zone |         | NO          | now()
+(23 rows)
 
 ========== 7.8 CUSTOM TYPES/ENUMS ==========
  nspname | typname | labels 
