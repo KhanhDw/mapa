@@ -12,6 +12,7 @@ import {
 import { PoleManagementPanel } from "./components/layout/panels/ElectricPanel/PoleManagementPanel";
 import { fetchElectricPoles } from "./api/electricPoles";
 import type { ElectricPole } from "./api/electricPoles";
+import { searchMap } from "./api/search";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import EsriSatelliteMap from "./components/maps/EsriSatelliteMap/EsriSatelliteMap";
 import SatelliteMap from "./components/maps/SatelliteMap/SatelliteMap";
@@ -55,6 +56,47 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const searchAbortController = useRef<AbortController | null>(null);
+
+  const handleSearch = useCallback(async (query: string) => {
+    searchAbortController.current?.abort();
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) {
+      setSearchResults([]);
+      setSearchError(null);
+      setSearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    searchAbortController.current = controller;
+    setSearchLoading(true);
+    setSearchError(null);
+    try {
+      const results = await searchMap(trimmedQuery, controller.signal);
+      if (!controller.signal.aborted) setSearchResults(results);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setSearchError(
+        error instanceof Error ? error.message : "Không thể tìm kiếm"
+      );
+      setSearchResults([]);
+    } finally {
+      if (!controller.signal.aborted) setSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activePanel !== "search") {
+      searchAbortController.current?.abort();
+      searchAbortController.current = null;
+    }
+  }, [activePanel]);
+
+  useEffect(
+    () => () => searchAbortController.current?.abort(),
+    []
+  );
 
   const handlePanelToggle = (panel: PanelType) => {
     const next = activePanel === panel ? null : panel;
@@ -109,28 +151,6 @@ export default function App() {
     setIsRecordingPoleLocation(false);
   };
 
-  const handleSearch = async (q: string) => {
-    if (!q) {
-      setSearchResults([]);
-      setSearchError(null);
-      return;
-    }
-    setSearchLoading(true);
-    setSearchError(null);
-    try {
-      // TODO: gọi API tìm kiếm thật
-      // const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // setSearchResults(await res.json());
-      setSearchResults([]); // tạm thời — thay bằng data thật
-    } catch (err) {
-      setSearchError((err as Error).message);
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
   return (
     <div className="app-layout">
       <ActivityBar
@@ -155,6 +175,10 @@ export default function App() {
               isRecordingPoleLocation={isRecordingPoleLocation}
               onPoleLocationRecorded={handlePoleLocationRecorded}
               poleNavigationRequest={poleNavigationRequest}
+              searchResults={searchResults}
+              searchLoading={searchLoading}
+              searchError={searchError}
+              onSearch={handleSearch}
             />
           )}
           {mapType === "selfhost" && <SatelliteMap />}
@@ -162,18 +186,17 @@ export default function App() {
           {mapType === "test" && <TestPSV />}
         </ErrorBoundary>
 
-        {/* ── Panel mới — render tại App level, hoạt động với mọi map ── */}
-        {activePanel === "search" && (
+        {activePanel === "search" && mapType !== "esri" && (
           <SearchPanel
             onClose={() => setActivePanel(null)}
             results={searchResults}
             loading={searchLoading}
             error={searchError}
             onSearch={handleSearch}
-            onResultClick={(r) => {
-              // TODO: cần một cách điều khiển map (flyTo / chọn marker)
-              // Ví dụ sau này: mapRef.current?.flyTo([r.lng, r.lat], 17)
-              console.log("Search result clicked:", r);
+            onResultClick={() => {
+              setSearchError(
+                "Điều hướng kết quả tìm kiếm hiện chỉ hỗ trợ bản đồ Esri Satellite."
+              );
             }}
           />
         )}

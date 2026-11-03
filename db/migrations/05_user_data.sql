@@ -5,6 +5,8 @@
 
 BEGIN;
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'mapa_api') THEN
@@ -41,9 +43,21 @@ CREATE TABLE IF NOT EXISTS user_data.poi_photos (
 );
 CREATE INDEX IF NOT EXISTS idx_poi_photos_poi ON user_data.poi_photos (poi_id);
 
+CREATE INDEX IF NOT EXISTS idx_search_roads_name_trgm
+  ON public.vietnam_roads USING gin (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_search_places_name_trgm
+  ON clean.places USING gin (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_search_pois_name_trgm
+  ON clean.pois USING gin (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_search_user_pois_name_trgm
+  ON user_data.pois USING gin (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_search_user_pois_address_trgm
+  ON user_data.pois USING gin (address gin_trgm_ops);
+
 -- Quyền cho mapa_api
-GRANT USAGE ON SCHEMA public, user_data TO mapa_api;
+GRANT USAGE ON SCHEMA public, clean, user_data TO mapa_api;
 GRANT SELECT ON public.vietnam_roads, public.pois, public.streetview_images TO mapa_api;
+GRANT SELECT ON clean.places, clean.pois TO mapa_api;
 -- Ảnh 360 do người dùng thêm ghi thẳng vào streetview_images (như các script PowerShell hiện tại)
 GRANT INSERT ON public.streetview_images TO mapa_api;
 GRANT USAGE, SELECT ON SEQUENCE public.streetview_images_id_seq TO mapa_api;
