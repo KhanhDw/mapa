@@ -43,19 +43,63 @@ export function useClickPointInfo(
             poi_limit: String(POINT_INFO_POI_LIMIT),
         });
 
-        fetch(`${apiBase.replace(/\/+$/, "")}/api/point-info?${params}`, {
-            signal: controller.signal,
-        })
-            .then((r) => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                return r.json() as Promise<PointInfoResponse>;
-            })
-            .then((d) => setResult({ key, data: d, error: null }))
-            .catch((err: Error) => {
-                if (err.name !== "AbortError") {
-                    setResult({ key, data: null, error: err });
+        // Chuẩn hóa URL gọi API
+        const cleanBase = apiBase.replace(/\/+$/, "");
+        const url = `${cleanBase}/api/point-info?${params}`;
+
+        async function fetchPointInfo() {
+            try {
+                const response = await fetch(url, {
+                    signal: controller.signal,
+                    headers: {
+                        "Accept": "application/json",
+                        // Header bypass ngrok trực tiếp
+                        "ngrok-skip-browser-warning": "true",
+                    },
+                });
+
+                // Nếu Backend trả về mã lỗi (4xx, 5xx)
+                if (!response.ok) {
+                    const rawErrorText = await response.text();
+                    let parsedDetail = rawErrorText;
+
+                    // Thử parse xem có phải JSON của FastAPI không ({"detail": "..."})
+                    try {
+                        const json = JSON.parse(rawErrorText);
+                        parsedDetail =
+                            typeof json.detail === "string"
+                                ? json.detail
+                                : JSON.stringify(json.detail || json, null, 2);
+                    } catch {
+                        // Nếu không parse được JSON -> Có thể là HTML lỗi 502/500 hoặc HTML của Ngrok
+                    }
+
+                    const fullMessage = `Lỗi [${response.status} ${response.statusText}] tại ${url}\nChi tiết: ${parsedDetail}`;
+
+                    console.error("[useClickPointInfo] Chi tiết lỗi từ Server:", {
+                        status: response.status,
+                        statusText: response.statusText,
+                        url,
+                        responseBody: rawErrorText,
+                    });
+
+                    throw new Error(fullMessage);
                 }
-            });
+
+                // Parse dữ liệu thành công
+                const data: PointInfoResponse = await response.json();
+                setResult({ key, data, error: null });
+            } catch (err: unknown) {
+                if ((err as Error)?.name !== "AbortError") {
+                    const errorObj =
+                        err instanceof Error ? err : new Error(String(err));
+                    console.error("[useClickPointInfo] Lỗi gọi API:", errorObj.message);
+                    setResult({ key, data: null, error: errorObj });
+                }
+            }
+        }
+
+        fetchPointInfo();
 
         return () => controller.abort();
     }, [apiBase, clickInfo, key]);

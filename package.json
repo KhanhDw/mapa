@@ -4,12 +4,10 @@
     "font": "cd fontend && npm run dev",
     "init-back": "cd backend && python -m pip install -r requirements.txt",
     "ngrok1": "ngrok http 5173",
-    "ngrok2": "ngrok http 8000"
-  },
-  "dependencies": {
-    "osmtogeojson": "^3.0.0-beta.5"
+    "ngrok2": "ngrok http --url=cougar-settling-commonly.ngrok-free.app 8000",
+    "dev:full": "concurrently \"npm run back\" \"npm run ngrok2\""
   },
   "devDependencies": {
-    "@types/osmtogeojson": "^2.2.34"
+    "concurrently": "^10.0.6"
   }
 }

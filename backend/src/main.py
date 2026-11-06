@@ -76,8 +76,8 @@ def create_app() -> FastAPI:
             "http://localhost:5173",
             "http://127.0.0.1:5173",
         ],
-        allow_origin_regex=r"^https://[a-zA-Z0-9-]+\.ngrok-free\.app$",
-        allow_credentials=False,
+        allow_origin_regex=r"^https://.*\.ngrok-free\.app$", # Nới lỏng regex để bắt mọi sub-domain ngrok an toàn hơn
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )

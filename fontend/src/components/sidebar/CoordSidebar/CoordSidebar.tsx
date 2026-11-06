@@ -418,8 +418,8 @@ export function CoordSidebar({
                             {copy === "ok"
                                 ? "Đã sao chép tọa độ."
                                 : copy === "fail"
-                                  ? "Không thể sao chép tọa độ. Vui lòng thử lại."
-                                  : ""}
+                                    ? "Không thể sao chép tọa độ. Vui lòng thử lại."
+                                    : ""}
                         </span>
                     </div>
 
