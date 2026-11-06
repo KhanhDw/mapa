@@ -10,7 +10,7 @@ import { CoordSidebar, type PoiInfo } from "../../sidebar/CoordSidebar/CoordSide
 import { PlaceDetailSidebar } from "../../sidebar/PlaceDetailSidebar/PlaceDetailSidebar";
 import { SearchPanel } from "../../sidebar/SearchSidebar/SearchPanel";
 import type { SearchResult } from "../../../api/search";
-import type { PanelType } from "../../layout/Activitybar";
+import type { MapType, PanelType } from "../../layout/Activitybar";
 import { ContributePanel } from "../../contribute/ContributePanel";
 import { EXTRA_LAYERS, extraTileUrl } from "./layers/registry";
 import {
@@ -53,6 +53,9 @@ interface Props {
     searchLoading: boolean;
     searchError: string | null;
     onSearch: (query: string) => void;
+    mapType: MapType;
+    onMapTypeChange: (m: MapType) => void;
+    showMapSwitcher: boolean;
 }
 
 function EsriSatelliteMap({
@@ -68,6 +71,9 @@ function EsriSatelliteMap({
     searchLoading,
     searchError,
     onSearch,
+    mapType,
+    onMapTypeChange,
+    showMapSwitcher,
 }: Props) {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
@@ -325,9 +331,14 @@ function EsriSatelliteMap({
         if (mapInstance) showSearchResult(mapInstance, result);
     };
 
-    const handleClose = () => onPanelClose?.();
+    const handleClose = () => {
+        clear();            // xoá vị trí đang chọn (setClickInfo(null))
+        onPanelClose?.();   // đóng panel (setActivePanel(null))
+    };
+
     const handleClosePlaceDetails = () => {
         setSelectedPoi(null);
+        clear();
         onPanelClose?.();
     };
     const clickKey = clickInfo ? `${clickInfo.lng}|${clickInfo.lat}` : "";
@@ -395,6 +406,7 @@ function EsriSatelliteMap({
                     streetview={pointInfo?.streetview}
                     address={pointInfo?.address}
                     pois={pointInfo?.pois}
+                    nearbyPoles={pointInfo?.nearby_poles}
                     loading={pointInfoLoading}
                     addressLoading={pointInfoLoading}
                     poisLoading={pointInfoLoading}
@@ -414,7 +426,14 @@ function EsriSatelliteMap({
                 />
             )}
 
-            {showSettings && <SettingsPanel onClose={() => onPanelClose?.()} />}
+            {showSettings && (
+                <SettingsPanel
+                    onClose={() => onPanelClose?.()}
+                    mapType={mapType}
+                    onMapTypeChange={onMapTypeChange}
+                    showMapSwitcher={showMapSwitcher}
+                />
+            )}
 
             {activePanel === "search" && (
                 <SearchPanel

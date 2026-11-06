@@ -1,1 +1,6 @@
 đọc db\discover_output.txt , đây là đặc tả bảng dữ liệu trong database. làm thêm cho tôi một hệ thống quản lý ảnh street view. thêm ảnh street view gắn vị trí, gắn liên kết ảnh liền kề trước sau. .  thêm chức năng tại activity bar và sidebar cho chức năng quản lý street view . backend\data\panoramas đây là nơi lưu trữ ảnh street view 360 độ
+
+
+refactor code của quản lý trụ điện - việc xem thông tin chi tiết của trụ điện chưa làm được 
+=> mục  tiêu là xem được thông tin chi tiết của trụ diện trong panel quản lý trụ điện
+

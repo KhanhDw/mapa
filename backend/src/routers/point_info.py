@@ -55,6 +55,27 @@ _SV_SQL = """
     LIMIT 1
 """
 
+# Trụ điện gần điểm click. Bán kính riêng vì trụ thưa hơn đường rất nhiều —
+# 50m (radius_m mặc định) thường trả rỗng, 200m hợp lý cho UX.
+# ORDER BY geom <-> pt kích hoạt KNN scan trên GiST index.
+_POLES_SQL = """
+    SELECT id, pole_code, route, status, detail,
+           ST_X(geom) AS lng, ST_Y(geom) AS lat,
+           ST_Distance(geom::geography,
+               ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography
+           ) AS distance_m
+    FROM user_data.electric_poles
+    WHERE geom && ST_Expand(
+            ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326),
+            $3::float8 / 60000.0
+          )
+      AND ST_DWithin(geom::geography,
+            ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography,
+            $3::float8)
+    ORDER BY geom <-> ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)
+    LIMIT $4
+"""
+
 # clean.pois: osm_id (varchar) làm id, category VN, fclass EN.
 # user_data.pois: id (bigint), category EN, fclass NULL.
 # Khóa POI là cặp (source, id) — OSM và user dùng id hệ riêng.
@@ -157,12 +178,27 @@ def _to_poi(row) -> dict:
     }
 
 
+def _to_nearby_pole(row) -> dict:
+    return {
+        "id": int(row["id"]),
+        "pole_code": row["pole_code"],
+        "route": row["route"],
+        "status": row["status"],
+        "detail": row["detail"],
+        "lng": float(row["lng"]),
+        "lat": float(row["lat"]),
+        "distance_m": float(row["distance_m"]),
+    }
+
+
 @router.get("/api/point-info")
 async def get_point_info(
     lng: float = Query(..., ge=-180, le=180),
     lat: float = Query(..., ge=-90, le=90),
     radius_m: float = Query(50, ge=10, le=1000),
     poi_limit: int = Query(10, ge=1, le=50),
+    pole_radius_m: float = Query(200, ge=10, le=2000),
+    pole_limit: int = Query(5, ge=1, le=20),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     try:
@@ -170,8 +206,13 @@ async def get_point_info(
             road_row = await conn.fetchrow(_ROAD_SQL, lng, lat, radius_m)
             sv_row = await conn.fetchrow(_SV_SQL, lng, lat, radius_m)
             poi_rows = await conn.fetch(_POI_SQL, lng, lat, radius_m, poi_limit)
+            pole_rows = await conn.fetch(
+                _POLES_SQL, lng, lat, pole_radius_m, pole_limit
+            )
     except Exception:
-        logger.exception("point-info failed lng=%s lat=%s radius=%s", lng, lat, radius_m)
+        logger.exception(
+            "point-info failed lng=%s lat=%s radius=%s", lng, lat, radius_m
+        )
         msg = "DB error" if not settings.is_dev else "DB error (xem log server)"
         raise HTTPException(500, msg)
 
@@ -183,4 +224,5 @@ async def get_point_info(
         ),
         "address": None,
         "pois": [_to_poi(r) for r in poi_rows],
+        "nearby_poles": [_to_nearby_pole(r) for r in pole_rows],
     }

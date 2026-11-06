@@ -7,6 +7,7 @@ import {
 import {
   SearchPanel,
   ElectricPanel,
+  SettingsPanel,
   type SearchResult,
 } from "./components/layout/panels";
 import { PoleManagementPanel } from "./components/layout/panels/ElectricPanel/PoleManagementPanel";
@@ -114,9 +115,15 @@ export default function App() {
     setActivePanel(next);
   };
 
+  // ── Chọn trụ từ marker map hoặc nearby_poles list ──────
+  // Kèm fly-to để map bay tới trụ (nếu đang ở map esri)
   const handleElectricPoleSelect = useCallback((pole: ElectricPole) => {
     setSelectedPoleId(pole.id);
     setActivePanel("electric");
+    setPoleNavigationRequest((current) => ({
+      pole,
+      requestId: (current?.requestId ?? 0) + 1,
+    }));
   }, []);
 
   const handlePoleLocationRecorded = useCallback((location: { lng: number; lat: number }) => {
@@ -151,76 +158,107 @@ export default function App() {
     setIsRecordingPoleLocation(false);
   };
 
+  // ── Stable callbacks cho EsriSatelliteMap ────────────────
+  const handleAutoShowInfo = useCallback(() => {
+    setActivePanel("info");
+  }, []);
+
+  const handlePanelClose = useCallback(() => {
+    setActivePanel(null);
+  }, []);
+
+  const isSplitMode = activePanel === "poleManagement";
+
   return (
     <div className="app-layout">
       <ActivityBar
         activePanel={activePanel}
         onPanelToggle={handlePanelToggle}
-        mapType={mapType}
-        onMapTypeChange={setMapType}
-        showMapSwitcher={SHOW_SWITCHER}
       />
-      <div className="app-content" style={{ position: "relative" }}>
-        <ErrorBoundary
-          key={`${mapType}-${mapKey}`}
-          onReset={() => setMapKey((k) => k + 1)}
-        >
-          {mapType === "esri" && (
-            <EsriSatelliteMap
-              activePanel={activePanel}
-              onAutoShowInfo={() => setActivePanel("info")}
-              onPanelClose={() => setActivePanel(null)}
-              electricPoles={electricPoles}
-              onElectricPoleSelect={handleElectricPoleSelect}
-              isRecordingPoleLocation={isRecordingPoleLocation}
-              onPoleLocationRecorded={handlePoleLocationRecorded}
-              poleNavigationRequest={poleNavigationRequest}
-              searchResults={searchResults}
-              searchLoading={searchLoading}
-              searchError={searchError}
+
+      <div className="app-content">
+        {/* Cột trái: chỉ hiện khi ở chế độ split */}
+        {isSplitMode && (
+          <div className="app-content__split-pane">
+            <PoleManagementPanel
+              onClose={closePoleManagement}
+              onChanged={() => setElectricPolesVersion((version) => version + 1)}
+              isRecordingLocation={isRecordingPoleLocation}
+              onStartLocationRecording={handleStartPoleLocationRecording}
+              onStopLocationRecording={handleStopPoleLocationRecording}
+            />
+          </div>
+        )}
+
+        {/* Cột phải: vùng map + các overlay panel */}
+        <div className="app-content__map">
+          <ErrorBoundary
+            key={`${mapType}-${mapKey}`}
+            onReset={() => setMapKey((k) => k + 1)}
+          >
+            {mapType === "esri" && (
+              <EsriSatelliteMap
+                activePanel={activePanel}
+                onAutoShowInfo={handleAutoShowInfo}
+                onPanelClose={handlePanelClose}
+                electricPoles={electricPoles}
+                onElectricPoleSelect={handleElectricPoleSelect}
+                isRecordingPoleLocation={isRecordingPoleLocation}
+                onPoleLocationRecorded={handlePoleLocationRecorded}
+                poleNavigationRequest={poleNavigationRequest}
+                searchResults={searchResults}
+                searchLoading={searchLoading}
+                searchError={searchError}
+                onSearch={handleSearch}
+                /* ▼ 3 props mới cho SettingsPanel bên trong EsriSatelliteMap */
+                mapType={mapType}
+                onMapTypeChange={setMapType}
+                showMapSwitcher={SHOW_SWITCHER}
+              />
+            )}
+            {mapType === "selfhost" && <SatelliteMap />}
+            {mapType === "osm" && <OsmPolygonMap />}
+            {mapType === "test" && <TestPSV />}
+          </ErrorBoundary>
+
+          {activePanel === "search" && mapType !== "esri" && (
+            <SearchPanel
+              onClose={handlePanelClose}
+              results={searchResults}
+              loading={searchLoading}
+              error={searchError}
               onSearch={handleSearch}
+              onResultClick={() => {
+                setSearchError(
+                  "Điều hướng kết quả tìm kiếm hiện chỉ hỗ trợ bản đồ Esri Satellite."
+                );
+              }}
             />
           )}
-          {mapType === "selfhost" && <SatelliteMap />}
-          {mapType === "osm" && <OsmPolygonMap />}
-          {mapType === "test" && <TestPSV />}
-        </ErrorBoundary>
 
-        {activePanel === "search" && mapType !== "esri" && (
-          <SearchPanel
-            onClose={() => setActivePanel(null)}
-            results={searchResults}
-            loading={searchLoading}
-            error={searchError}
-            onSearch={handleSearch}
-            onResultClick={() => {
-              setSearchError(
-                "Điều hướng kết quả tìm kiếm hiện chỉ hỗ trợ bản đồ Esri Satellite."
-              );
-            }}
-          />
-        )}
+          {/* ▼ SettingsPanel cho các map KHÔNG phải esri.
+              Với esri, SettingsPanel được render bên trong
+              EsriSatelliteMap (vì map đó có logic riêng cho panel này). */}
+          {activePanel === "settings" && mapType !== "esri" && (
+            <SettingsPanel
+              onClose={handlePanelClose}
+              mapType={mapType}
+              onMapTypeChange={setMapType}
+              showMapSwitcher={SHOW_SWITCHER}
+            />
+          )}
 
-        {activePanel === "electric" && (
-          <ElectricPanel
-            pole={electricPoles.find((pole) => pole.id === selectedPoleId) ?? null}
-            onClose={() => {
-              setSelectedPoleId(null);
-              setActivePanel(null);
-            }}
-            onGoToPole={handleGoToPole}
-          />
-        )}
-
-        {activePanel === "poleManagement" && (
-          <PoleManagementPanel
-            onClose={closePoleManagement}
-            onChanged={() => setElectricPolesVersion((version) => version + 1)}
-            isRecordingLocation={isRecordingPoleLocation}
-            onStartLocationRecording={handleStartPoleLocationRecording}
-            onStopLocationRecording={handleStopPoleLocationRecording}
-          />
-        )}
+          {activePanel === "electric" && (
+            <ElectricPanel
+              pole={electricPoles.find((pole) => pole.id === selectedPoleId) ?? null}
+              onClose={() => {
+                setSelectedPoleId(null);
+                setActivePanel(null);
+              }}
+              onGoToPole={handleGoToPole}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

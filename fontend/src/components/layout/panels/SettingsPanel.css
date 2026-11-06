@@ -1,0 +1,97 @@
+/* ==========================================================================
+   SettingsPanel — Map Switcher Options
+   ========================================================================== */
+
+.settings-map-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-map-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  width: 100%;
+  padding: 10px 12px;
+
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-radius-sm);
+
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.settings-map-item:hover {
+  background: #fafafa;
+  border-color: #cbd5e1;
+  box-shadow: var(--cs-shadow-sm);
+}
+
+.settings-map-item.is-active {
+  border-color: var(--cs-primary);
+  background: var(--cs-primary-light);
+}
+
+.settings-map-item:focus-visible {
+  outline: 2px solid var(--cs-primary);
+  outline-offset: 2px;
+}
+
+.settings-map-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+
+  border-radius: 9px;
+  background: #f1f5f9;
+  color: #64748b;
+
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.settings-map-item.is-active .settings-map-item__icon {
+  background: #dbeafe;
+  color: var(--cs-primary);
+}
+
+.settings-map-item__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-map-item__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cs-text-main);
+  line-height: 1.3;
+}
+
+.settings-map-item__desc {
+  font-size: 11px;
+  color: var(--cs-text-muted);
+  line-height: 1.4;
+}
+
+.settings-map-item__check {
+  flex-shrink: 0;
+  color: var(--cs-primary);
+}

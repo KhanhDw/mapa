@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
 import type {
     ClickInfo,
+    NearbyPole,
     PoiInfo,
     RoadInfo,
     StreetViewHit,
 } from "../../../sidebar/CoordSidebar/CoordSidebar";
-import { POINT_INFO_POI_LIMIT, POINT_INFO_RADIUS_M } from "../constants";
+import {
+    POINT_INFO_POI_LIMIT,
+    POINT_INFO_POLE_LIMIT,
+    POINT_INFO_POLE_RADIUS_M,
+    POINT_INFO_RADIUS_M,
+} from "../constants";
 
 export interface PointInfoResponse {
     road: RoadInfo | null;
     streetview: StreetViewHit | null;
     address: string | null;
     pois: PoiInfo[];
+    nearby_poles: NearbyPole[];
 }
 
 interface Result {
@@ -41,9 +48,10 @@ export function useClickPointInfo(
             lat: String(clickInfo.lat),
             radius_m: String(POINT_INFO_RADIUS_M),
             poi_limit: String(POINT_INFO_POI_LIMIT),
+            pole_radius_m: String(POINT_INFO_POLE_RADIUS_M),
+            pole_limit: String(POINT_INFO_POLE_LIMIT),
         });
 
-        // Chuẩn hóa URL gọi API
         const cleanBase = apiBase.replace(/\/+$/, "");
         const url = `${cleanBase}/api/point-info?${params}`;
 
@@ -53,17 +61,14 @@ export function useClickPointInfo(
                     signal: controller.signal,
                     headers: {
                         "Accept": "application/json",
-                        // Header bypass ngrok trực tiếp
                         "ngrok-skip-browser-warning": "true",
                     },
                 });
 
-                // Nếu Backend trả về mã lỗi (4xx, 5xx)
                 if (!response.ok) {
                     const rawErrorText = await response.text();
                     let parsedDetail = rawErrorText;
 
-                    // Thử parse xem có phải JSON của FastAPI không ({"detail": "..."})
                     try {
                         const json = JSON.parse(rawErrorText);
                         parsedDetail =
@@ -71,7 +76,7 @@ export function useClickPointInfo(
                                 ? json.detail
                                 : JSON.stringify(json.detail || json, null, 2);
                     } catch {
-                        // Nếu không parse được JSON -> Có thể là HTML lỗi 502/500 hoặc HTML của Ngrok
+                        // Giữ nguyên rawErrorText nếu không phải JSON
                     }
 
                     const fullMessage = `Lỗi [${response.status} ${response.statusText}] tại ${url}\nChi tiết: ${parsedDetail}`;
@@ -86,7 +91,6 @@ export function useClickPointInfo(
                     throw new Error(fullMessage);
                 }
 
-                // Parse dữ liệu thành công
                 const data: PointInfoResponse = await response.json();
                 setResult({ key, data, error: null });
             } catch (err: unknown) {
