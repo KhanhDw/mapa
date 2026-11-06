@@ -87,7 +87,10 @@ export function useContributeForm() {
             // 1. Create POI
             const res = await fetch(`${CONTRIBUTE_BASE}/poi`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: JSON.stringify({
                     lng: draft.lng,
                     lat: draft.lat,

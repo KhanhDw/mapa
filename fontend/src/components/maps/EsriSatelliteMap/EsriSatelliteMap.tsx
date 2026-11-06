@@ -156,6 +156,31 @@ function EsriSatelliteMap({
                     },
                 ],
             },
+
+            // 👉 SỬA ĐOẠN NÀY: Kiểm tra điều kiện URL trước khi gắn header
+            transformRequest: (url, resourceType) => {
+                resourceType;
+
+                // 1) Relative URL ("/tiles/...", "/mvt/...", "/api/...") → worker không resolve được
+                //    → biến thành absolute same-origin trước khi trả về
+                if (url.startsWith("/")) {
+                    return {
+                        url: new URL(url, window.location.origin).href,
+                        // Không cần header ngrok: request same-origin → Vite proxy tự gắn khi forward
+                    };
+                }
+
+                // 2) Gọi trực tiếp backend ngrok (trường hợp prod hoặc absolute URL ngrok)
+                if (url.includes("ngrok-free.app") || url.includes("ngrok.app")) {
+                    return {
+                        url,
+                        headers: { "ngrok-skip-browser-warning": "true" },
+                    };
+                }
+
+                // 3) Nguồn ngoài (Esri, Protomaps, jsdelivr...) → giữ nguyên, KHÔNG gắn header
+                return { url };
+            },
         });
 
         map.addControl(new maplibregl.NavigationControl(), "top-right");

@@ -180,10 +180,6 @@ export function StreetViewModal({
     const [isNavigating, setIsNavigating] = useState(false);
     const [viewerReady, setViewerReady] = useState(false);
     const [showHint, setShowHint] = useState(true);
-    const [nav, setNav] = useState<{
-        forward: number | null;
-        backward: number | null;
-    }>({ forward: null, backward: null });
 
     const rootRef = useRef<HTMLDivElement>(null);
     const stageRef = useRef<HTMLDivElement>(null);
@@ -277,31 +273,20 @@ export function StreetViewModal({
     headingRef.current = heading;
     currentIdRef.current = currentId;
 
-    /* ---------- Đồng bộ la bàn + nút Tiến/Lùi theo hướng nhìn ---------- */
+    /* ---------- Đồng bộ la bàn theo hướng nhìn ---------- */
 
     const syncView = useCallback(() => {
         const viewer = viewerRef.current;
         if (!viewer) return;
         const viewBearing = headingRef.current + toDeg(viewer.getPosition().yaw);
-
         if (compassRef.current) {
             compassRef.current.style.transform = `rotate(${-viewBearing}deg)`;
         }
-        const forward =
-            pickLink(linksRef.current, viewBearing, MOVE_CONE_DEG)?.point.id ?? null;
-        const backward =
-            pickLink(linksRef.current, viewBearing + 180, MOVE_CONE_DEG)?.point.id ??
-            null;
-        setNav((prev) =>
-            prev.forward === forward && prev.backward === backward
-                ? prev
-                : { forward, backward }
-        );
     }, []);
 
     useEffect(() => {
         syncView();
-    }, [links, heading, viewerReady, syncView]);
+    }, [heading, viewerReady, syncView]);
 
     /* ---------- Di chuyển giữa các node ---------- */
 
@@ -603,9 +588,6 @@ export function StreetViewModal({
 
     /* ---------- Render ---------- */
 
-    const forwardLink = links.find((l) => l.point.id === nav.forward);
-    const backwardLink = links.find((l) => l.point.id === nav.backward);
-
     return (
         <div
             ref={rootRef}
@@ -725,40 +707,6 @@ export function StreetViewModal({
                             </button>
                         </div>
                     </aside>
-
-                    {/* Tiến / Lùi theo hướng đang nhìn */}
-                    <nav className="sv-pill sv-ui" aria-label="Di chuyển">
-                        <button
-                            type="button"
-                            onClick={() => moveByView(-1)}
-                            disabled={!backwardLink}
-                            title="Lùi lại (↓)"
-                        >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="m20 12-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8z" />
-                            </svg>
-                            <span>
-                                <strong>Lùi lại</strong>
-                                <small>{backwardLink ? formatDistance(backwardLink.distance) : "Hết đường"}</small>
-                            </span>
-                        </button>
-                        <i className="sv-pill__divider" aria-hidden="true" />
-                        <button
-                            type="button"
-                            onClick={() => moveByView(1)}
-                            disabled={!forwardLink}
-                            title="Đi tiếp (↑)"
-                        >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="m4 12 1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8z" />
-                            </svg>
-                            <span>
-                                <strong>Đi tiếp</strong>
-                                <small>{forwardLink ? formatDistance(forwardLink.distance) : "Hết đường"}</small>
-                            </span>
-                        </button>
-                    </nav>
-
                     {showHint && (
                         <p className="sv-hint" role="note">
                             Kéo để nhìn quanh · Bấm xuống đường hoặc nhấn ↑ để đi tới
