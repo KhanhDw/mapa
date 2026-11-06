@@ -40,7 +40,9 @@
 
   border: 1px solid var(--cs-border);
   border-radius: 16px;
-  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.06);
+  box-shadow:
+    0 16px 48px rgba(15, 23, 42, 0.16),
+    0 2px 8px rgba(15, 23, 42, 0.06);
 
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
@@ -863,4 +865,43 @@
 .cs-poi-item__cat--user {
   background: #fef3c7;
   color: #92400e;
+}
+
+/* ==========================================================================
+   Pole Status Badge (nearby_poles)
+   ========================================================================== */
+
+.cs-pole-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.cs-pole-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.cs-pole-status--good {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.cs-pole-status--warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.cs-pole-status--error {
+  background: #fee2e2;
+  color: #b91c1c;
 }

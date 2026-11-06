@@ -47,6 +47,7 @@ body,
   min-width: 0;
   height: 100%;
   overflow: hidden;
+  display: flex; /* ← thêm */
 }
 
 .map-view {
@@ -117,5 +118,75 @@ body,
   .map-switcher button {
     padding: 7px 10px;
     font-size: 12px;
+  }
+}
+
+/* Cột phải – chứa map + overlay panel */
+.app-content__map {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Cột trái – 50% khi split mode */
+.app-content__split-pane {
+  width: 50%;
+  flex: 0 0 50%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+  border-right: 1px solid var(--app-border);
+  box-shadow: 2px 0 12px rgba(15, 23, 42, 0.06);
+  z-index: 5;
+}
+
+/* ── Ghi đè để panel lấp đầy cột trái ─────────────────── */
+
+/* coord-sidebar (class gốc của panel) đang absolute + width cố định,
+   override để nó nằm trong flow và rộng 100% cột trái */
+.app-content__split-pane .coord-sidebar {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+}
+
+.app-content__split-pane .pole-management {
+  width: 100%;
+}
+
+/* Cho phép form co giãn theo cột (tránh tràn khi màn hình hẹp) */
+.app-content__split-pane .coord-sidebar__scroll {
+  overflow-x: hidden;
+}
+
+/* ── Responsive: dưới 900px thì chuyển lại overlay ────── */
+@media (max-width: 900px) {
+  .app-content {
+    display: block;
+  }
+  .app-content__split-pane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: min(380px, calc(100% - 16px));
+    flex: none;
+    z-index: 30;
+    border-right: none;
+    border-radius: 0 12px 12px 0;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  }
+  .app-content__map {
+    position: absolute;
+    inset: 0;
   }
 }

@@ -31,3 +31,6 @@ export const SV_SOURCE_ID = "sv-points";
 export const SV_LAYER_ID = "sv-points-layer";
 export const SV_ICON_ID = "sv-x-icon";
 
+
+export const POINT_INFO_POLE_RADIUS_M = 200;    // ← mới: bán kính tìm trụ (mét)
+export const POINT_INFO_POLE_LIMIT = 5;         // ← mới: số trụ tối đa

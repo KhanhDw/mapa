@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import "./CoordSidebar.css";
 
+
+export interface NearbyPole {
+    id: number;
+    pole_code: string;
+    route: string;
+    status: "good" | "warning" | "error";
+    detail: string | null;
+    lng: number;
+    lat: number;
+    distance_m: number;
+}
+
 export interface PoiInfo {
     source?: "osm" | "user";
     id: string | number;
@@ -43,6 +55,7 @@ interface Props {
     streetview?: StreetViewHit | null;
     address?: string | null;
     pois?: PoiInfo[] | null;
+    nearbyPoles?: NearbyPole[] | null;
     loading?: boolean;
     addressLoading?: boolean;
     poisLoading?: boolean;
@@ -255,6 +268,7 @@ export function CoordSidebar({
     streetview,
     address,
     pois,
+    nearbyPoles,
     loading = false,
     addressLoading = false,
     poisLoading = false,
@@ -521,6 +535,53 @@ export function CoordSidebar({
                         ) : (
                             <p className="cs-muted">Không có dữ liệu đường xá xung quanh.</p>
                         )}
+                    </Section>
+                )}
+
+                {/* Khối trụ điện gần đây */}
+                {nearbyPoles && nearbyPoles.length > 0 && (
+                    <Section
+                        title="Trụ điện gần đây"
+                        badge={nearbyPoles.length}
+                        icon={
+                            <Icon>
+                                <path d="M12 3v18M8 7h8M8 11h8M8 15h8M6 21h12" />
+                            </Icon>
+                        }
+                    >
+                        <ul className="cs-poi-list">
+                            {nearbyPoles.map((pole) => (
+                                <li key={pole.id} className="cs-poi-item">
+                                    <div className="cs-poi-item__action" style={{ cursor: "default" }}>
+                                        <div className="cs-poi-item__content">
+                                            <span className="cs-poi-item__title">
+                                                {pole.pole_code}
+                                            </span>
+                                            <div className="cs-poi-item__details">
+                                                <span className="cs-poi-item__cat">{pole.route}</span>
+                                                <span className={`cs-pole-status cs-pole-status--${pole.status}`}>
+                                                    {pole.status === "good"
+                                                        ? "Bình thường"
+                                                        : pole.status === "warning"
+                                                            ? "Cảnh báo"
+                                                            : "Sự cố"}
+                                                </span>
+                                                <span className="cs-poi-item__dist">
+                                                    {pole.distance_m < 10
+                                                        ? "<10m"
+                                                        : formatDistance(pole.distance_m)}
+                                                </span>
+                                            </div>
+                                            {pole.detail && (
+                                                <span className="cs-muted" style={{ fontSize: 11, marginTop: 4, display: "block" }}>
+                                                    {pole.detail}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
                     </Section>
                 )}
 

@@ -309,9 +309,9 @@ Access method: heap
 ========== 6.1 user_data.pois (5 newest) ==========
  id |        name         |  category  |                  address                   | phone | description |    lng     |    lat    |          created_at           
 ----+---------------------+------------+--------------------------------------------+-------+-------------+------------+-----------+-------------------------------
-  5 | nh├á m├íy sß╗æ 1        | attraction | 982, L├¬ Lß╗úi , Long xuy├¬n, an giang         |       |             | 105.439755 | 10.387240 | 2026-11-01 14:10:00.857401+00
-  4 | Qu├ín ─ân ven ─æã░ß╗Øng   | restaurant | L├¬ Thß╗ï Nhi├¬n                               |       |             | 105.440440 | 10.384922 | 2026-11-01 09:40:16.626282+00
-  3 | C├┤ng vi├¬n Quyanh Na | other      | 38, ─Éinh Thi├¬n Ho├áng, Long Xuy├¬n, An Giang |       |             | 105.438873 | 10.385251 | 2026-11-01 03:59:22.970441+00
+  5 | nhà máy số 1        | attraction | 982, Lê Lợi , Long xuyên, an giang         |       |             | 105.439755 | 10.387240 | 2026-11-01 14:10:00.857401+00
+  4 | Quán ăn ven đường   | restaurant | Lê Thị Nhiên                               |       |             | 105.440440 | 10.384922 | 2026-11-01 09:40:16.626282+00
+  3 | Công viên Quyanh Na | other      | 38, Đinh Thiên Hoàng, Long Xuyên, An Giang |       |             | 105.438873 | 10.385251 | 2026-11-01 03:59:22.970441+00
 (3 rows)
 
 ========== 6.2 user_data.poi_photos (5 newest) ==========
@@ -339,7 +339,7 @@ Access method: heap
    osm_id   |  fclass  | category  |    name    | has_name |                        geom                        
 ------------+----------+-----------+------------+----------+----------------------------------------------------
  1000087196 | pharmacy | y_te      |            | f        | 0101000020E610000024BFD94180755A40FAEE5696E8063540
- 1000087283 | cafe     | an_uong   | C├á Ph├¬ Huy | t        | 0101000020E6100000B7A62F3A8F755A40C5B2F4FCC4063540
+ 1000087283 | cafe     | an_uong   | Cà Phê Huy | t        | 0101000020E6100000B7A62F3A8F755A40C5B2F4FCC4063540
  1000087307 | toilet   | khac      |            | f        | 0101000020E6100000845DB9837D755A40B10EEC9D76073540
  1000087314 | pharmacy | y_te      |            | f        | 0101000020E61000009F44DF3884755A40802D0A16E2063540
  1000087341 | atm      | tai_chinh |            | f        | 0101000020E6100000AF92342493755A40F0ADA305C3063540
