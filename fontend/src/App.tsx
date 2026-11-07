@@ -11,8 +11,10 @@ import {
   type SearchResult,
 } from "./components/layout/panels";
 import { PoleManagementPanel } from "./components/layout/panels/ElectricPanel/PoleManagementPanel";
+import { StreetViewManagementPanel } from "./components/layout/panels/StreetViewManagementPanel";
 import { fetchElectricPoles } from "./api/electricPoles";
 import type { ElectricPole } from "./api/electricPoles";
+import type { StreetViewImage } from "./api/streetview";
 import { searchMap } from "./api/search";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import EsriSatelliteMap from "./components/maps/EsriSatelliteMap/EsriSatelliteMap";
@@ -23,6 +25,10 @@ import "./App.css";
 
 const SHOW_SWITCHER = import.meta.env.VITE_SHOW_MAP_SWITCHER === "true";
 
+/** Các panel chạy ở chế độ chia đôi màn hình + dùng chế độ ghi vị trí trên map. */
+const isManagementPanel = (panel: PanelType | null) =>
+  panel === "poleManagement" || panel === "streetviewManagement";
+
 export default function App() {
   const [mapType, setMapType] = useState<MapType>("esri");
   const [activePanel, setActivePanel] = useState<PanelType | null>(null);
@@ -30,12 +36,23 @@ export default function App() {
   const [electricPoles, setElectricPoles] = useState<ElectricPole[]>([]);
   const [electricPolesVersion, setElectricPolesVersion] = useState(0);
   const [selectedPoleId, setSelectedPoleId] = useState<number | null>(null);
+
+  // Ghi vị trí trên map: dùng chung cho panel trụ điện và panel Street View
+  // (chỉ một panel quản lý mở tại một thời điểm). Tên "Pole" giữ nguyên để
+  // không phải đổi props của EsriSatelliteMap.
   const [isRecordingPoleLocation, setIsRecordingPoleLocation] = useState(false);
   const poleLocationRecordedHandler = useRef<
     ((location: { lng: number; lat: number }) => void) | null
   >(null);
   const [poleNavigationRequest, setPoleNavigationRequest] = useState<{
     pole: ElectricPole;
+    requestId: number;
+  } | null>(null);
+
+  // ── Street View management ──────────────────────────────
+  const [streetViewVersion, setStreetViewVersion] = useState(0);
+  const [streetViewNavigationRequest, setStreetViewNavigationRequest] = useState<{
+    image: StreetViewImage;
     requestId: number;
   } | null>(null);
 
@@ -104,11 +121,8 @@ export default function App() {
     if (activePanel === "electric" || panel === "electric") {
       setSelectedPoleId(null);
     }
-    if (panel === "poleManagement") {
-      poleLocationRecordedHandler.current = null;
-      setIsRecordingPoleLocation(false);
-    }
-    if (activePanel === "poleManagement") {
+    // Vào / ra / chuyển giữa các panel quản lý -> luôn tắt chế độ ghi vị trí
+    if (isManagementPanel(panel) || isManagementPanel(activePanel)) {
       poleLocationRecordedHandler.current = null;
       setIsRecordingPoleLocation(false);
     }
@@ -139,6 +153,13 @@ export default function App() {
     }));
   }, []);
 
+  const handleGoToStreetViewImage = useCallback((image: StreetViewImage) => {
+    setStreetViewNavigationRequest((current) => ({
+      image,
+      requestId: (current?.requestId ?? 0) + 1,
+    }));
+  }, []);
+
   const handleStartPoleLocationRecording = useCallback(
     (onLocationRecorded: (location: { lng: number; lat: number }) => void) => {
       poleLocationRecordedHandler.current = onLocationRecorded;
@@ -152,7 +173,7 @@ export default function App() {
     setIsRecordingPoleLocation(false);
   }, []);
 
-  const closePoleManagement = () => {
+  const closeManagementPanel = () => {
     setActivePanel(null);
     poleLocationRecordedHandler.current = null;
     setIsRecordingPoleLocation(false);
@@ -167,7 +188,7 @@ export default function App() {
     setActivePanel(null);
   }, []);
 
-  const isSplitMode = activePanel === "poleManagement";
+  const isSplitMode = isManagementPanel(activePanel);
 
   return (
     <div className="app-layout">
@@ -180,13 +201,26 @@ export default function App() {
         {/* Cột trái: chỉ hiện khi ở chế độ split */}
         {isSplitMode && (
           <div className="app-content__split-pane">
-            <PoleManagementPanel
-              onClose={closePoleManagement}
-              onChanged={() => setElectricPolesVersion((version) => version + 1)}
-              isRecordingLocation={isRecordingPoleLocation}
-              onStartLocationRecording={handleStartPoleLocationRecording}
-              onStopLocationRecording={handleStopPoleLocationRecording}
-            />
+            {activePanel === "poleManagement" && (
+              <PoleManagementPanel
+                onClose={closeManagementPanel}
+                onChanged={() => setElectricPolesVersion((version) => version + 1)}
+                isRecordingLocation={isRecordingPoleLocation}
+                onStartLocationRecording={handleStartPoleLocationRecording}
+                onStopLocationRecording={handleStopPoleLocationRecording}
+                onGoToPole={handleGoToPole}
+              />
+            )}
+            {activePanel === "streetviewManagement" && (
+              <StreetViewManagementPanel
+                onClose={closeManagementPanel}
+                onChanged={() => setStreetViewVersion((version) => version + 1)}
+                isRecordingLocation={isRecordingPoleLocation}
+                onStartLocationRecording={handleStartPoleLocationRecording}
+                onStopLocationRecording={handleStopPoleLocationRecording}
+                onGoToImage={handleGoToStreetViewImage}
+              />
+            )}
           </div>
         )}
 
@@ -206,6 +240,8 @@ export default function App() {
                 isRecordingPoleLocation={isRecordingPoleLocation}
                 onPoleLocationRecorded={handlePoleLocationRecorded}
                 poleNavigationRequest={poleNavigationRequest}
+                streetViewVersion={streetViewVersion}
+                streetViewNavigationRequest={streetViewNavigationRequest}
                 searchResults={searchResults}
                 searchLoading={searchLoading}
                 searchError={searchError}

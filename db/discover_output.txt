@@ -106,8 +106,8 @@ Expanded display is used automatically.
  clean.water_areas        |   39758
  clean.pois               |   74933
  public.osm_roads         | 1004652
- public.vietnam_roads     | 3140236
  clean.buildings          | 1272265
+ public.vietnam_roads     | 3140236
 (10 rows)
 
 
@@ -360,7 +360,6 @@ Access method: heap
 (0 rows)
 
 ========== 7.3 CATEGORIES clean.pois (top 50) ==========
-========== 7.4 GEOMETRY VALIDITY ==========
 docker : ERROR:  column "kind" does not exist
 At line:1 char:31
 + ... cover.sql | docker exec -i postgis-webmap psql -U postgres -d webmap_ ...
@@ -370,6 +369,7 @@ At line:1 char:31
  
 LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
                ^
+========== 7.4 GEOMETRY VALIDITY ==========
            tbl            | invalid 
 --------------------------+---------
  public.streetview_images |       0
