@@ -39,6 +39,7 @@ import { LayersPanel, SettingsPanel, DEFAULT_LAYERS } from "../../layout/panels"
 import type { LayerKey, LayerVisibility } from "../../layout/panels";
 import { applyLayerVisibility } from "./layers/applyLayerVisibility";
 import { showSearchResult } from "./layers/searchResultLayer";
+import type { StreetViewImage } from "../../../api/streetview";
 
 interface Props {
     activePanel?: PanelType | null;
@@ -56,8 +57,9 @@ interface Props {
     mapType: MapType;
     onMapTypeChange: (m: MapType) => void;
     showMapSwitcher: boolean;
+    streetViewVersion?: number;
+    streetViewNavigationRequest?: { image: StreetViewImage; requestId: number } | null;
 }
-
 function EsriSatelliteMap({
     activePanel = null,
     onAutoShowInfo,
@@ -74,6 +76,7 @@ function EsriSatelliteMap({
     mapType,
     onMapTypeChange,
     showMapSwitcher,
+
 }: Props) {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);

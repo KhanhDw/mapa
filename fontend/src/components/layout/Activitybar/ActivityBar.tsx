@@ -6,6 +6,8 @@ export type PanelType =
     | "layers"
     | "electric"
     | "poleManagement"
+    | "streetviewManagement"
+    | "poiManagement"
     | "settings"
     | "contribute";
 export type MapType = "esri" | "selfhost" | "osm" | "test";
@@ -107,6 +109,34 @@ export function ActivityBar({ activePanel, onPanelToggle }: Props) {
                         </svg>
                     </ActivityButton>
                 </div>
+
+                <div className="activity-bar__divider" />
+
+                <div className="activity-bar__group" role="group" aria-label="Quản lý hệ thống">
+                    <ActivityButton
+                        active={activePanel === "streetviewManagement"}
+                        onClick={() => onPanelToggle("streetviewManagement")}
+                        label="Quản lý ảnh Street View"
+                    >
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="9" />
+                            <path d="M3.6 9h16.8M3.6 15h16.8M12 3a14.5 14.5 0 0 0 0 18M12 3a14.5 14.5 0 0 1 0 18" />
+                        </svg>
+                    </ActivityButton>
+
+                    <ActivityButton
+                        active={activePanel === "poiManagement"}
+                        onClick={() => onPanelToggle("poiManagement")}
+                        label="Quản lý địa điểm (POI)"
+                    >
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" />
+                            <circle cx="12" cy="10" r="2.5" />
+                            <path d="M16 21h5M18.5 18.5v5" />
+                        </svg>
+                    </ActivityButton>
+                </div>
+
 
                 <div className="activity-bar__divider" />
 
