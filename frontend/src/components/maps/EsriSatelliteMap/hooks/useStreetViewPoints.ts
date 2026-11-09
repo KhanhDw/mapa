@@ -36,10 +36,11 @@ export function useStreetViewPoints(apiBase: string): Result {
 
         (async () => {
             try {
-                const res = await fetch(
-                    `${base}/api/streetview/points?limit=${SV_LIMIT}`,
-                    { signal: controller.signal }
-                );
+                const url = `${base}/api/streetview/points?limit=${SV_LIMIT}`;
+                const res = await fetch(url, {
+                    signal: controller.signal,
+                    cache: "no-store", // chống cache
+                });
                 if (!res.ok) {
                     throw new Error(
                         `Không tải được Street View points: HTTP ${res.status} — ${res.url}`
@@ -66,15 +67,20 @@ export function useStreetViewPoints(apiBase: string): Result {
                         lat: f.geometry.coordinates[1],
                     }));
 
+                // Debug — bỏ khi ổn định
+                console.log("[SV points] raw features:", data.features.length, "→ parsed:", parsed.length, {
+                    ids: parsed.map((p) => p.id),
+                    validGeometry: parsed.length === data.features.length,
+                });
+
                 setGeojson(data);
                 setPoints(parsed);
+                setError(null);
             } catch (e) {
                 if (controller.signal.aborted) return;
-                setError(
-                    e instanceof Error
-                        ? e
-                        : new Error("Không xác định được lỗi tải Street View points")
-                );
+                const err = e instanceof Error ? e : new Error("Không xác định được lỗi tải Street View points");
+                console.error("[SV points] fetch error:", err);
+                setError(err);
             }
         })();
 
