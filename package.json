@@ -1,11 +1,12 @@
 {
   "scripts": {
     "back": "cd backend && python -m uvicorn src.main:app --reload --host 127.0.0.1 --port 8000",
-    "font": "cd fontend && npm run dev",
+    "front": "cd frontend && npm run dev",
     "init-back": "cd backend && python -m pip install -r requirements.txt",
     "ngrok1": "ngrok http 5173",
     "ngrok2": "ngrok http --url=cougar-settling-commonly.ngrok-free.app 8000",
-    "dev:full": "concurrently \"npm run back\" \"npm run ngrok2\""
+    "dev:full": "concurrently \"npm run back\" \"npm run ngrok2\"",
+    "clean:pycache": "python -c \"import pathlib, shutil; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__')]\""
   },
   "devDependencies": {
     "concurrently": "^10.0.6"
