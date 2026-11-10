@@ -5,11 +5,14 @@ export default defineConfig(({ mode }) => {
   // Load các biến môi trường từ file .env
   const env = loadEnv(mode, process.cwd(), '')
 
-  // Backend ngrok hoặc localhost
-  const backend = env.VITE_BACKEND_URL;// || 'http://127.0.0.1:8000'
-  const useNgrok = env.VITE_USE_NGROK === 'true'
+  // 1. Tự động xác định backend: 
+  // Ưu tiên 1: Biến môi trường VITE_BACKEND_URL
+  // Ưu tiên 2: Nếu có VITE_NGROK_URL hoặc dùng ngrok
+  // Mặc định cuối cùng: http://127.0.0.1:8000 (Localhost)
+  let backend = env.VITE_BACKEND_URL || env.VITE_NGROK_URL || 'http://127.0.0.1:8000';
+  const useNgrok = env.VITE_USE_NGROK === 'true' || backend.includes('ngrok');
 
-  // Tự động bypass trang cảnh báo Ngrok nếu backend là domain ngrok
+  // Tự động bypass trang cảnh báo Ngrok nếu URL là domain ngrok
   const proxyHeaders = backend.includes('ngrok')
     ? { 'ngrok-skip-browser-warning': 'true' }
     : {}
@@ -18,11 +21,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
 
     server: {
-      host: '0.0.0.0', // Mở cổng để truy cập được từ điện thoại/máy khác qua LAN hoặc Ngrok
+      host: '0.0.0.0',
       port: 5173,
       strictPort: true,
 
-      // Cho phép các domain ngrok truy cập vào Vite Dev Server (bắt buộc từ Vite 6+)
       allowedHosts: [
         '.ngrok-free.app',
         '.ngrok.app',
@@ -30,7 +32,6 @@ export default defineConfig(({ mode }) => {
         '.ngrok.dev',
       ],
 
-      // Cấu hình WebSocket (HMR) giữ kết nối live-reload khi mở FE qua HTTPS Ngrok
       ...(useNgrok
         ? {
           hmr: {
@@ -40,60 +41,15 @@ export default defineConfig(({ mode }) => {
         }
         : {}),
 
-      // Hệ thống Proxy trung chuyển về Backend
+      // Giữ nguyên hệ thống Proxy trung chuyển
       proxy: {
-        // 1. API chung (tự động gọt tiền tố /api khi đẩy sang FastAPI)
-        '/api': {
-          target: backend,
-          changeOrigin: true,
-          secure: false,
-          headers: proxyHeaders,
-          // rewrite: (path) => path.replace(/^\/api/, ''),
-        },
-
-        // 2. Health check
-        '/health': {
-          target: backend,
-          changeOrigin: true,
-          secure: false,
-          headers: proxyHeaders,
-        },
-
-        // 3. Static Media (Ảnh 360 Panoramas & Ảnh người dùng upload)
-        '/panoramas': {
-          target: backend,
-          changeOrigin: true,
-          secure: false,
-          headers: proxyHeaders,
-        },
-        '/user-media': {
-          target: backend,
-          changeOrigin: true,
-          secure: false,
-          headers: proxyHeaders,
-        },
-
-        // 4. Map Tiles từ Versatiles & pg_tileserv
-        '/basemap': {
-          target: backend,
-          changeOrigin: true,
-          secure: false,
-          headers: proxyHeaders,
-        },
-        '/mvt': {
-          target: backend,
-          changeOrigin: true,
-          secure: false,
-          headers: proxyHeaders,
-        },
-        '/tiles': {
-          target: backend,
-          changeOrigin: true,
-          secure: false,
-          headers: proxyHeaders,
-        },
-
-        // 5. Các router nghiệp vụ nếu gọi trực tiếp
+        '/api': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
+        '/health': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
+        '/panoramas': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
+        '/user-media': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
+        '/basemap': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
+        '/mvt': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
+        '/tiles': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
         '/streetview': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
         '/point_info': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
         '/search': { target: backend, changeOrigin: true, secure: false, headers: proxyHeaders },
