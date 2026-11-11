@@ -1,0 +1,659 @@
+/* ============================================================================
+   PoiManagementPanel.css (Theme Trắng Sáng Hoàn Chỉnh)
+   ============================================================================ */
+
+.sv-dashboard {
+  color-scheme: light;
+  --sv-bg: #ffffff;
+  --sv-surface: #f8fafc;
+  --sv-border: #e2e8f0;
+  --sv-text: #0f172a;
+  --sv-muted: #64748b;
+  --sv-primary: #2563eb;
+  --sv-on-primary: #ffffff;
+  --sv-ok: #16a34a;
+  --sv-info: #0284c7;
+  --sv-warn: #d97706;
+  --sv-danger: #dc2626;
+  --sv-danger-text: #dc2626;
+  --sv-radius: 10px;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--sv-bg);
+  color: var(--sv-text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+.sv-dashboard__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--sv-border);
+  flex-shrink: 0;
+  background: var(--sv-bg);
+}
+
+.sv-dashboard__title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sv-dashboard__title strong {
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--sv-text);
+}
+.sv-dashboard__title span {
+  color: var(--sv-muted);
+  font-size: 12px;
+}
+
+.sv-dashboard__header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.sv-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sv-muted);
+  cursor: pointer;
+}
+.sv-icon-btn:hover:not(:disabled) {
+  background: var(--sv-surface);
+  color: var(--sv-text);
+}
+.sv-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ============================================================================
+   SCROLL CONTAINER
+   ============================================================================ */
+.sv-dashboard__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--sv-bg);
+}
+
+.sv-dashboard__scroll > * {
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   STATS
+   ============================================================================ */
+.sv-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.sv-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border-radius: var(--sv-radius);
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+}
+.sv-stat__value {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--sv-text);
+}
+.sv-stat__label {
+  font-size: 11px;
+  color: var(--sv-muted);
+}
+.sv-stat--ok .sv-stat__value {
+  color: var(--sv-ok);
+}
+.sv-stat--info .sv-stat__value {
+  color: var(--sv-info);
+}
+
+/* ============================================================================
+   FIELDS / INPUTS
+   ============================================================================ */
+.sv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.sv-field > span {
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+
+.sv-field input,
+.sv-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--sv-border);
+  border-radius: 8px;
+  background: var(--sv-bg);
+  color: var(--sv-text);
+  font: inherit;
+}
+.sv-field input::placeholder,
+.sv-search input::placeholder {
+  color: #94a3b8;
+}
+.sv-field input:focus,
+.sv-search input:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.2);
+  border-color: var(--sv-primary);
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+.sv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--sv-border);
+  border-radius: 8px;
+  background: var(--sv-bg);
+  color: var(--sv-text);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.sv-btn:hover:not(:disabled) {
+  background: var(--sv-surface);
+}
+.sv-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sv-btn--block {
+  width: 100%;
+}
+
+.sv-btn--primary {
+  background: var(--sv-primary);
+  border-color: var(--sv-primary);
+  color: var(--sv-on-primary);
+}
+.sv-btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.sv-btn--danger {
+  background: var(--sv-danger);
+  border-color: var(--sv-danger);
+  color: #fff;
+}
+.sv-btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.sv-btn--danger-outline {
+  color: var(--sv-danger-text);
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+.sv-btn--danger-outline:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.sv-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--sv-muted);
+}
+.sv-btn--ghost:hover:not(:disabled) {
+  color: var(--sv-text);
+  background: var(--sv-surface);
+}
+.sv-btn--danger-text:hover:not(:disabled) {
+  color: var(--sv-danger-text);
+  background: #fef2f2;
+}
+
+.sv-load-more {
+  width: 100%;
+}
+
+/* ============================================================================
+   FORM (edit)
+   ============================================================================ */
+.sv-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--sv-radius);
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+}
+.sv-form__title {
+  margin: 0;
+  font-size: 14px;
+  color: #1e3a8a;
+}
+.sv-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sv-form__actions {
+  display: flex;
+  gap: 8px;
+}
+.sv-form__actions .sv-btn--primary {
+  flex: 1;
+}
+
+/* ============================================================================
+   LOCATION RECORDING BUTTON
+   ============================================================================ */
+.sv-location-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  text-align: left;
+  border: 1px dashed var(--sv-border);
+  border-radius: 8px;
+  background: var(--sv-bg);
+  color: var(--sv-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.sv-location-btn.has-value {
+  color: var(--sv-text);
+  border-style: solid;
+  border-color: #cbd5e1;
+}
+.sv-location-btn.is-recording {
+  color: var(--sv-primary);
+  border-color: var(--sv-primary);
+  background: #eff6ff;
+  animation: sv-pulse 1.4s ease-in-out infinite;
+}
+
+/* ============================================================================
+   ALERT
+   ============================================================================ */
+.sv-alert {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--sv-danger-text);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+.sv-alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ============================================================================
+   LIST SECTION
+   ============================================================================ */
+.sv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.sv-list > * {
+  flex-shrink: 0;
+}
+
+.sv-list__head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sv-list__head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.sv-count {
+  color: var(--sv-muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.sv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sv-chip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--sv-border);
+  background: var(--sv-bg);
+  color: var(--sv-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.sv-chip:hover {
+  background: var(--sv-surface);
+  color: var(--sv-text);
+}
+.sv-chip span {
+  margin-left: 2px;
+  opacity: 0.8;
+}
+.sv-chip.is-active {
+  background: var(--sv-primary);
+  border-color: var(--sv-primary);
+  color: var(--sv-on-primary);
+}
+
+.sv-search {
+  position: relative;
+  display: block;
+}
+.sv-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--sv-muted);
+  pointer-events: none;
+}
+.sv-search input {
+  padding-left: 32px;
+}
+
+/* ============================================================================
+   CARDS
+   ============================================================================ */
+.sv-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.sv-cards > li {
+  flex-shrink: 0;
+}
+
+.sv-card {
+  flex-shrink: 0;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius);
+  background: var(--sv-bg);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.sv-card__main {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.sv-card__main:hover {
+  background: var(--sv-surface);
+}
+
+.sv-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sv-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.sv-card__meta {
+  color: var(--sv-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sv-card__meta--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+}
+
+.sv-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 2px 6px 6px;
+  border-top: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+}
+
+.sv-card--skeleton {
+  height: 74px;
+  border: 0;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: sv-shimmer 1.2s linear infinite;
+}
+
+/* ============================================================================
+   BADGES
+   ============================================================================ */
+.sv-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sv-badge--ok {
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+.sv-badge--info {
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+}
+
+/* ============================================================================
+   CONFIRM DELETE BAR
+   ============================================================================ */
+.sv-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--sv-border);
+  background: #fef2f2;
+}
+.sv-confirm span {
+  flex: 1;
+  font-size: 12px;
+  color: #991b1b;
+}
+.sv-confirm--bar {
+  border: 1px solid #fecaca;
+  border-radius: var(--sv-radius);
+  flex-wrap: wrap;
+}
+
+/* ============================================================================
+   EMPTY STATE & UTILS
+   ============================================================================ */
+.sv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 12px;
+  color: var(--sv-muted);
+  text-align: center;
+}
+.sv-empty p {
+  margin: 0;
+}
+
+/* ============================================================================
+   DETAIL VIEW & PANELS
+   ============================================================================ */
+.sv-panel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--sv-radius);
+  border: 1px solid var(--sv-border);
+  background: var(--sv-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.sv-panel-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sv-panel-card__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sv-muted);
+  font-weight: 600;
+}
+
+.sv-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+.sv-dl dt {
+  color: var(--sv-muted);
+}
+.sv-dl dd {
+  margin: 0;
+  text-align: right;
+  min-width: 0;
+  color: var(--sv-text);
+}
+
+.sv-coords {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sv-coords > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
+}
+.sv-coords small {
+  color: var(--sv-muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.sv-coords code {
+  font-size: 13px;
+  color: var(--sv-text);
+}
+
+.sv-detail-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ============================================================================
+   ANIMATIONS & UTILITIES
+   ============================================================================ */
+.sv-spin {
+  animation: sv-rotate 0.8s linear infinite;
+}
+@keyframes sv-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sv-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes sv-pulse {
+  50% {
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  }
+}
+
+.sv-input-error {
+  border-color: var(--sv-danger) !important;
+  background-color: #fef2f2 !important;
+}
+
+/* ============================================================================
+   FORCE LAYOUT OVERRIDES
+   ============================================================================ */
+.coord-sidebar.sv-dashboard .sv-dashboard__scroll,
+.coord-sidebar.sv-dashboard .coord-sidebar__scroll {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  height: auto !important;
+  flex: 1 1 0 !important;
+}

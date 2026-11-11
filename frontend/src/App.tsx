@@ -22,12 +22,13 @@ import SatelliteMap from "./components/maps/SatelliteMap/SatelliteMap";
 import OsmPolygonMap from "./components/maps/OsmPolygonMap/OsmPolygonMap";
 import TestPSV from "./components/dev/TestPSV";
 import "./App.css";
+import { PoiManagementPanel } from "./components/layout/panels/PoiManagementPanel.tsx";
 
 const SHOW_SWITCHER = import.meta.env.VITE_SHOW_MAP_SWITCHER === "true";
 
 /** Các panel chạy ở chế độ chia đôi màn hình + dùng chế độ ghi vị trí trên map. */
 const isManagementPanel = (panel: PanelType | null) =>
-  panel === "poleManagement" || panel === "streetviewManagement";
+  panel === "poleManagement" || panel === "streetviewManagement" || panel === "poiManagement";
 
 export default function App() {
   const [mapType, setMapType] = useState<MapType>("esri");
@@ -55,6 +56,20 @@ export default function App() {
     image: StreetViewImage;
     requestId: number;
   } | null>(null);
+
+  // ── POI management ──────────────────────────────────────
+  const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
+    poi: PoiItem;
+    requestId: number;
+  } | null>(null);
+
+  const handleGoToPoi = useCallback((poi: PoiItem) => {
+    setPoiNavigationRequest((current) => ({
+      poi,
+      requestId: (current?.requestId ?? 0) + 1,
+    }));
+  }, []);
+
 
   useEffect(() => {
     let active = true;
@@ -190,6 +205,8 @@ export default function App() {
 
   const isSplitMode = isManagementPanel(activePanel);
 
+  console.log(activePanel) // có bắt được giá trị của active panel.
+
   return (
     <div className="app-layout">
       <ActivityBar
@@ -221,6 +238,16 @@ export default function App() {
                 onGoToImage={handleGoToStreetViewImage}
               />
             )}
+            {activePanel === "poiManagement" && (
+              <PoiManagementPanel
+                onClose={closeManagementPanel}
+                onChanged={() => {/* reload state nếu cần */ }}
+                isRecordingLocation={isRecordingPoleLocation}
+                onStartLocationRecording={handleStartPoleLocationRecording}
+                onStopLocationRecording={handleStopPoleLocationRecording}
+                onGoToPoi={handleGoToPoi}
+              />
+            )}
           </div>
         )}
 
@@ -250,6 +277,7 @@ export default function App() {
                 mapType={mapType}
                 onMapTypeChange={setMapType}
                 showMapSwitcher={SHOW_SWITCHER}
+                poiNavigationRequest={poiNavigationRequest}
               />
             )}
             {mapType === "selfhost" && <SatelliteMap />}
@@ -294,6 +322,8 @@ export default function App() {
               onGoToPole={handleGoToPole}
             />
           )}
+
+
         </div>
       </div>
     </div>

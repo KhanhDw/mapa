@@ -16,7 +16,6 @@ import { EXTRA_LAYERS, extraTileUrl } from "./layers/registry";
 import {
     API_BASE,
     ESRI_SATELLITE_TILE_URL,
-    // TILE_BASE,
     getMapLibreWorkerUrl,
 } from "../../../config";
 import { bindUserPoiHover } from "./layers/bindUserPoiHover";
@@ -30,6 +29,7 @@ import {
     setElectricPoleData,
 } from "./layers/electricPoleLayer";
 import type { ElectricPole } from "../../../api/electricPoles";
+import type { PoiItem } from "../../../api/pois"; // Import thêm kiểu dữ liệu PoiItem
 import { useStreetViewPoints } from "./hooks/useStreetViewPoints";
 import { useClickMarker } from "./hooks/useClickMarker";
 import { useClickPointInfo } from "./hooks/useClickPointInfo";
@@ -59,7 +59,9 @@ interface Props {
     showMapSwitcher: boolean;
     streetViewVersion?: number;
     streetViewNavigationRequest?: { image: StreetViewImage; requestId: number } | null;
+    poiNavigationRequest?: { poi: PoiItem; requestId: number } | null; // Bổ sung prop mới
 }
+
 function EsriSatelliteMap({
     activePanel = null,
     onAutoShowInfo,
@@ -76,7 +78,8 @@ function EsriSatelliteMap({
     mapType,
     onMapTypeChange,
     showMapSwitcher,
-
+    streetViewNavigationRequest,
+    poiNavigationRequest, // Nhận prop ở đây
 }: Props) {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
@@ -106,7 +109,6 @@ function EsriSatelliteMap({
     } = useStreetViewPoints(API_BASE);
 
     // ================= Click marker + point info =================
-    // Khi panel Contribute đang mở, disable marker đỏ (tránh conflict với picker)
     const { clickInfo, clear } = useClickMarker(
         mapInstance,
         activePanel === "contribute" || isRecordingPoleLocation
@@ -166,28 +168,12 @@ function EsriSatelliteMap({
                 ],
             },
 
-            // 👉 SỬA ĐOẠN NÀY: Kiểm tra điều kiện URL trước khi gắn header
-            transformRequest: (url, resourceType) => {
-                resourceType;
-
-                // 1) Relative URL ("/tiles/...", "/mvt/...", "/api/...") → worker không resolve được
-                //    → biến thành absolute same-origin trước khi trả về
+            transformRequest: (url) => {
                 if (url.startsWith("/")) {
                     return {
                         url: new URL(url, window.location.origin).href,
-                        // Không cần header ngrok: request same-origin → Vite proxy tự gắn khi forward
                     };
                 }
-
-                // 2) Gọi trực tiếp backend ngrok (trường hợp prod hoặc absolute URL ngrok)
-                if (url.includes("ngrok-free.app") || url.includes("ngrok.app")) {
-                    return {
-                        url,
-                        headers: { "ngrok-skip-browser-warning": "true" },
-                    };
-                }
-
-                // 3) Nguồn ngoài (Esri, Protomaps, jsdelivr...) → giữ nguyên, KHÔNG gắn header
                 return { url };
             },
         });
@@ -202,7 +188,8 @@ function EsriSatelliteMap({
 
         map.on("load", () => {
             addRoadsLayer(map);
-            addExtraLayers(map); bindUserPoiHover(map);
+            addExtraLayers(map);
+            bindUserPoiHover(map);
             ensureStreetViewLayer({
                 map,
                 onIconClick: (id) => setSvModal({ open: true, startId: id }),
@@ -276,6 +263,29 @@ function EsriSatelliteMap({
         });
     }, [mapInstance, poleNavigationRequest]);
 
+    // ================= Xử lý Street View Navigation Request =================
+    useEffect(() => {
+        if (!mapInstance || !streetViewNavigationRequest) return;
+        const { image } = streetViewNavigationRequest;
+        mapInstance.flyTo({
+            center: [image.lng, image.lat],
+            zoom: 17,
+            duration: 800,
+        });
+        setSvModal({ open: true, startId: image.id });
+    }, [mapInstance, streetViewNavigationRequest]);
+
+    // ================= Xử lý POI Navigation Request =================
+    useEffect(() => {
+        if (!mapInstance || !poiNavigationRequest) return;
+        const { poi } = poiNavigationRequest;
+        mapInstance.flyTo({
+            center: [poi.lng, poi.lat],
+            zoom: 17,
+            duration: 800,
+        });
+    }, [mapInstance, poiNavigationRequest]);
+
     // ================= Update SV data =================
     useEffect(() => {
         if (!mapReady || !mapRef.current || !geojson) return;
@@ -294,31 +304,37 @@ function EsriSatelliteMap({
     // ======================================================
     // Handlers
     // ======================================================
-    const handleOpenStreetViewById = (id: number) => {
-        const point = points.find((p) => Number(p.id) === id);
-        if (point && mapRef.current) {
-            mapRef.current.flyTo({
-                center: [point.lng, point.lat],
+    const handleOpenStreetViewById = useCallback(
+        (id: number) => {
+            const point = points.find((p) => Number(p.id) === id);
+            if (point && mapRef.current) {
+                mapRef.current.flyTo({
+                    center: [point.lng, point.lat],
+                    zoom: 17,
+                    duration: 800,
+                });
+            }
+            setSvModal({ open: true, startId: id });
+        },
+        [points]
+    );
+
+    const handlePoiClick = useCallback(
+        (poi: PoiInfo) => {
+            if (poi.streetview_id != null) {
+                handleOpenStreetViewById(poi.streetview_id);
+                return;
+            }
+            mapRef.current?.flyTo({
+                center: [poi.lng, poi.lat],
                 zoom: 17,
-                duration: 800,
+                duration: 600,
             });
-        }
-        setSvModal({ open: true, startId: id });
-    };
+        },
+        [handleOpenStreetViewById]
+    );
 
-    const handlePoiClick = (poi: PoiInfo) => {
-        if (poi.streetview_id != null) {
-            handleOpenStreetViewById(poi.streetview_id);
-            return;
-        }
-        mapRef.current?.flyTo({
-            center: [poi.lng, poi.lat],
-            zoom: 17,
-            duration: 600,
-        });
-    };
-
-    const handlePoiDetails = (poi: PoiInfo) => {
+    const handlePoiDetails = useCallback((poi: PoiInfo) => {
         setSelectedPoi({
             poi,
             clickKey: clickInfo ? `${clickInfo.lng}|${clickInfo.lat}` : "",
@@ -328,15 +344,15 @@ function EsriSatelliteMap({
             zoom: 17,
             duration: 600,
         });
-    };
+    }, [clickInfo]);
 
     const handleSearchResultClick = (result: SearchResult) => {
         if (mapInstance) showSearchResult(mapInstance, result);
     };
 
     const handleClose = () => {
-        clear();            // xoá vị trí đang chọn (setClickInfo(null))
-        onPanelClose?.();   // đóng panel (setActivePanel(null))
+        clear();
+        onPanelClose?.();
     };
 
     const handleClosePlaceDetails = () => {
@@ -344,10 +360,10 @@ function EsriSatelliteMap({
         clear();
         onPanelClose?.();
     };
+
     const clickKey = clickInfo ? `${clickInfo.lng}|${clickInfo.lat}` : "";
     const activePoi = selectedPoi?.clickKey === clickKey ? selectedPoi.poi : null;
 
-    // Refresh layer userPois + fly to POI mới
     const handleContributeCreated = useCallback(
         (poi: { id: number; lng: number; lat: number }) => {
             const map = mapRef.current;
@@ -363,9 +379,6 @@ function EsriSatelliteMap({
 
             map.addSource(def.sourceId, {
                 type: "vector",
-                // tiles: [
-                //     `${TILE_BASE}/${def.schemaTable}/{z}/{x}/{y}.pbf?v=${Date.now()}`,
-                // ],
                 tiles: [extraTileUrl(def, true)],
                 minzoom: 0,
                 maxzoom: def.maxzoom ?? 14,
@@ -387,7 +400,8 @@ function EsriSatelliteMap({
         showContribute ||
         activePanel === "search" ||
         activePanel === "electric" ||
-        activePanel === "poleManagement";
+        activePanel === "poleManagement" ||
+        activePanel === "poiManagement"; // Bổ sung activePanel cho poiManagement
 
     return (
         <div className={`map-wrapper${hasSidebar ? " has-sidebar" : ""}`}>

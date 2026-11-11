@@ -3,8 +3,10 @@
 Endpoints:
     GET    /api/streetview/points         — list dạng GeoJSON cho map
     GET    /api/streetview/images         — list phân trang cho panel quản lý
+    GET    /api/streetview/nearby         — tìm danh sách ảnh lân cận trong bán kính R (mét)
     GET    /api/streetview/image/{id}     — chi tiết 1 ảnh
-    PUT    /api/streetview/image/{id}     — sửa heading / vị trí / captured_at
+    PUT    /api/streetview/image/{id}     — sửa heading / vị trí / captured_at / next_ids / link_positions
+    PATCH  /api/streetview/batch-update   — cập nhật hàng loạt vị trí/thời gian chụp
     DELETE /api/streetview/image/{id}     — xóa + cleanup refs + file vật lý
 """
 import asyncio
@@ -27,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/streetview", tags=["streetview"])
 
-# streetview_images.id là int4 -> vượt giá trị này asyncpg ném DataError (500)
 INT4_MAX = 2**31 - 1
 PANORAMA_URL_PREFIX = "/panoramas/"
 
@@ -54,7 +55,7 @@ def _to_feature(row) -> dict:
 
 
 def _to_detail(row) -> dict:
-    return {
+    d = {
         "id": row["id"],
         "lng": row["lng"],
         "lat": row["lat"],
@@ -62,12 +63,14 @@ def _to_detail(row) -> dict:
         "heading": row["heading"],
         "next_ids": row["next_ids"] or [],
         "link_positions": parse_link_positions(row["link_positions"]),
-        "captured_at": row["captured_at"].isoformat() if row["captured_at"] else None,
+        "captured_at": row["captured_at"].isoformat() if row.get("captured_at") else None,
     }
+    if "distance_meters" in row:
+        d["distance_meters"] = round(float(row["distance_meters"]), 2)
+    return d
 
 
 def _file_path_from_url(image_url: str | None) -> Path | None:
-    """Lấy path vật lý từ /panoramas/... — chặn path traversal."""
     if not image_url or not image_url.startswith(PANORAMA_URL_PREFIX):
         return None
     name = image_url[len(PANORAMA_URL_PREFIX):]
@@ -76,7 +79,7 @@ def _file_path_from_url(image_url: str | None) -> Path | None:
 
     base = settings.PANORAMAS_DIR.resolve()
     path = (base / name).resolve()
-    if not path.is_relative_to(base):      # phòng symlink / trường hợp lạ
+    if not path.is_relative_to(base):
         return None
     return path
 
@@ -89,12 +92,11 @@ def _unlink(path: Path) -> None:
 
 
 def _escape_like(s: str) -> str:
-    """Escape ký tự đặc biệt của LIKE (dùng với ESCAPE '\\')."""
     return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# ĐỌC — cho map
+# ĐỌC
 # ══════════════════════════════════════════════════════════════════════════
 
 @router.get("/points")
@@ -112,9 +114,8 @@ async def get_streetview_points(
     if provided not in (0, 4):
         raise HTTPException(400, "bbox cần đủ 4 tham số: minx, miny, maxx, maxy")
 
-    # Lấy limit + 1 dòng để biết kết quả có bị cắt hay không.
     if provided == 4:
-        validate_bbox(minx, miny, maxx, maxy)  # type: ignore[arg-type]
+        validate_bbox(minx, miny, maxx, maxy)
         rows = await pool.fetch(
             f"""
             SELECT {_COLS}
@@ -140,14 +141,9 @@ async def get_streetview_points(
     return {
         "type": "FeatureCollection",
         "features": [_to_feature(r) for r in rows[:limit]],
-        # "foreign member" hợp lệ theo GeoJSON; client cũ bỏ qua được.
         "truncated": truncated,
     }
 
-
-# ══════════════════════════════════════════════════════════════════════════
-# ĐỌC — cho panel quản lý
-# ══════════════════════════════════════════════════════════════════════════
 
 @router.get("/images")
 async def list_streetview_images(
@@ -156,10 +152,6 @@ async def list_streetview_images(
     offset: int = Query(0, ge=0),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
-    """List phân trang cho StreetViewManagementPanel.
-
-    search: khớp image_url, hoặc id nếu q là số nguyên dương hợp lệ (int4).
-    """
     args: list = []
     where = ""
 
@@ -167,7 +159,6 @@ async def list_streetview_images(
     if q:
         args.append(f"%{_escape_like(q)}%")
         url_cond = f"image_url ILIKE ${len(args)} ESCAPE '\\'"
-        # isascii() loại các ký tự như '²' mà isdigit() vẫn chấp nhận.
         if q.isascii() and q.isdigit() and int(q) <= INT4_MAX:
             args.append(int(q))
             where = f" WHERE id = ${len(args)} OR {url_cond}"
@@ -178,14 +169,43 @@ async def list_streetview_images(
         total = await conn.fetchval(
             "SELECT count(*) FROM public.streetview_images" + where, *args
         )
+        # Sửa lại chỗ này: thêm khoảng trắng rõ ràng trước ORDER BY, LIMIT và OFFSET
         rows = await conn.fetch(
-            f"SELECT {_COLS_DETAIL} FROM public.streetview_images"
+            f"SELECT {_COLS_DETAIL} FROM public.streetview_images "
             f"{where} ORDER BY id DESC "
             f"LIMIT ${len(args) + 1} OFFSET ${len(args) + 2}",
             *args, limit, offset,
         )
 
     return {"items": [_to_detail(r) for r in rows], "total": int(total)}
+
+
+@router.get("/nearby")
+async def get_nearby_streetview_images(
+    lng: float = Query(..., ge=-180, le=180),
+    lat: float = Query(..., ge=-90, le=90),
+    radius: float = Query(50.0, ge=1.0, le=500.0, description="Bán kính tìm kiếm (mét)"),
+    exclude_id: int | None = Query(None, ge=1, le=INT4_MAX),
+    limit: int = Query(20, ge=1, le=50),
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    """Lấy danh sách các ảnh panorama xung quanh toạ độ (lng, lat) trong bán kính radius (mét)."""
+    exclude_cond = "AND id != $4" if exclude_id else ""
+    args = [lng, lat, radius]
+    if exclude_id:
+        args.append(exclude_id)
+
+    query = f"""
+        SELECT {_COLS_DETAIL},
+               ST_DistanceSphere(geom, ST_SetSRID(ST_MakePoint($1, $2), 4326)) AS distance_meters
+        FROM public.streetview_images
+        WHERE ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3)
+        {exclude_cond}
+        ORDER BY distance_meters ASC
+        LIMIT ${len(args) + 1}
+    """
+    rows = await pool.fetch(query, *args, limit)
+    return {"items": [_to_detail(r) for r in rows]}
 
 
 @router.get("/image/{image_id}")
@@ -203,15 +223,22 @@ async def get_streetview_image(
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# GHI — sửa
+# GHI
 # ══════════════════════════════════════════════════════════════════════════
 
 class StreetViewUpdate(BaseModel):
-    """Cập nhật một phần. Trường không gửi = giữ nguyên;
-    gửi `null` cho heading / captured_at = xóa giá trị (đặt NULL)."""
     heading: float | None = Field(default=None, ge=0, lt=360)
     lng: float | None = Field(default=None, ge=-180, le=180)
     lat: float | None = Field(default=None, ge=-90, le=90)
+    captured_at: datetime | None = None
+    next_ids: list[int] | None = None
+    link_positions: list[dict] | None = None
+
+
+class BatchUpdateInput(BaseModel):
+    ids: list[int] = Field(..., min_length=1)
+    delta_lng: float | None = None
+    delta_lat: float | None = None
     captured_at: datetime | None = None
 
 
@@ -221,7 +248,7 @@ async def update_streetview_image(
     image_id: int = PathParam(ge=1, le=INT4_MAX),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
-    sent = body.model_fields_set      # phân biệt "không gửi" và "gửi null"
+    sent = body.model_fields_set
     sets: list[str] = []
     args: list = [image_id]
 
@@ -244,6 +271,14 @@ async def update_streetview_image(
         args.append(body.captured_at)
         sets.append(f"captured_at = ${len(args)}")
 
+    if "next_ids" in sent:
+        args.append(body.next_ids or [])
+        sets.append(f"next_ids = ${len(args)}")
+
+    if "link_positions" in sent:
+        args.append(json.dumps(body.link_positions or []))
+        sets.append(f"link_positions = ${len(args)}::jsonb")
+
     if not sets:
         raise HTTPException(400, "Không có trường nào để cập nhật")
 
@@ -261,9 +296,36 @@ async def update_streetview_image(
     return _to_detail(row)
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# GHI — xóa
-# ══════════════════════════════════════════════════════════════════════════
+@router.patch("/batch-update", dependencies=[Depends(require_write_key)])
+async def batch_update_streetview(
+    body: BatchUpdateInput,
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    """Cập nhật hàng loạt tọa độ hoặc thời gian chụp cho nhiều ảnh cùng lúc."""
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            if body.delta_lng is not None or body.delta_lat is not None:
+                dlng = body.delta_lng or 0.0
+                dlat = body.delta_lat or 0.0
+                await conn.execute(
+                    """
+                    UPDATE public.streetview_images
+                    SET geom = ST_SetSRID(ST_MakePoint(ST_X(geom) + $1, ST_Y(geom) + $2), 4326)
+                    WHERE id = ANY($3)
+                    """,
+                    dlng, dlat, body.ids,
+                )
+            if body.captured_at is not None:
+                await conn.execute(
+                    """
+                    UPDATE public.streetview_images
+                    SET captured_at = $1
+                    WHERE id = ANY($2)
+                    """,
+                    body.captured_at, body.ids,
+                )
+    return {"updated_count": len(body.ids)}
+
 
 @router.delete(
     "/image/{image_id}",
@@ -276,10 +338,9 @@ async def delete_streetview_image(
 ):
     file_to_remove: Path | None = None
 
-    # Toàn bộ thao tác DB trong 1 transaction: lỗi giữa chừng -> rollback,
-    # không để lại dữ liệu lệch (đã gỡ ref nhưng ảnh chưa bị xóa).
     async with pool.acquire() as conn:
         async with conn.transaction():
+            # 1. Kiểm tra ảnh tồn tại
             row = await conn.fetchrow(
                 "SELECT image_url FROM public.streetview_images "
                 "WHERE id = $1 FOR UPDATE",
@@ -288,15 +349,15 @@ async def delete_streetview_image(
             if not row:
                 raise HTTPException(404, "Ảnh không tồn tại")
 
-            # Các ảnh khác đang trỏ next_ids về image_id này:
-            #  - bỏ image_id khỏi next_ids
-            #  - bỏ phần tử tương ứng trong link_positions (giữ căn chỉnh index)
+            # 2. Tìm các ảnh khác có chứa image_id trong mảng next_ids
+            # Sử dụng cú pháp toán tử của PostgreSQL cho mảng: $1 = ANY(next_ids)
             refs = await conn.fetch(
                 "SELECT id, next_ids, link_positions "
                 "FROM public.streetview_images "
                 "WHERE $1 = ANY(next_ids) FOR UPDATE",
                 image_id,
             )
+            
             for ref in refs:
                 old_next: list[int] = list(ref["next_ids"] or [])
                 old_links = parse_link_positions(ref["link_positions"])
@@ -317,11 +378,12 @@ async def delete_streetview_image(
                     ref["id"], new_next, json.dumps(new_links),
                 )
 
+            # 3. Xóa bản ghi trong database
             await conn.execute(
                 "DELETE FROM public.streetview_images WHERE id = $1", image_id
             )
 
-            # Chỉ xóa file nếu không còn bản ghi nào khác dùng chung image_url.
+            # 4. Kiểm tra xem file vật lý còn được dùng bởi ảnh nào khác không
             still_used = await conn.fetchval(
                 "SELECT EXISTS (SELECT 1 FROM public.streetview_images "
                 "WHERE image_url = $1)",
@@ -330,7 +392,7 @@ async def delete_streetview_image(
             if not still_used:
                 file_to_remove = _file_path_from_url(row["image_url"])
 
-    # Sau khi commit. File mồ côi nếu bước này lỗi là vô hại.
+    # Xóa file vật lý sau khi transaction commit thành công
     if file_to_remove is not None:
         await asyncio.to_thread(_unlink, file_to_remove)
 

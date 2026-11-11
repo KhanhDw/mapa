@@ -1,13 +1,14 @@
-// StreetViewManagementPanel.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
+    DEFAULT_API_KEY,
     deleteStreetViewImage,
+    fetchNearbyStreetViewImages,
     fetchStreetViewImages,
     updateStreetViewImage,
-    uploadStreetViewImage,
 } from "../../../api/streetview";
-import type { StreetViewImage } from "../../../api/streetview";
+import type { StreetViewImage, StreetViewNearbyImage } from "../../../api/streetview";
+import { StreetViewCreateForm } from "./StreetViewCreateForm";
 import "./StreetViewManagementPanel.css";
 
 interface Props {
@@ -19,7 +20,6 @@ interface Props {
     onGoToImage: (image: StreetViewImage) => void;
 }
 
-// ───────────── types ─────────────
 interface ImageDraft {
     heading: string;
     lng: string;
@@ -27,28 +27,13 @@ interface ImageDraft {
     captured_at: string;
 }
 
-interface NewPanoramaDraft {
-    lng: string;
-    lat: string;
-    heading: string;
-    file: File | null;
-}
-
 type LinkFilter = "all" | "linked" | "isolated";
 type Mode = "list" | "create" | "detail";
-type FileValidation = { ok: true } | { ok: false; msg: string } | null;
 
-// ───────────── constants ─────────────
 const PAGE_SIZE = 50;
-const MAX_PANO_FILE_MB = 25;
-const MAX_PANO_FILE_BYTES = MAX_PANO_FILE_MB * 1024 * 1024;
-const PANO_RATIO_TOLERANCE = 0.05;
-
 const EMPTY_DRAFT: ImageDraft = { heading: "", lng: "", lat: "", captured_at: "" };
-const makeEmptyPanoDraft = (): NewPanoramaDraft => ({ lng: "", lat: "", heading: "", file: null });
 const COMPASS = ["Bắc", "Đông Bắc", "Đông", "Đông Nam", "Nam", "Tây Nam", "Tây", "Tây Bắc"];
 
-// ───────────── helpers ─────────────
 const pad = (n: number) => String(n).padStart(2, "0");
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Đã có lỗi xảy ra");
 
@@ -79,37 +64,6 @@ function formatDate(iso: string | null): string {
     return Number.isNaN(d.getTime()) ? "Không rõ" : d.toLocaleString("vi-VN");
 }
 
-function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** Trả về null nếu ảnh có tỷ lệ 2:1 (equirectangular), hoặc thông báo lỗi. */
-function validatePanoramaRatio(file: File): Promise<string | null> {
-    return new Promise((resolve) => {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-            const ratio = img.naturalWidth / img.naturalHeight;
-            URL.revokeObjectURL(url);
-            if (!Number.isFinite(ratio) || Math.abs(ratio - 2) > PANO_RATIO_TOLERANCE) {
-                resolve(
-                    `Ảnh phải có tỷ lệ 2:1 (equirectangular). Hiện tại: ${img.naturalWidth}×${img.naturalHeight} (≈ ${ratio.toFixed(2)}:1).`,
-                );
-            } else {
-                resolve(null);
-            }
-        };
-        img.onerror = () => {
-            URL.revokeObjectURL(url);
-            resolve("Không đọc được tệp ảnh. Vui lòng chọn JPG / PNG / WebP hợp lệ.");
-        };
-        img.src = url;
-    });
-}
-
-// ───────────── main component ─────────────
 export function StreetViewManagementPanel({
     onClose,
     onChanged,
@@ -128,28 +82,19 @@ export function StreetViewManagementPanel({
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [filter, setFilter] = useState<LinkFilter>("all");
-    const [apiKey, setApiKey] = useState("");
+    const [apiKey, setApiKey] = useState(DEFAULT_API_KEY);
     const [apiKeyError, setApiKeyError] = useState(false);
 
-    // mode/navigation
     const [mode, setMode] = useState<Mode>("list");
     const [selected, setSelected] = useState<StreetViewImage | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-    // edit
     const [editing, setEditing] = useState<StreetViewImage | null>(null);
     const [draft, setDraft] = useState<ImageDraft>(EMPTY_DRAFT);
-
-    // create
-    const [panoDraft, setPanoDraft] = useState<NewPanoramaDraft>(makeEmptyPanoDraft);
-    const [panoPreviewUrl, setPanoPreviewUrl] = useState<string | null>(null);
-    const [fileValidation, setFileValidation] = useState<FileValidation>(null);
-    const abortRef = useRef<AbortController | null>(null);
 
     const formRef = useRef<HTMLFormElement>(null);
     const requestSeq = useRef(0);
 
-    // Refs để cleanup an toàn khi unmount
     const recordingRef = useRef(isRecordingLocation);
     const stopRecordingRef = useRef(onStopLocationRecording);
     recordingRef.current = isRecordingLocation;
@@ -158,23 +103,10 @@ export function StreetViewManagementPanel({
     useEffect(
         () => () => {
             if (recordingRef.current) stopRecordingRef.current();
-            abortRef.current?.abort();
         },
         [],
     );
 
-    // Preview URL cho file panorama
-    useEffect(() => {
-        if (!panoDraft.file) {
-            setPanoPreviewUrl(null);
-            return;
-        }
-        const url = URL.createObjectURL(panoDraft.file);
-        setPanoPreviewUrl(url);
-        return () => URL.revokeObjectURL(url);
-    }, [panoDraft.file]);
-
-    // ───────── load ─────────
     const loadPage = useCallback(
         async (offset: number, isMore = false) => {
             const seq = ++requestSeq.current;
@@ -186,19 +118,7 @@ export function StreetViewManagementPanel({
                     offset,
                 });
 
-                // Debug — bỏ khi ổn định
-                console.log("[SV panel] loadPage response:", {
-                    offset,
-                    search: debouncedSearch,
-                    itemsLen: res.items.length,
-                    total: res.total,
-                    ids: res.items.map((i) => i.id),
-                });
-
-                if (seq !== requestSeq.current) {
-                    console.warn("[SV panel] stale response discarded", { seq, current: requestSeq.current });
-                    return;
-                }
+                if (seq !== requestSeq.current) return;
                 setImages((cur) => {
                     if (offset === 0) return res.items;
                     const seen = new Set(cur.map((i) => i.id));
@@ -228,33 +148,22 @@ export function StreetViewManagementPanel({
         void loadPage(0);
     }, [loadPage]);
 
-    // ───────── derived ─────────
     const stats = useMemo(() => {
         const linked = images.filter((i) => (i.next_ids?.length ?? 0) > 0).length;
         return { total, linked, isolated: images.length - linked };
     }, [images, total]);
 
     const visibleImages = useMemo(() => {
-        const list = images.filter((i) => {
+        return images.filter((i) => {
             const n = i.next_ids?.length ?? 0;
             if (filter === "all") return true;
             if (filter === "linked") return n > 0;
             return n === 0;
         });
-        console.log("[SV panel] visibleImages:", {
-            imagesLen: images.length,
-            visibleLen: list.length,
-            filter,
-            search: debouncedSearch,
-        });
-        return list;
-    }, [images, filter, debouncedSearch]);
-
-
+    }, [images, filter]);
 
     const hasMore = images.length < total;
 
-    // ───────── draft helpers ─────────
     const updateDraft = <K extends keyof ImageDraft>(k: K, v: ImageDraft[K]) =>
         setDraft((c) => ({ ...c, [k]: v }));
 
@@ -264,13 +173,9 @@ export function StreetViewManagementPanel({
 
     const applyLocation = useCallback(
         ({ lng, lat }: { lng: number; lat: number }) => {
-            if (mode === "create") {
-                setPanoDraft((c) => ({ ...c, lng: String(lng), lat: String(lat) }));
-            } else {
-                setDraft((c) => ({ ...c, lng: String(lng), lat: String(lat) }));
-            }
+            setDraft((c) => ({ ...c, lng: String(lng), lat: String(lat) }));
         },
-        [mode],
+        [],
     );
 
     const toggleLocationRecording = () => {
@@ -281,7 +186,6 @@ export function StreetViewManagementPanel({
         onStartLocationRecording(applyLocation);
     };
 
-    // ───────── navigation ─────────
     const closeEditForm = () => {
         stopLocationRecording();
         setEditing(null);
@@ -312,8 +216,6 @@ export function StreetViewManagementPanel({
         stopLocationRecording();
         setEditing(null);
         setSelected(null);
-        setPanoDraft(makeEmptyPanoDraft());
-        setFileValidation(null);
         setApiKeyError(false);
         setMode("create");
         setError(null);
@@ -321,9 +223,6 @@ export function StreetViewManagementPanel({
 
     const closeCreate = () => {
         stopLocationRecording();
-        abortRef.current?.abort();
-        setPanoDraft(makeEmptyPanoDraft());
-        setFileValidation(null);
         setMode("list");
         setError(null);
     };
@@ -337,11 +236,6 @@ export function StreetViewManagementPanel({
         }
     };
 
-    useEffect(() => {
-        if (editing && mode === "list") formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, [editing, mode]);
-
-    // ───────── list handlers ─────────
     const handleRefresh = async () => {
         if (refreshing) return;
         setRefreshing(true);
@@ -371,14 +265,12 @@ export function StreetViewManagementPanel({
 
         if (!cleanLng || !cleanLat || !Number.isFinite(lng) || !Number.isFinite(lat))
             return setError("Kinh độ và vĩ độ phải là số hợp lệ");
-        if (lng < -180 || lng > 180) return setError("Kinh độ phải trong khoảng -180 đến 180");
-        if (lat < -90 || lat > 90) return setError("Vĩ độ phải trong khoảng -90 đến 90");
 
         let heading: number | null = null;
         if (draft.heading.trim()) {
             const raw = Number(draft.heading.trim().replace(",", "."));
             if (!Number.isFinite(raw) || raw < 0 || raw > 360)
-                return setError("Hướng phải trong khoảng 0–360° (360° ≡ 0°)");
+                return setError("Hướng phải trong khoảng 0–360°");
             heading = raw % 360;
         }
 
@@ -392,10 +284,11 @@ export function StreetViewManagementPanel({
         setBusy(true);
         setError(null);
         try {
-            await updateStreetViewImage(editing.id, { heading, lng, lat, captured_at }, apiKey.trim());
+            const updated = await updateStreetViewImage(editing.id, { heading, lng, lat, captured_at }, apiKey.trim());
             closeEditForm();
             await loadPage(0);
             onChanged();
+            if (selected?.id === updated.id) setSelected(updated);
         } catch (err) {
             setError(errMsg(err));
         } finally {
@@ -427,91 +320,14 @@ export function StreetViewManagementPanel({
         } finally {
             setBusy(false);
             setConfirmDeleteId(null);
-            setSelected((cur) => (cur?.id === img.id ? null : cur));
         }
     };
 
-    // ───────── create handlers ─────────
-    const handleFileChange = async (file: File | null) => {
-        setPanoDraft((c) => ({ ...c, file }));
-        if (!file) {
-            setFileValidation(null);
-            return;
-        }
-        if (file.size > MAX_PANO_FILE_BYTES) {
-            setFileValidation({ ok: false, msg: `Tệp vượt quá ${MAX_PANO_FILE_MB}MB.` });
-            return;
-        }
-        const ratioErr = await validatePanoramaRatio(file);
-        setFileValidation(ratioErr ? { ok: false, msg: ratioErr } : { ok: true });
-    };
-
-    const handleCreatePano = async (e: FormEvent) => {
-        e.preventDefault();
-        if (busy) return;
-
-        if (!apiKey.trim()) {
-            setApiKeyError(true);
-            return setError("Vui lòng nhập API key để tải lên ảnh mới");
-        }
-        setApiKeyError(false);
-
-        if (!panoDraft.file) return setError("Vui lòng chọn tệp ảnh 360° panorama");
-        if (fileValidation && fileValidation.ok === false) return setError(fileValidation.msg);
-        if (panoDraft.file.size > MAX_PANO_FILE_BYTES)
-            return setError(`Tệp ảnh vượt quá ${MAX_PANO_FILE_MB}MB`);
-
-        const cleanLng = panoDraft.lng.trim().replace(",", ".");
-        const cleanLat = panoDraft.lat.trim().replace(",", ".");
-        const lng = Number(cleanLng);
-        const lat = Number(cleanLat);
-
-        if (!cleanLng || !cleanLat || !Number.isFinite(lng) || !Number.isFinite(lat))
-            return setError("Vui lòng cung cấp toạ độ hợp lệ (chấm trên bản đồ hoặc nhập tay)");
-        if (lng < -180 || lng > 180) return setError("Kinh độ phải trong khoảng -180 đến 180");
-        if (lat < -90 || lat > 90) return setError("Vĩ độ phải trong khoảng -90 đến 90");
-
-        let heading: number | null = null;
-        if (panoDraft.heading.trim()) {
-            const raw = Number(panoDraft.heading.trim().replace(",", "."));
-            if (!Number.isFinite(raw) || raw < 0 || raw > 360)
-                return setError("Hướng nhìn phải trong khoảng 0–360° (360° ≡ 0°)");
-            heading = raw % 360;
-        }
-
-        setBusy(true);
-        setError(null);
-        abortRef.current = new AbortController();
-
-        try {
-            await uploadStreetViewImage({ lng, lat, heading, file: panoDraft.file }, apiKey.trim());
-            stopLocationRecording();
-            setPanoDraft(makeEmptyPanoDraft());
-            setFileValidation(null);
-            setMode("list");
-            await loadPage(0);
-            onChanged();
-        } catch (err) {
-            if (err instanceof Error && err.name === "AbortError") return;
-            setError(errMsg(err));
-        } finally {
-            setBusy(false);
-            abortRef.current = null;
-        }
-    };
-
-    // ───────── derived labels ─────────
     const hasEditLocation = Boolean(draft.lng.trim() && draft.lat.trim());
     const editLocationLabel = hasEditLocation
         ? `${Number(draft.lat).toFixed(5)}, ${Number(draft.lng).toFixed(5)}`
         : "Ghi nhận vị trí trên bản đồ";
 
-    const hasPanoLocation = Boolean(panoDraft.lng.trim() && panoDraft.lat.trim());
-    const panoLocationLabel = hasPanoLocation
-        ? `Đã chọn: ${Number(panoDraft.lat).toFixed(5)}, ${Number(panoDraft.lng).toFixed(5)}`
-        : "Bấm để kích hoạt chấm vị trí trên bản đồ";
-
-    // ───────── render ─────────
     return (
         <aside className="coord-sidebar sv-management sv-dashboard" aria-label="Quản lý Street View">
             <header className="sv-dashboard__header">
@@ -566,144 +382,33 @@ export function StreetViewManagementPanel({
                     confirmDelete={confirmDeleteId === selected.id}
                     busy={busy}
                     error={error}
+                    apiKey={apiKey}
                     onGoToImage={onGoToImage}
                     onEdit={() => beginEdit(selected)}
                     onRequestDelete={() => setConfirmDeleteId(selected.id)}
                     onConfirmDelete={() => handleDelete(selected)}
                     onCancelDelete={() => setConfirmDeleteId(null)}
+                    onRefreshImage={(updated) => setSelected(updated)}
+                    onReloadList={() => loadPage(0)}
                 />
             ) : (
                 <div className="coord-sidebar__scroll sv-dashboard__scroll">
                     {mode === "create" ? (
-                        <form className="sv-form" onSubmit={handleCreatePano}>
-                            <h3 className="sv-form__title">Ảnh 360° Street View mới</h3>
-
-                            <label className="sv-field">
-                                <span>API key (bắt buộc để tải lên)</span>
-                                <input
-                                    type="password"
-                                    className={apiKeyError ? "sv-input-error" : ""}
-                                    value={apiKey}
-                                    onChange={(e) => {
-                                        setApiKey(e.target.value);
-                                        if (apiKeyError) setApiKeyError(false);
-                                    }}
-                                    placeholder="Nhập X-API-Key"
-                                    autoComplete="off"
-                                />
-                            </label>
-
-                            <button
-                                type="button"
-                                className={`sv-location-btn${isRecordingLocation ? " is-recording" : ""}${hasPanoLocation ? " has-value" : ""}`}
-                                onClick={toggleLocationRecording}
-                            >
-                                <MapPinIcon size={16} />
-                                <span>
-                                    {isRecordingLocation
-                                        ? "Đang chờ click bản đồ để lấy toạ độ… (bấm để hủy)"
-                                        : panoLocationLabel}
-                                </span>
-                            </button>
-
-                            <div className="sv-form__row">
-                                <label className="sv-field">
-                                    <span>Kinh độ (Lng) *</span>
-                                    <input
-                                        inputMode="decimal"
-                                        value={panoDraft.lng}
-                                        onChange={(e) => setPanoDraft((c) => ({ ...c, lng: e.target.value }))}
-                                        placeholder="VD: 105.12345"
-                                    />
-                                </label>
-                                <label className="sv-field">
-                                    <span>Vĩ độ (Lat) *</span>
-                                    <input
-                                        inputMode="decimal"
-                                        value={panoDraft.lat}
-                                        onChange={(e) => setPanoDraft((c) => ({ ...c, lat: e.target.value }))}
-                                        placeholder="VD: 10.12345"
-                                    />
-                                </label>
-                            </div>
-
-                            <label className="sv-field">
-                                <span>Hướng nhìn ban đầu (Heading: 0–360°)</span>
-                                <input
-                                    inputMode="decimal"
-                                    value={panoDraft.heading}
-                                    onChange={(e) => setPanoDraft((c) => ({ ...c, heading: e.target.value }))}
-                                    placeholder="VD: 90"
-                                />
-                            </label>
-
-                            <label className="sv-field">
-                                <span>Tệp ảnh 360° (equirectangular, tỷ lệ 2:1) *</span>
-                                <input
-                                    type="file"
-                                    accept="image/jpeg,image/png,image/webp"
-                                    onChange={(e) => void handleFileChange(e.target.files?.[0] || null)}
-                                />
-                                <small style={{ color: "var(--sv-muted)", fontSize: "11px" }}>
-                                    Hỗ trợ JPG / PNG / WebP, tối đa {MAX_PANO_FILE_MB}MB.
-                                </small>
-                            </label>
-
-                            {panoPreviewUrl && (
-                                <div className="sv-detail-preview" style={{ marginTop: "8px" }}>
-                                    <img
-                                        src={panoPreviewUrl}
-                                        alt="Xem trước panorama"
-                                        style={{ width: "100%", borderRadius: "6px", display: "block" }}
-                                    />
-                                </div>
-                            )}
-
-                            {panoDraft.file && (
-                                <div
-                                    className="sv-file-info"
-                                    style={{
-                                        marginTop: "6px",
-                                        fontSize: "12px",
-                                        color:
-                                            fileValidation && fileValidation.ok === false
-                                                ? "var(--sv-danger, #d33)"
-                                                : "var(--sv-muted)",
-                                    }}
-                                >
-                                    {panoDraft.file.name} · {formatBytes(panoDraft.file.size)}
-                                    {fileValidation?.ok === true && " · ✓ tỷ lệ 2:1 hợp lệ"}
-                                    {fileValidation?.ok === false && ` · ✗ ${fileValidation.msg}`}
-                                </div>
-                            )}
-
-                            {error && (
-                                <div className="sv-alert" role="alert" aria-live="polite">
-                                    <AlertIcon />
-                                    <span>{error}</span>
-                                </div>
-                            )}
-
-                            <div className="sv-form__actions">
-                                <button
-                                    type="submit"
-                                    className="sv-btn sv-btn--primary"
-                                    disabled={busy || fileValidation?.ok === false}
-                                >
-                                    {busy ? "Đang tải lên và xử lý ảnh…" : "Xác nhận thêm ảnh 360°"}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="sv-btn"
-                                    onClick={() => {
-                                        if (busy) abortRef.current?.abort();
-                                        closeCreate();
-                                    }}
-                                >
-                                    Hủy bỏ
-                                </button>
-                            </div>
-                        </form>
+                        <StreetViewCreateForm
+                            apiKey={apiKey}
+                            setApiKey={setApiKey}
+                            apiKeyError={apiKeyError}
+                            setApiKeyError={setApiKeyError}
+                            isRecordingLocation={isRecordingLocation}
+                            onStartLocationRecording={onStartLocationRecording}
+                            onStopLocationRecording={onStopLocationRecording}
+                            onSuccess={() => {
+                                closeCreate();
+                                void loadPage(0);
+                                onChanged();
+                            }}
+                            onCancel={closeCreate}
+                        />
                     ) : (
                         <>
                             <div className="sv-stats" title="Số liệu thống kê trên các ảnh đã tải">
@@ -722,7 +427,7 @@ export function StreetViewManagementPanel({
                             </div>
 
                             <label className="sv-field">
-                                <span>API key (để sửa / xoá)</span>
+                                <span>API key (quyền thao tác)</span>
                                 <input
                                     type="password"
                                     className={apiKeyError ? "sv-input-error" : ""}
@@ -731,7 +436,7 @@ export function StreetViewManagementPanel({
                                         setApiKey(e.target.value);
                                         if (apiKeyError) setApiKeyError(false);
                                     }}
-                                    placeholder="Nhập X-API-Key bảo mật"
+                                    placeholder="Nhập X-API-Key"
                                     autoComplete="off"
                                 />
                             </label>
@@ -773,7 +478,7 @@ export function StreetViewManagementPanel({
                                     </div>
 
                                     <label className="sv-field">
-                                        <span>Hướng nhìn (0–360°, để trống nếu không rõ)</span>
+                                        <span>Hướng nhìn (0–360°)</span>
                                         <input
                                             inputMode="decimal"
                                             value={draft.heading}
@@ -857,11 +562,7 @@ export function StreetViewManagementPanel({
                                 ) : visibleImages.length === 0 ? (
                                     <div className="sv-empty">
                                         <PanoIcon size={32} />
-                                        <p>
-                                            {debouncedSearch || filter !== "all"
-                                                ? "Không có ảnh phù hợp với bộ lọc."
-                                                : "Chưa có ảnh Street View nào trong hệ thống."}
-                                        </p>
+                                        <p>Không có ảnh phù hợp.</p>
                                     </div>
                                 ) : (
                                     <>
@@ -949,9 +650,7 @@ export function StreetViewManagementPanel({
                                                 onClick={handleLoadMore}
                                                 disabled={loadingMore}
                                             >
-                                                {loadingMore
-                                                    ? "Đang tải thêm…"
-                                                    : `Tải thêm (còn ${total - images.length} ảnh)`}
+                                                {loadingMore ? "Đang tải thêm…" : `Tải thêm (còn ${total - images.length} ảnh)`}
                                             </button>
                                         )}
                                     </>
@@ -965,26 +664,9 @@ export function StreetViewManagementPanel({
     );
 }
 
-// ───────────────────────── sub-components ─────────────────────────
-
-function FilterChip({
-    active,
-    onClick,
-    label,
-    count,
-}: {
-    active: boolean;
-    onClick: () => void;
-    label: string;
-    count: number;
-}) {
+function FilterChip({ active, onClick, label, count }: { active: boolean; onClick: () => void; label: string; count: number }) {
     return (
-        <button
-            type="button"
-            className={`sv-chip${active ? " is-active" : ""}`}
-            onClick={onClick}
-            aria-pressed={active}
-        >
+        <button type="button" className={`sv-chip${active ? " is-active" : ""}`} onClick={onClick} aria-pressed={active}>
             {label} <span>{count}</span>
         </button>
     );
@@ -999,33 +681,16 @@ function Thumb({ src }: { src: string }) {
         setRetryKey(null);
     }, [src]);
 
-    const finalSrc = retryKey
-        ? `${src}${src.includes("?") ? "&" : "?"}r=${retryKey}`
-        : src;
+    const finalSrc = retryKey ? `${src}${src.includes("?") ? "&" : "?"}r=${retryKey}` : src;
 
     const handleError = () => {
-        if (!retryKey) {
-            // Lần đầu lỗi → thử lại với cache-buster (phá cache 404)
-            setRetryKey(String(Date.now()));
-        } else {
-            console.warn("[SV thumb] 404 after retry:", src);
-            setFailed(true);
-        }
+        if (!retryKey) setRetryKey(String(Date.now()));
+        else setFailed(true);
     };
 
     return (
         <div className="sv-thumb">
-            {failed ? (
-                <PanoIcon size={22} />
-            ) : (
-                <img
-                    src={finalSrc}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    onError={handleError}
-                />
-            )}
+            {failed ? <PanoIcon size={22} /> : <img src={finalSrc} alt="" loading="lazy" decoding="async" onError={handleError} />}
         </div>
     );
 }
@@ -1035,11 +700,14 @@ interface DetailProps {
     confirmDelete: boolean;
     busy: boolean;
     error: string | null;
+    apiKey: string;
     onGoToImage: (image: StreetViewImage) => void;
     onEdit: () => void;
     onRequestDelete: () => void;
     onConfirmDelete: () => void;
     onCancelDelete: () => void;
+    onRefreshImage: (image: StreetViewImage) => void;
+    onReloadList: () => void;
 }
 
 function ImageDetailView({
@@ -1047,16 +715,41 @@ function ImageDetailView({
     confirmDelete,
     busy,
     error,
+    apiKey,
     onGoToImage,
     onEdit,
     onRequestDelete,
     onConfirmDelete,
     onCancelDelete,
+    onRefreshImage,
+    onReloadList,
 }: DetailProps) {
     const [copyState, setCopyState] = useState<"idle" | "ok" | "fail">("idle");
+    const [targetIdInput, setTargetIdInput] = useState("");
+    const [linkBusy, setLinkBusy] = useState(false);
+    const [linkError, setLinkError] = useState<string | null>(null);
+    const [nearby, setNearby] = useState<StreetViewNearbyImage[]>([]);
+    const [loadingNearby, setLoadingNearby] = useState(false);
+
     const timer = useRef<number | undefined>(undefined);
 
     useEffect(() => () => window.clearTimeout(timer.current), []);
+
+    useEffect(() => {
+        let active = true;
+        setLoadingNearby(true);
+        fetchNearbyStreetViewImages({ lng: image.lng, lat: image.lat, radius: 60, exclude_id: image.id })
+            .then((items) => {
+                if (active) setNearby(items);
+            })
+            .catch(() => { })
+            .finally(() => {
+                if (active) setLoadingNearby(false);
+            });
+        return () => {
+            active = false;
+        };
+    }, [image.id, image.lng, image.lat]);
 
     const handleCopy = async () => {
         try {
@@ -1068,6 +761,59 @@ function ImageDetailView({
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(() => setCopyState("idle"), 2000);
     };
+
+    const addLinkWithId = async (nid: number) => {
+        if (!nid || Number.isNaN(nid)) {
+            setLinkError("Vui lòng nhập ID ảnh hợp lệ");
+            return;
+        }
+        if (nid === image.id) {
+            setLinkError("Không thể tự liên kết với chính nó");
+            return;
+        }
+        if (image.next_ids.includes(nid)) {
+            setLinkError("Ảnh này đã được liên kết từ trước");
+            return;
+        }
+
+        setLinkBusy(true);
+        setLinkError(null);
+        try {
+            const updatedNextIds = [...image.next_ids, nid];
+            const updated = await updateStreetViewImage(image.id, { next_ids: updatedNextIds }, apiKey);
+            setTargetIdInput("");
+            onRefreshImage(updated);
+            onReloadList();
+        } catch (err) {
+            setLinkError(errMsg(err));
+        } finally {
+            setLinkBusy(false);
+        }
+    };
+
+    const handleAddLink = (e: FormEvent) => {
+        e.preventDefault();
+        addLinkWithId(Number(targetIdInput.trim()));
+    };
+
+    const handleRemoveLink = async (idToRemove: number) => {
+        setLinkBusy(true);
+        setLinkError(null);
+        try {
+            const updatedNextIds = image.next_ids.filter((id) => id !== idToRemove);
+            const updated = await updateStreetViewImage(image.id, { next_ids: updatedNextIds }, apiKey);
+            onRefreshImage(updated);
+            onReloadList();
+        } catch (err) {
+            setLinkError(errMsg(err));
+        } finally {
+            setLinkBusy(false);
+        }
+    };
+
+    const unlinkedNearby = useMemo(() => {
+        return nearby.filter((nb) => !image.next_ids.includes(nb.id));
+    }, [nearby, image.next_ids]);
 
     return (
         <div className="coord-sidebar__scroll sv-dashboard__scroll">
@@ -1098,11 +844,7 @@ function ImageDetailView({
                 <div className="sv-panel-card__head">
                     <span className="sv-panel-card__label">Tọa độ không gian</span>
                     <button type="button" className="sv-btn sv-btn--ghost" onClick={handleCopy}>
-                        {copyState === "ok"
-                            ? "Đã chép"
-                            : copyState === "fail"
-                                ? "Lỗi chép"
-                                : "Sao chép tọa độ"}
+                        {copyState === "ok" ? "Đã chép" : copyState === "fail" ? "Lỗi chép" : "Sao chép tọa độ"}
                     </button>
                 </div>
                 <div className="sv-coords">
@@ -1126,7 +868,7 @@ function ImageDetailView({
 
             <div className="sv-panel-card">
                 <div className="sv-panel-card__head">
-                    <span className="sv-panel-card__label">Các liên kết lân cận</span>
+                    <span className="sv-panel-card__label">Quản lý liên kết di chuyển (Next IDs)</span>
                 </div>
                 {image.next_ids.length === 0 ? (
                     <p className="sv-muted">Ảnh này hiện đứng độc lập (chưa liên kết).</p>
@@ -1135,16 +877,69 @@ function ImageDetailView({
                         {image.next_ids.map((id, i) => {
                             const pos = image.link_positions?.[i];
                             return (
-                                <li key={`${id}-${i}`}>
-                                    <strong>→ #{id}</strong>
-                                    <span>
-                                        {pos ? `texture (${pos.textureX}, ${pos.textureY})` : "chưa định vị texture"}
-                                    </span>
+                                <li key={`${id}-${i}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                    <div>
+                                        <strong>→ #{id}</strong>
+                                        <span style={{ marginLeft: "8px", fontSize: "11px", color: "var(--sv-muted)" }}>
+                                            {pos ? `texture (${pos.textureX}, ${pos.textureY})` : ""}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="sv-btn sv-btn--ghost sv-btn--danger-text"
+                                        disabled={linkBusy}
+                                        onClick={() => handleRemoveLink(id)}
+                                        style={{ fontSize: "11px", padding: "2px 6px" }}
+                                    >
+                                        Gỡ
+                                    </button>
                                 </li>
                             );
                         })}
                     </ul>
                 )}
+
+                <form onSubmit={handleAddLink} style={{ display: "flex", gap: "6px", marginTop: "10px" }}>
+                    <input
+                        type="number"
+                        placeholder="Nhập ID ảnh kế tiếp..."
+                        value={targetIdInput}
+                        onChange={(e) => setTargetIdInput(e.target.value)}
+                        style={{ flex: 1, padding: "6px 8px", borderRadius: "6px", border: "1px solid var(--sv-border)", fontSize: "12px", background: "var(--sv-bg)", color: "var(--sv-text)" }}
+                    />
+                    <button type="submit" className="sv-btn sv-btn--primary" disabled={linkBusy} style={{ fontSize: "12px", padding: "6px 10px" }}>
+                        {linkBusy ? "Đang thêm..." : "Thêm liên kết"}
+                    </button>
+                </form>
+                {linkError && <p style={{ color: "var(--sv-danger)", fontSize: "11px", marginTop: "4px" }}>{linkError}</p>}
+
+                <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed var(--sv-border)" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--sv-muted)" }}>
+                        {loadingNearby ? "Đang dò các điểm lân cận..." : `Gợi ý ảnh gần đây (bán kính 60m):`}
+                    </span>
+                    {unlinkedNearby.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "6px" }}>
+                            {unlinkedNearby.map((nb) => (
+                                <div key={nb.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", padding: "4px 8px", borderRadius: "4px" }}>
+                                    <span style={{ fontSize: "11px" }}>
+                                        <strong>#{nb.id}</strong> ({nb.distance_meters}m)
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="sv-btn sv-btn--ghost"
+                                        style={{ fontSize: "11px", padding: "2px 6px" }}
+                                        disabled={linkBusy}
+                                        onClick={() => addLinkWithId(nb.id)}
+                                    >
+                                        + Nối nhanh
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        !loadingNearby && <p style={{ fontSize: "11px", color: "var(--sv-muted)", marginTop: "4px" }}>Không tìm thấy ảnh lân cận chưa nối.</p>
+                    )}
+                </div>
             </div>
 
             {error && (
@@ -1187,8 +982,6 @@ function ImageDetailView({
     );
 }
 
-// ───────────────────────── icons ─────────────────────────
-
 const svg = (size = 18) => ({
     width: size,
     height: size,
@@ -1201,55 +994,12 @@ const svg = (size = 18) => ({
     "aria-hidden": true,
 });
 
-const CloseIcon = () => (
-    <svg {...svg()}>
-        <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-);
-const BackIcon = () => (
-    <svg {...svg()}>
-        <path d="m15 18-6-6 6-6" />
-    </svg>
-);
-const SearchIcon = () => (
-    <svg {...svg(16)}>
-        <circle cx="11" cy="11" r="7" />
-        <path d="m21 21-4.3-4.3" />
-    </svg>
-);
-const EditIcon = () => (
-    <svg {...svg(14)}>
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-    </svg>
-);
-const TrashIcon = () => (
-    <svg {...svg(14)}>
-        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-    </svg>
-);
-const AlertIcon = () => (
-    <svg {...svg(16)}>
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 8v4M12 16h.01" />
-    </svg>
-);
-const MapPinIcon = ({ size = 18 }: { size?: number }) => (
-    <svg {...svg(size)}>
-        <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" />
-        <circle cx="12" cy="10" r="3" />
-    </svg>
-);
-const PanoIcon = ({ size = 18 }: { size?: number }) => (
-    <svg {...svg(size)}>
-        <circle cx="12" cy="12" r="9" />
-        <ellipse cx="12" cy="12" rx="4" ry="9" />
-        <path d="M3 12h18" />
-    </svg>
-);
-const RefreshIcon = ({ spinning }: { spinning?: boolean }) => (
-    <svg {...svg()} className={spinning ? "sv-spin" : undefined}>
-        <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
-        <path d="M21 3v5h-5" />
-    </svg>
-);
+const CloseIcon = () => <svg {...svg()}><path d="M18 6 6 18M6 6l12 12" /></svg>;
+const BackIcon = () => <svg {...svg()}><path d="m15 18-6-6 6-6" /></svg>;
+const SearchIcon = () => <svg {...svg(16)}><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>;
+const EditIcon = () => <svg {...svg(14)}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z" /></svg>;
+const TrashIcon = () => <svg {...svg(14)}><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>;
+const AlertIcon = () => <svg {...svg(16)}><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>;
+const MapPinIcon = ({ size = 18 }: { size?: number }) => <svg {...svg(size)}><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>;
+const PanoIcon = ({ size = 18 }: { size?: number }) => <svg {...svg(size)}><circle cx="12" cy="12" r="9" /><ellipse cx="12" cy="12" rx="4" ry="9" /><path d="M3 12h18" /></svg>;
+const RefreshIcon = ({ spinning }: { spinning?: boolean }) => <svg {...svg()} className={spinning ? "sv-spin" : undefined}><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>;

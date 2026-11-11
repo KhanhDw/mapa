@@ -8,8 +8,6 @@
     "back": "powershell -ExecutionPolicy Bypass -File ./run_back.ps1",
     "front": "cd frontend && npm run dev",
     "init-back": "cd backend && python -m pip install -r requirements.txt",
-    "ngrok1": "ngrok http 5173",
-    "ngrok2": "ngrok http --url=cougar-settling-commonly.ngrok-free.app 8000",
     "dev:full": "concurrently \"npm run back\" \"npm run front\" \"wait-on http://localhost:5173 && electron .\"",
     "clean:pycache": "python -c \"import pathlib, shutil; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__')]\"",
     "electron:build": "cd frontend && npm run build && cd .. && electron-builder"

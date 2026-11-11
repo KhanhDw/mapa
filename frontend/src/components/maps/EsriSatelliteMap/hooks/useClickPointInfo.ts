@@ -61,7 +61,6 @@ export function useClickPointInfo(
                     signal: controller.signal,
                     headers: {
                         "Accept": "application/json",
-                        "ngrok-skip-browser-warning": "true",
                     },
                 });
 
