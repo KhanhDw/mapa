@@ -98,7 +98,7 @@ Expanded display is used automatically.
 ========== 2.2 EXACT ROW COUNTS ==========
            tbl            |  count  
 --------------------------+---------
- public.streetview_images |       4
+ public.streetview_images |       5
  user_data.pois           |       3
  public.pois              |       0
  user_data.poi_photos     |       2
@@ -106,8 +106,8 @@ Expanded display is used automatically.
  clean.water_areas        |   39758
  clean.pois               |   74933
  public.osm_roads         | 1004652
- clean.buildings          | 1272265
  public.vietnam_roads     | 3140236
+ clean.buildings          | 1272265
 (10 rows)
 
 
@@ -327,13 +327,14 @@ Access method: heap
 (0 rows)
 
 ========== 6.4 public.streetview_images (5 newest) ==========
- id |    lng     |    lat    |      image_url       | heading | next_ids |                                                link_positions                                                | captured_at 
-----+------------+-----------+----------------------+---------+----------+--------------------------------------------------------------------------------------------------------------+-------------
-  4 | 105.437698 | 10.383932 | /panoramas/demo4.png |     180 | {3}      | [{"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}] | 
-  3 | 105.438017 | 10.383666 | /panoramas/demo3.png |       0 | {2,4}    | [{"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}] | 
-  2 | 105.438355 | 10.383373 | /panoramas/demo2.png |     270 | {1,3}    | [{"textureX": 728, "textureY": 500}, {"textureX": 887, "textureY": 620}]                                     | 
-  1 | 105.438687 | 10.383099 | /panoramas/demo1.png |      90 | {2}      | [{"textureX": 728, "textureY": 500}, {"textureX": 887, "textureY": 620}]                                     | 
-(4 rows)
+ id |    lng     |    lat    |                     image_url                     | heading | next_ids |                                                link_positions                                                |          captured_at          
+----+------------+-----------+---------------------------------------------------+---------+----------+--------------------------------------------------------------------------------------------------------------+-------------------------------
+  7 | 105.437322 | 10.384186 | /panoramas/u_b458a1752d274533af5b9476928bc36c.jpg |      90 | {}       | []                                                                                                           | 2026-11-09 14:58:10.811695+00
+  4 | 105.437698 | 10.383932 | /panoramas/demo4.png                              |     180 | {3}      | [{"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}] | 
+  3 | 105.438017 | 10.383666 | /panoramas/demo3.png                              |       0 | {2,4}    | [{"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}] | 
+  2 | 105.438355 | 10.383373 | /panoramas/demo2.png                              |     270 | {1,3}    | [{"textureX": 728, "textureY": 500}, {"textureX": 887, "textureY": 620}]                                     | 
+  1 | 105.438687 | 10.383099 | /panoramas/demo1.png                              |      90 | {2}      | [{"textureX": 728, "textureY": 500}, {"textureX": 887, "textureY": 620}]                                     | 
+(5 rows)
 
 ========== 6.5 clean.pois (5 rows) ==========
    osm_id   |  fclass  | category  |    name    | has_name |                        geom                        

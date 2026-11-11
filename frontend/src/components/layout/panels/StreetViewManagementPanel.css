@@ -1,71 +1,34 @@
 /* ============================================================================
-   StreetViewManagementPanel.css
-   ----------------------------------------------------------------------------
-   Panel quản lý Street View — Light Theme, phân vùng rõ ràng.
-
-   MỤC LỤC
-     §1.  Design tokens
-     §2.  Root layout (dashboard)
-     §3.  Header
-     §4.  Scroll container          ← chứa fix flex-shrink
-     §5.  Stats
-     §6.  Fields / inputs
-     §7.  Buttons
-     §8.  Form (create / edit)
-     §9.  Location recording button
-     §10. Alert
-     §11. List section (head, chips, search)
-     §12. Cards                     ← chứa fix flex-shrink
-     §13. Thumbnail
-     §14. Badges
-     §15. Confirm delete bar
-     §16. Empty state
-     §17. Detail view (ImageDetailView)
-     §18. Animations
-     §19. Utility / error states
-     §20. Accessibility (reduced motion)
+   StreetViewManagementPanel.css (Theme Trắng Sáng Hoàn Chỉnh)
    ============================================================================ */
 
-/* ============================================================================
-   §1. DESIGN TOKENS
-   ============================================================================ */
 .sv-dashboard {
   color-scheme: light;
-
-  /* Ưu tiên biến theme của app nếu có, fallback về bảng màu sáng */
-  --sv-bg: var(--panel-bg, #ffffff);
-  --sv-surface: var(--panel-surface, #f4f6f8);
-  --sv-border: var(--panel-border, #dce1e7);
-  --sv-text: var(--panel-text, #14181f);
-  --sv-muted: var(--panel-muted, #5a6472);
-  --sv-primary: var(--panel-primary, #2563eb);
-  --sv-on-primary: var(--panel-on-primary, #ffffff);
-  --sv-ok: #15803d;
-  --sv-warn: #b45309;
-  --sv-danger: #b91c1c;
-  --sv-danger-text: #b91c1c;
+  --sv-bg: #ffffff;
+  --sv-surface: #f8fafc;
+  --sv-border: #e2e8f0;
+  --sv-text: #0f172a;
+  --sv-muted: #64748b;
+  --sv-primary: #2563eb;
+  --sv-on-primary: #ffffff;
+  --sv-ok: #16a34a;
+  --sv-warn: #d97706;
+  --sv-danger: #dc2626;
+  --sv-danger-text: #dc2626;
   --sv-radius: 10px;
-}
 
-/* ============================================================================
-   §2. ROOT LAYOUT
-   ----------------------------------------------------------------------------
-   Panel là flex column full height. Header cố định, phần còn lại scroll.
-   ============================================================================ */
-.sv-dashboard {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 0; /* cho phép con co lại trong flex parent */
+  min-height: 0;
   background: var(--sv-bg);
   color: var(--sv-text);
   font-size: 13px;
+  font-family: inherit;
 }
 
 /* ============================================================================
-   §3. HEADER
-   ----------------------------------------------------------------------------
-   Row: title (co giãn) + actions (fixed). Luôn flex-shrink: 0 để không bị ép.
+   HEADER
    ============================================================================ */
 .sv-dashboard__header {
   display: flex;
@@ -74,11 +37,12 @@
   padding: 12px;
   border-bottom: 1px solid var(--sv-border);
   flex-shrink: 0;
+  background: var(--sv-bg);
 }
 
 .sv-dashboard__title {
   flex: 1;
-  min-width: 0; /* cho phép truncate text bên trong */
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -87,6 +51,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--sv-text);
 }
 .sv-dashboard__title span {
   color: var(--sv-muted);
@@ -119,12 +84,7 @@
 }
 
 /* ============================================================================
-   §4. SCROLL CONTAINER
-   ----------------------------------------------------------------------------
-   Vùng scroll chính. Có 2 class cùng lúc: `coord-sidebar__scroll` (từ cha)
-   + `sv-dashboard__scroll` (của panel). Ta cần đảm bảo:
-     1. overflow-y: auto (scroll được)
-     2. các con TRỰC TIẾP không bị flex-shrink → fix bug "chỉ thấy 1 card"
+   SCROLL CONTAINER
    ============================================================================ */
 .sv-dashboard__scroll {
   flex: 1;
@@ -135,18 +95,15 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  background: var(--sv-bg);
 }
 
-/* ★ FIX QUAN TRỌNG: chặn flex-shrink ở tất cả con trực tiếp.
-   Nếu thiếu, khi panel thấp, stats/list/form bị ép co lại gần như biến mất. */
 .sv-dashboard__scroll > * {
   flex-shrink: 0;
 }
 
 /* ============================================================================
-   §5. STATS
-   ----------------------------------------------------------------------------
-   Grid 3 cột: Tổng ảnh / Có liên kết / Chưa liên kết.
+   STATS
    ============================================================================ */
 .sv-stats {
   display: grid;
@@ -166,6 +123,7 @@
   font-size: 20px;
   font-weight: 700;
   line-height: 1.1;
+  color: var(--sv-text);
 }
 .sv-stat__label {
   font-size: 11px;
@@ -179,7 +137,7 @@
 }
 
 /* ============================================================================
-   §6. FIELDS / INPUTS
+   FIELDS / INPUTS
    ============================================================================ */
 .sv-field {
   display: flex;
@@ -205,17 +163,16 @@
 }
 .sv-field input::placeholder,
 .sv-search input::placeholder {
-  color: color-mix(in srgb, var(--sv-muted) 75%, transparent);
+  color: #94a3b8;
 }
 .sv-field input:focus,
 .sv-search input:focus {
-  outline: 2px solid color-mix(in srgb, var(--sv-primary) 45%, transparent);
-  outline-offset: 0;
+  outline: 2px solid rgba(37, 99, 235, 0.2);
   border-color: var(--sv-primary);
 }
 
 /* ============================================================================
-   §7. BUTTONS
+   BUTTONS
    ============================================================================ */
 .sv-btn {
   display: inline-flex;
@@ -239,38 +196,37 @@
   cursor: default;
 }
 
-/* block */
 .sv-btn--block {
   width: 100%;
 }
 
-/* primary */
 .sv-btn--primary {
   background: var(--sv-primary);
   border-color: var(--sv-primary);
   color: var(--sv-on-primary);
 }
 .sv-btn--primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--sv-primary) 88%, #000);
+  background: #1d4ed8;
 }
 
-/* danger solid */
 .sv-btn--danger {
   background: var(--sv-danger);
   border-color: var(--sv-danger);
   color: #fff;
 }
 .sv-btn--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--sv-danger) 88%, #000);
+  background: #b91c1c;
 }
 
-/* danger outline */
 .sv-btn--danger-outline {
   color: var(--sv-danger-text);
-  border-color: color-mix(in srgb, var(--sv-danger-text) 50%, var(--sv-border));
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+.sv-btn--danger-outline:hover:not(:disabled) {
+  background: #fee2e2;
 }
 
-/* ghost */
 .sv-btn--ghost {
   border-color: transparent;
   background: transparent;
@@ -280,18 +236,19 @@
 }
 .sv-btn--ghost:hover:not(:disabled) {
   color: var(--sv-text);
+  background: var(--sv-surface);
 }
 .sv-btn--danger-text:hover:not(:disabled) {
   color: var(--sv-danger-text);
+  background: #fef2f2;
 }
 
-/* load more */
 .sv-load-more {
   width: 100%;
 }
 
 /* ============================================================================
-   §8. FORM (create / edit)
+   FORM (create / edit)
    ============================================================================ */
 .sv-form {
   display: flex;
@@ -299,12 +256,13 @@
   gap: 10px;
   padding: 12px;
   border-radius: var(--sv-radius);
-  border: 1px solid var(--sv-primary);
-  background: color-mix(in srgb, var(--sv-primary) 5%, var(--sv-bg));
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
 }
 .sv-form__title {
   margin: 0;
   font-size: 14px;
+  color: #1e3a8a;
 }
 .sv-form__row {
   display: grid;
@@ -320,9 +278,7 @@
 }
 
 /* ============================================================================
-   §9. LOCATION RECORDING BUTTON
-   ----------------------------------------------------------------------------
-   Nút kích hoạt chấm vị trí trên bản đồ. Có 3 state: idle / has-value / recording.
+   LOCATION RECORDING BUTTON
    ============================================================================ */
 .sv-location-btn {
   display: flex;
@@ -341,16 +297,17 @@
 .sv-location-btn.has-value {
   color: var(--sv-text);
   border-style: solid;
+  border-color: #cbd5e1;
 }
 .sv-location-btn.is-recording {
   color: var(--sv-primary);
   border-color: var(--sv-primary);
-  background: color-mix(in srgb, var(--sv-primary) 8%, var(--sv-bg));
+  background: #eff6ff;
   animation: sv-pulse 1.4s ease-in-out infinite;
 }
 
 /* ============================================================================
-   §10. ALERT
+   ALERT
    ============================================================================ */
 .sv-alert {
   display: flex;
@@ -359,9 +316,8 @@
   padding: 9px 10px;
   border-radius: 8px;
   color: var(--sv-danger-text);
-  background: color-mix(in srgb, var(--sv-danger-text) 9%, var(--sv-bg));
-  border: 1px solid
-    color-mix(in srgb, var(--sv-danger-text) 35%, var(--sv-border));
+  background: #fef2f2;
+  border: 1px solid #fecaca;
 }
 .sv-alert svg {
   flex-shrink: 0;
@@ -369,7 +325,7 @@
 }
 
 /* ============================================================================
-   §11. LIST SECTION HEAD (title, chips, search)
+   LIST SECTION
    ============================================================================ */
 .sv-list {
   display: flex;
@@ -396,7 +352,6 @@
   margin-left: 4px;
 }
 
-/* chips filter */
 .sv-chips {
   display: flex;
   flex-wrap: wrap;
@@ -414,6 +369,7 @@
 }
 .sv-chip:hover {
   background: var(--sv-surface);
+  color: var(--sv-text);
 }
 .sv-chip span {
   margin-left: 2px;
@@ -424,11 +380,7 @@
   border-color: var(--sv-primary);
   color: var(--sv-on-primary);
 }
-.sv-chip.is-active:hover {
-  background: var(--sv-primary);
-}
 
-/* search */
 .sv-search {
   position: relative;
   display: block;
@@ -446,13 +398,7 @@
 }
 
 /* ============================================================================
-   §12. CARDS
-   ----------------------------------------------------------------------------
-   ★ FIX QUAN TRỌNG: `.sv-card` có `overflow: hidden` → automatic min-size = 0
-   → bị flex ép về 0px khi container thấp. Chặn flex-shrink ở mọi tầng:
-     - .sv-cards (ul)
-     - .sv-cards > li
-     - .sv-card
+   CARDS
    ============================================================================ */
 .sv-cards {
   list-style: none;
@@ -473,9 +419,9 @@
   border-radius: var(--sv-radius);
   background: var(--sv-bg);
   overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
-/* Phần main có thể bấm để mở detail */
 .sv-card__main {
   display: flex;
   gap: 10px;
@@ -514,31 +460,25 @@
   font-size: 11.5px;
 }
 
-/* Hàng action dưới mỗi card (Đến / Sửa / Xóa) */
 .sv-card__actions {
   display: flex;
   justify-content: flex-end;
   gap: 2px;
   padding: 2px 6px 6px;
   border-top: 1px solid var(--sv-border);
+  background: var(--sv-surface);
 }
 
-/* Skeleton khi loading */
 .sv-card--skeleton {
   height: 84px;
   border: 0;
-  background: linear-gradient(
-    90deg,
-    var(--sv-surface) 25%,
-    color-mix(in srgb, var(--sv-surface) 60%, var(--sv-bg)) 50%,
-    var(--sv-surface) 75%
-  );
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%;
   animation: sv-shimmer 1.2s linear infinite;
 }
 
 /* ============================================================================
-   §13. THUMBNAIL
+   THUMBNAIL
    ============================================================================ */
 .sv-thumb {
   flex-shrink: 0;
@@ -548,7 +488,7 @@
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: var(--sv-surface);
+  background: #e2e8f0;
   color: var(--sv-muted);
 }
 .sv-thumb img {
@@ -559,7 +499,7 @@
 }
 
 /* ============================================================================
-   §14. BADGES (liên kết / chưa liên kết)
+   BADGES
    ============================================================================ */
 .sv-badge {
   display: inline-block;
@@ -570,19 +510,18 @@
   white-space: nowrap;
 }
 .sv-badge--ok {
-  color: var(--sv-ok);
-  background: color-mix(in srgb, var(--sv-ok) 14%, var(--sv-bg));
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
 }
 .sv-badge--warn {
-  color: var(--sv-warn);
-  background: color-mix(in srgb, var(--sv-warn) 14%, var(--sv-bg));
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
 }
 
 /* ============================================================================
-   §15. CONFIRM DELETE BAR
-   ----------------------------------------------------------------------------
-   Hiển thị inline trong card khi bấm "Xóa" (confirmDeleteId === img.id),
-   hoặc dạng bar trong detail view (confirmDelete === true).
+   CONFIRM DELETE BAR
    ============================================================================ */
 .sv-confirm {
   display: flex;
@@ -590,21 +529,21 @@
   gap: 8px;
   padding: 8px 10px;
   border-top: 1px solid var(--sv-border);
-  background: color-mix(in srgb, var(--sv-danger-text) 7%, var(--sv-bg));
+  background: #fef2f2;
 }
 .sv-confirm span {
   flex: 1;
   font-size: 12px;
+  color: #991b1b;
 }
 .sv-confirm--bar {
-  border: 1px solid
-    color-mix(in srgb, var(--sv-danger-text) 35%, var(--sv-border));
+  border: 1px solid #fecaca;
   border-radius: var(--sv-radius);
   flex-wrap: wrap;
 }
 
 /* ============================================================================
-   §16. EMPTY STATE
+   EMPTY STATE & UTILS
    ============================================================================ */
 .sv-empty {
   display: flex;
@@ -625,16 +564,13 @@
 }
 
 /* ============================================================================
-   §17. DETAIL VIEW (ImageDetailView)
-   ----------------------------------------------------------------------------
-   Layout: preview thumb lớn → panel cards (info, coords, links) → actions.
+   DETAIL VIEW & PANELS
    ============================================================================ */
 .sv-detail-preview .sv-thumb {
   width: 100%;
   border-radius: var(--sv-radius);
 }
 
-/* Panel card chung cho detail view */
 .sv-panel-card {
   display: flex;
   flex-direction: column;
@@ -643,6 +579,7 @@
   border-radius: var(--sv-radius);
   border: 1px solid var(--sv-border);
   background: var(--sv-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 .sv-panel-card__head {
   display: flex;
@@ -658,7 +595,6 @@
   font-weight: 600;
 }
 
-/* Definition list (ID / heading / captured_at / image_url) */
 .sv-dl {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -672,6 +608,7 @@
   margin: 0;
   text-align: right;
   min-width: 0;
+  color: var(--sv-text);
 }
 .sv-dl__break {
   word-break: break-all;
@@ -679,7 +616,6 @@
   font-size: 11.5px;
 }
 
-/* Toạ độ LAT/LNG */
 .sv-coords {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -692,6 +628,7 @@
   padding: 8px 10px;
   border-radius: 8px;
   background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
 }
 .sv-coords small {
   color: var(--sv-muted);
@@ -700,9 +637,9 @@
 }
 .sv-coords code {
   font-size: 13px;
+  color: var(--sv-text);
 }
 
-/* Danh sách liên kết lân cận */
 .sv-links {
   list-style: none;
   margin: 0;
@@ -718,13 +655,13 @@
   padding: 6px 10px;
   border-radius: 8px;
   background: var(--sv-surface);
+  border: 1px solid var(--sv-border);
 }
 .sv-links span {
   color: var(--sv-muted);
   font-size: 12px;
 }
 
-/* Action grid ở cuối detail */
 .sv-detail-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -732,7 +669,7 @@
 }
 
 /* ============================================================================
-   §18. ANIMATIONS
+   ANIMATIONS & UTILITIES
    ============================================================================ */
 .sv-spin {
   animation: sv-rotate 0.8s linear infinite;
@@ -751,20 +688,13 @@
 
 @keyframes sv-pulse {
   50% {
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--sv-primary) 20%, transparent);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
   }
 }
 
-/* ============================================================================
-   §19. UTILITY / ERROR STATES
-   ============================================================================ */
 .sv-input-error {
   border-color: var(--sv-danger) !important;
-  background-color: color-mix(
-    in srgb,
-    var(--sv-danger) 6%,
-    var(--sv-bg)
-  ) !important;
+  background-color: #fef2f2 !important;
   animation: sv-shake 0.3s ease-in-out;
 }
 @keyframes sv-shake {
@@ -780,9 +710,6 @@
   }
 }
 
-/* ============================================================================
-   §20. ACCESSIBILITY — prefers-reduced-motion
-   ============================================================================ */
 @media (prefers-reduced-motion: reduce) {
   .sv-spin,
   .sv-card--skeleton,
@@ -791,9 +718,9 @@
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   FORCE SCROLL — override mọi rule từ parent (CoordSidebar, App...)
-   ═══════════════════════════════════════════════════════════════ */
+/* ============================================================================
+   FORCE LAYOUT OVERRIDES
+   ============================================================================ */
 .coord-sidebar.sv-dashboard .sv-dashboard__scroll,
 .coord-sidebar.sv-dashboard .coord-sidebar__scroll {
   display: flex !important;
@@ -806,7 +733,6 @@
   flex: 1 1 0 !important;
 }
 
-/* Card không co, không chồng */
 .coord-sidebar.sv-dashboard .sv-cards,
 .coord-sidebar.sv-dashboard .sv-cards > li,
 .coord-sidebar.sv-dashboard .sv-card {

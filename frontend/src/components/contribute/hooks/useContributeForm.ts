@@ -89,7 +89,6 @@ export function useContributeForm() {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    'ngrok-skip-browser-warning': 'true'
                 },
                 body: JSON.stringify({
                     lng: draft.lng,

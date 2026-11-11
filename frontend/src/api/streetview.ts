@@ -1,5 +1,5 @@
-// api/streetview.ts
 const BASE = "/api/streetview";
+export const DEFAULT_API_KEY = "test-key-123";
 
 export interface LinkPosition {
     textureX: number;
@@ -13,8 +13,12 @@ export interface StreetViewImage {
     image_url: string;
     heading: number | null;
     next_ids: number[];
-    link_positions: Array<{ textureX: number; textureY: number }>;
+    link_positions: LinkPosition[];
     captured_at: string | null;
+}
+
+export interface StreetViewNearbyImage extends StreetViewImage {
+    distance_meters: number;
 }
 
 export interface StreetViewListResponse {
@@ -22,13 +26,13 @@ export interface StreetViewListResponse {
     total: number;
 }
 
-
-/** Trường không gửi = giữ nguyên; `null` ở heading / captured_at = xóa giá trị. */
 export interface StreetViewUpdateInput {
     heading?: number | null;
     lng?: number;
     lat?: number;
     captured_at?: string | null;
+    next_ids?: number[];
+    link_positions?: LinkPosition[];
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -58,7 +62,6 @@ export async function fetchStreetViewImages(params: {
     if (params.limit != null) qs.set("limit", String(params.limit));
     if (params.offset != null) qs.set("offset", String(params.offset));
 
-    // no-store: chống cache HTTP (browser + proxy trung gian)
     const res = await fetch(`${BASE}/images?${qs}`, { cache: "no-store" });
     if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -68,38 +71,55 @@ export async function fetchStreetViewImages(params: {
     const rawItems = Array.isArray(data.items) ? data.items : [];
     const items = rawItems.map(normalizeImage);
 
-    // Debug — bỏ khi đã ổn định
-    console.log("[SV api] /images raw:", {
-        rawLen: rawItems.length,
-        parsedLen: items.length,
-        total: data.total,
-        ids: items.map((i) => i.id),
-        firstItemShape: items[0],
-    });
-
     return {
         items,
         total: typeof data.total === "number" ? data.total : items.length,
     };
 }
 
+export async function fetchNearbyStreetViewImages(params: {
+    lng: number;
+    lat: number;
+    radius?: number;
+    exclude_id?: number;
+    limit?: number;
+}): Promise<StreetViewNearbyImage[]> {
+    const qs = new URLSearchParams({
+        lng: String(params.lng),
+        lat: String(params.lat),
+    });
+    if (params.radius != null) qs.set("radius", String(params.radius));
+    if (params.exclude_id != null) qs.set("exclude_id", String(params.exclude_id));
+    if (params.limit != null) qs.set("limit", String(params.limit));
+
+    const res = await fetch(`${BASE}/nearby?${qs}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Lỗi tải ảnh lân cận (${res.status})`);
+    const data = (await res.json()) as { items?: unknown[] };
+    return (data.items || []).map((r) => {
+        const norm = normalizeImage(r);
+        return {
+            ...norm,
+            distance_meters: typeof (r as any).distance_meters === "number" ? (r as any).distance_meters : 0,
+        };
+    });
+}
 
 export function updateStreetViewImage(
     id: number,
     input: StreetViewUpdateInput,
-    apiKey: string,
+    apiKey: string = DEFAULT_API_KEY,
 ): Promise<StreetViewImage> {
     return request(`${BASE}/image/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
+        headers: { "Content-Type": "application/json", "X-API-Key": apiKey || DEFAULT_API_KEY },
         body: JSON.stringify(input),
     });
 }
 
-export function deleteStreetViewImage(id: number, apiKey: string): Promise<void> {
+export function deleteStreetViewImage(id: number, apiKey: string = DEFAULT_API_KEY): Promise<void> {
     return request(`${BASE}/image/${id}`, {
         method: "DELETE",
-        headers: { "X-API-Key": apiKey },
+        headers: { "X-API-Key": apiKey || DEFAULT_API_KEY },
     });
 }
 
@@ -112,7 +132,7 @@ export interface UploadPanoramaPayload {
 
 export async function uploadStreetViewImage(
     payload: UploadPanoramaPayload,
-    apiKey: string,
+    apiKey: string = DEFAULT_API_KEY,
 ): Promise<{ id: number }> {
     const formData = new FormData();
     formData.append("lng", String(payload.lng));
@@ -122,7 +142,7 @@ export async function uploadStreetViewImage(
 
     const res = await fetch("/api/user-panoramas", {
         method: "POST",
-        headers: { "X-API-Key": apiKey },
+        headers: { "X-API-Key": apiKey || DEFAULT_API_KEY },
         body: formData,
     });
     if (!res.ok) {
@@ -142,7 +162,7 @@ function normalizeImage(raw: unknown): StreetViewImage {
         heading: typeof r.heading === "number" ? r.heading : null,
         next_ids: Array.isArray(r.next_ids) ? (r.next_ids as number[]) : [],
         link_positions: Array.isArray(r.link_positions)
-            ? (r.link_positions as Array<{ textureX: number; textureY: number }>)
+            ? (r.link_positions as LinkPosition[])
             : [],
         captured_at: typeof r.captured_at === "string" ? r.captured_at : null,
     };
