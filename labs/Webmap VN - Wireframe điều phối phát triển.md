@@ -1,17 +1,17 @@
 # Webmap VN: Wireframe điều phối phát triển
 
-*Dành cho Orchestrator (Claude) ra lệnh và các AI coder thực thi. Căn cứ vào tài liệu handoff kiến trúc hiện tại.*
+_Dành cho Orchestrator (Claude) ra lệnh và các AI coder thực thi. Căn cứ vào tài liệu handoff kiến trúc hiện tại._
 
 ## 1. Mô hình làm việc
 
 **Orchestrator (Claude)** không viết code hàng loạt. Việc của Orchestrator: chia task, giao brief, chốt hợp đồng API, review kết quả, quyết định bước tiếp.
 
-| Agent | Phạm vi được sửa | Không được đụng |
-| --- | --- | --- |
-| **DB/Ops Agent** | `docker-compose.yml`, SQL migration, `.env.example`, script PowerShell | Code `backend/`, `fontend/` |
-| **Backend Agent** | `backend/main.py` (hoặc tách module), `requirements.txt` | Schema DB (chỉ đề xuất migration cho DB/Ops) |
-| **Frontend Agent** | `fontend/src/**` | Backend, DB |
-| **QA Agent** | Chạy curl, checklist, báo lỗi, viết test | Sửa code sản phẩm (chỉ báo cáo) |
+| Agent              | Phạm vi được sửa                                                       | Không được đụng                              |
+| ------------------ | ---------------------------------------------------------------------- | -------------------------------------------- |
+| **DB/Ops Agent**   | `docker-compose.yml`, SQL migration, `.env.example`, script PowerShell | Code `backend/`, `fontend/`                  |
+| **Backend Agent**  | `backend/main.py` (hoặc tách module), `requirements.txt`               | Schema DB (chỉ đề xuất migration cho DB/Ops) |
+| **Frontend Agent** | `fontend/src/**`                                                       | Backend, DB                                  |
+| **QA Agent**       | Chạy curl, checklist, báo lỗi, viết test                               | Sửa code sản phẩm (chỉ báo cáo)              |
 
 **Quy tắc chung cho mọi agent**
 
@@ -68,10 +68,21 @@ Query: `lng`, `lat` (bắt buộc), `road_radius` (mét, mặc định 50), `sv_
 
 ```json
 {
-  "point": {"lng": 105.8523, "lat": 21.0288},
-  "road": {"osm_id": "123", "name": "Phố A", "ref": "QL91", "fclass": "primary",
-           "oneway": "B", "maxspeed": 60, "distance_m": 12.3},
-  "streetview": {"id": 1, "image_url": "/panoramas/demo1.png", "distance_m": 40.1}
+  "point": { "lng": 105.8523, "lat": 21.0288 },
+  "road": {
+    "osm_id": "123",
+    "name": "Phố A",
+    "ref": "QL91",
+    "fclass": "primary",
+    "oneway": "B",
+    "maxspeed": 60,
+    "distance_m": 12.3
+  },
+  "streetview": {
+    "id": 1,
+    "image_url": "/panoramas/demo1.png",
+    "distance_m": 40.1
+  }
 }
 ```
 
@@ -85,8 +96,24 @@ Query: `lng`, `lat`. Trả `{"address": "..." | null, "cached": true|false}`. C�
 
 ```json
 {
-  "node": {"id": 1, "lng": 0, "lat": 0, "image_url": "...", "heading": 90, "next_ids": [2, 4]},
-  "neighbors": [{"id": 2, "lng": 0, "lat": 0, "image_url": "...", "heading": 270, "next_ids": [1, 3]}]
+  "node": {
+    "id": 1,
+    "lng": 0,
+    "lat": 0,
+    "image_url": "...",
+    "heading": 90,
+    "next_ids": [2, 4]
+  },
+  "neighbors": [
+    {
+      "id": 2,
+      "lng": 0,
+      "lat": 0,
+      "image_url": "...",
+      "heading": 270,
+      "next_ids": [1, 3]
+    }
+  ]
 }
 ```
 
@@ -96,45 +123,45 @@ Trả 404 nếu `id` không tồn tại. Không còn trả `link_positions`.
 
 ### Giai đoạn 0: Dọn nền (làm trước, song song được)
 
-| ID | Agent | Việc | Nghiệm thu |
-| --- | --- | --- | --- |
-| OPS-01 | DB/Ops | Đổi cổng thành `127.0.0.1:5432`, `127.0.0.1:7800`, `127.0.0.1:8080`; thêm `.env.example` | `docker compose up -d` chạy, app vẫn tải được tile |
-| OPS-02 | DB/Ops | Migration: GRANT SELECT cho `tile_reader` trên cả hai bảng; xác nhận GiST index; `ANALYZE` | `\d` hiện đủ index; `tile_reader` truy vấn được |
-| BE-00 | Backend | Thêm `python-dotenv`, `httpx` vào `requirements.txt`; bỏ mật khẩu fallback trong `main.py` (thiếu `DATABASE_URL` thì báo lỗi rõ) | Cài sạch trong venv mới và chạy được |
-| FE-00 | Frontend | Gom `API_BASE`, `TILE_BASE` vào `src/config.ts` dùng `import.meta.env.VITE_*`; sửa `.map-wrapper` thành `height: 100%`, bỏ trùng lặp CSS reset | Không còn URL hard-code trong component |
+| ID     | Agent    | Việc                                                                                                                                           | Nghiệm thu                                         |
+| ------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| OPS-01 | DB/Ops   | Đổi cổng thành `127.0.0.1:5432`, `127.0.0.1:7800`, `127.0.0.1:8080`; thêm `.env.example`                                                       | `docker compose up -d` chạy, app vẫn tải được tile |
+| OPS-02 | DB/Ops   | Migration: GRANT SELECT cho `tile_reader` trên cả hai bảng; xác nhận GiST index; `ANALYZE`                                                     | `\d` hiện đủ index; `tile_reader` truy vấn được    |
+| BE-00  | Backend  | Thêm `python-dotenv`, `httpx` vào `requirements.txt`; bỏ mật khẩu fallback trong `main.py` (thiếu `DATABASE_URL` thì báo lỗi rõ)               | Cài sạch trong venv mới và chạy được               |
+| FE-00  | Frontend | Gom `API_BASE`, `TILE_BASE` vào `src/config.ts` dùng `import.meta.env.VITE_*`; sửa `.map-wrapper` thành `height: 100%`, bỏ trùng lặp CSS reset | Không còn URL hard-code trong component            |
 
 ### Giai đoạn 1: Sidebar thông tin điểm (BE-01 và FE-01 chạy song song)
 
-| ID | Agent | Việc | Phụ thuộc | Nghiệm thu |
-| --- | --- | --- | --- | --- |
-| BE-01 | Backend | Endpoint `/api/point-info` theo hợp đồng. Đường: CTE lấy 10 ứng viên bằng toán tử `<->`, xếp lại bằng `ST_Distance(...::geography)`. Ảnh 360: cùng cách, LIMIT 1 | OPS-02 | `curl` tại 105.8523,21.0288 trả cả đường lẫn ảnh; tại ruộng trả `null`; EXPLAIN dùng index GiST; phản hồi dưới 100 ms |
-| FE-01 | Frontend | Component `CoordSidebar` (toạ độ, DMS, zoom, nút sao chép), marker đỏ, bỏ qua click trúng `sv-points-layer`, dọn marker khi unmount, `AbortController` cho request | FE-00, hợp đồng (dùng dữ liệu giả cho tới khi BE-01 xong) | Click liên tiếp: request cũ `canceled`; sidebar mở và đóng đúng; không lỗi console |
-| QA-01 | QA | Chạy checklist: click vào đường, ra ruộng, trúng chấm 360, click nhanh, đóng sidebar | BE-01, FE-01 | Báo cáo đạt/không đạt từng mục |
+| ID    | Agent    | Việc                                                                                                                                                               | Phụ thuộc                                                 | Nghiệm thu                                                                                                            |
+| ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| BE-01 | Backend  | Endpoint `/api/point-info` theo hợp đồng. Đường: CTE lấy 10 ứng viên bằng toán tử `<->`, xếp lại bằng `ST_Distance(...::geography)`. Ảnh 360: cùng cách, LIMIT 1   | OPS-02                                                    | `curl` tại 105.8523,21.0288 trả cả đường lẫn ảnh; tại ruộng trả `null`; EXPLAIN dùng index GiST; phản hồi dưới 100 ms |
+| FE-01 | Frontend | Component `generalPanel` (toạ độ, DMS, zoom, nút sao chép), marker đỏ, bỏ qua click trúng `sv-points-layer`, dọn marker khi unmount, `AbortController` cho request | FE-00, hợp đồng (dùng dữ liệu giả cho tới khi BE-01 xong) | Click liên tiếp: request cũ `canceled`; sidebar mở và đóng đúng; không lỗi console                                    |
+| QA-01 | QA       | Chạy checklist: click vào đường, ra ruộng, trúng chấm 360, click nhanh, đóng sidebar                                                                               | BE-01, FE-01                                              | Báo cáo đạt/không đạt từng mục                                                                                        |
 
 ### Giai đoạn 2: Street View không phụ thuộc `allPoints`
 
-| ID | Agent | Việc | Phụ thuộc | Nghiệm thu |
-| --- | --- | --- | --- | --- |
-| BE-02 | Backend | Endpoint `/api/streetview/graph/{id}` (một truy vấn lấy node và `next_ids`) | OPS-02 | Có đủ `neighbors`; id lạ trả 404 |
-| FE-02 | Frontend | `StreetViewModal` nhận `startId`, tự tải graph; dùng `Map` để tra cứu; return sớm khi lỗi; thêm `aria-label` cho nút đóng; nút `ArrowLeft` quay lại | BE-02 | Mở modal từ sidebar với id ngoài 5000 điểm đầu vẫn hoạt động |
-| FE-03 | Frontend | Điểm 360 tải theo bbox khi `moveend` (có debounce, hủy request cũ) thay vì tải toàn bộ lúc khởi động | BE-02 | Network chỉ tải điểm trong khung nhìn |
+| ID    | Agent    | Việc                                                                                                                                                | Phụ thuộc | Nghiệm thu                                                   |
+| ----- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------ |
+| BE-02 | Backend  | Endpoint `/api/streetview/graph/{id}` (một truy vấn lấy node và `next_ids`)                                                                         | OPS-02    | Có đủ `neighbors`; id lạ trả 404                             |
+| FE-02 | Frontend | `StreetViewModal` nhận `startId`, tự tải graph; dùng `Map` để tra cứu; return sớm khi lỗi; thêm `aria-label` cho nút đóng; nút `ArrowLeft` quay lại | BE-02     | Mở modal từ sidebar với id ngoài 5000 điểm đầu vẫn hoạt động |
+| FE-03 | Frontend | Điểm 360 tải theo bbox khi `moveend` (có debounce, hủy request cũ) thay vì tải toàn bộ lúc khởi động                                                | BE-02     | Network chỉ tải điểm trong khung nhìn                        |
 
 ### Giai đoạn 3: Địa chỉ và độ chính xác
 
-| ID | Agent | Việc | Phụ thuộc | Nghiệm thu |
-| --- | --- | --- | --- | --- |
-| BE-03 | Backend | `/api/reverse-geocode` có cache (bộ nhớ hoặc bảng) và giới hạn tốc độ | BE-00 | Lần gọi thứ hai cùng toạ độ trả `cached: true`; lỗi Nominatim vẫn trả 200 với `address: null` |
-| FE-04 | Frontend | Sidebar tải địa chỉ sau, không chặn phần đường/ảnh; tính bán kính theo zoom (khoảng 12 px) và gửi lên `point-info` | BE-03 | Đường và ảnh hiện ngay, địa chỉ hiện sau |
-| FE-05 | Frontend | Hiển thị `ref`, `oneway`, `maxspeed`; bản dịch nhãn `fclass` sang tiếng Việt | BE-01 | Hiển thị đúng khi trường rỗng |
+| ID    | Agent    | Việc                                                                                                               | Phụ thuộc | Nghiệm thu                                                                                    |
+| ----- | -------- | ------------------------------------------------------------------------------------------------------------------ | --------- | --------------------------------------------------------------------------------------------- |
+| BE-03 | Backend  | `/api/reverse-geocode` có cache (bộ nhớ hoặc bảng) và giới hạn tốc độ                                              | BE-00     | Lần gọi thứ hai cùng toạ độ trả `cached: true`; lỗi Nominatim vẫn trả 200 với `address: null` |
+| FE-04 | Frontend | Sidebar tải địa chỉ sau, không chặn phần đường/ảnh; tính bán kính theo zoom (khoảng 12 px) và gửi lên `point-info` | BE-03     | Đường và ảnh hiện ngay, địa chỉ hiện sau                                                      |
+| FE-05 | Frontend | Hiển thị `ref`, `oneway`, `maxspeed`; bản dịch nhãn `fclass` sang tiếng Việt                                       | BE-01     | Hiển thị đúng khi trường rỗng                                                                 |
 
 ### Giai đoạn 4: Dọn kỹ thuật
 
-| ID | Agent | Việc |
-| --- | --- | --- |
-| BE-04 | Bỏ `link_positions` khỏi các response; cân nhắc tách `main.py` thành `routers/` và `db.py` |  |
-| OPS-03 | Ghim phiên bản image `pg_tileserv`, `versatiles`; cập nhật `add-streetview.ps1` thôi ghi `link_positions` |  |
-| FE-06 | Thay `any` bằng kiểu `Viewer`, `MarkerConfig`; bỏ mốc `line-opacity` thừa khi layer có `minzoom: 14` |  |
-| QA-02 | Hồi quy toàn bộ, kiểm tra CORS (thu hẹp `allow_origins` về `http://localhost:5173` khi deploy) |  |
+| ID     | Agent                                                                                                     | Việc |
+| ------ | --------------------------------------------------------------------------------------------------------- | ---- |
+| BE-04  | Bỏ `link_positions` khỏi các response; cân nhắc tách `main.py` thành `routers/` và `db.py`                |      |
+| OPS-03 | Ghim phiên bản image `pg_tileserv`, `versatiles`; cập nhật `add-streetview.ps1` thôi ghi `link_positions` |      |
+| FE-06  | Thay `any` bằng kiểu `Viewer`, `MarkerConfig`; bỏ mốc `line-opacity` thừa khi layer có `minzoom: 14`      |      |
+| QA-02  | Hồi quy toàn bộ, kiểm tra CORS (thu hẹp `allow_origins` về `http://localhost:5173` khi deploy)            |      |
 
 ### Backlog (chưa xếp lịch)
 
@@ -193,9 +220,9 @@ LƯU Ý / GIẢ ĐỊNH: ...
 
 ## 8. Rủi ro cần theo dõi
 
-| Rủi ro | Biện pháp |
-| --- | --- |
-| Vượt 5000 điểm 360 làm modal rỗng | FE-02, FE-03 (graph theo id, tải theo bbox) |
-| Nominatim chặn hoặc chậm | BE-03 cache, tách endpoint, cân nhắc tự host |
+| Rủi ro                               | Biện pháp                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| Vượt 5000 điểm 360 làm modal rỗng    | FE-02, FE-03 (graph theo id, tải theo bbox)                               |
+| Nominatim chặn hoặc chậm             | BE-03 cache, tách endpoint, cân nhắc tự host                              |
 | Hai agent sửa cùng file gây xung đột | Phân vùng file ở mục 1; Backend và Frontend chỉ gặp nhau qua hợp đồng API |
-| Agent tự thay đổi schema | Mọi thay đổi DB đi qua DB/Ops Agent và migration có số thứ tự |
+| Agent tự thay đổi schema             | Mọi thay đổi DB đi qua DB/Ops Agent và migration có số thứ tự             |

@@ -1,7 +1,7 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ClickInfo } from "../../../sidebar/CoordSidebar/CoordSidebar";
+import type { ClickInfo } from "../../../layout/panels/generalPanel/generalPanel";
 import { SV_LAYER_ID } from "../constants";
 import { ELECTRIC_POLE_LAYER_ID } from "../layers/electricPoleLayer";
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CONTRIBUTE_BASE } from "../../../config";
+import { CONTRIBUTE_BASE } from "../../../../../config.ts";
 
 export const CONTRIBUTE_CATEGORIES = [
     { value: "cafe", label: "Cà phê" },

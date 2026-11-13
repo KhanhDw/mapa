@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { MapType } from "../Activitybar";
-import "../../sidebar/CoordSidebar/CoordSidebar.css";
+import "./generalPanel/generalPanel.css";
 import "./SettingsPanel.css";
 
 interface Props {

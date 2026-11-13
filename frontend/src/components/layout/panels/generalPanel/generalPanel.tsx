@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import "./CoordSidebar.css";
+import "./generalPanel.css";
 
 
 export interface NearbyPole {
@@ -261,7 +261,7 @@ function Skeleton({ lines = 2 }: { lines?: number }) {
     );
 }
 
-export function CoordSidebar({
+export function GeneralPanel({
     info,
     onClose,
     road,
