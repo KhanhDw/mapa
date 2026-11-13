@@ -114,12 +114,17 @@ export default function App() {
     useStreetViewPoints(API_BASE, streetViewVersion);
 
 
+  // const { clickInfo, clear: clearClick } = useClickMarker(
+  //   mapInstance,
+  //   activePanel === "contribute" ||
+  //   isRecordingPoleLocation ||
+  //   activePanel === null ||
+  //   activePanel === "info", // cái này là đang giới hạn tại info không được lấy tọa độ nếu không phải là tab info kích hoạt
+  // );
+
   const { clickInfo, clear: clearClick } = useClickMarker(
     mapInstance,
-    activePanel === "contribute" ||
-    isRecordingPoleLocation ||
-    activePanel === null ||
-    activePanel === "info",
+    !isRecordingPoleLocation
   );
 
   const {
