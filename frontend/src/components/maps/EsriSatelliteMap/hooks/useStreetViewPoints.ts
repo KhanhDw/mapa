@@ -25,7 +25,13 @@ interface Result {
     error: Error | null;
 }
 
-export function useStreetViewPoints(apiBase: string): Result {
+/**
+ * @param version bump số này để buộc refetch (VD: sau khi thêm/sửa/xoá street view).
+ */
+export function useStreetViewPoints(
+    apiBase: string,
+    version: number = 0,
+): Result {
     const [points, setPoints] = useState<StreetViewPoint[]>([]);
     const [geojson, setGeojson] = useState<StreetViewGeoJSON | null>(null);
     const [error, setError] = useState<Error | null>(null);
@@ -39,18 +45,18 @@ export function useStreetViewPoints(apiBase: string): Result {
                 const url = `${base}/api/streetview/points?limit=${SV_LIMIT}`;
                 const res = await fetch(url, {
                     signal: controller.signal,
-                    cache: "no-store", // chống cache
+                    cache: "no-store",
                 });
                 if (!res.ok) {
                     throw new Error(
-                        `Không tải được Street View points: HTTP ${res.status} — ${res.url}`
+                        `Không tải được Street View points: HTTP ${res.status} — ${res.url}`,
                     );
                 }
 
                 const data = (await res.json()) as StreetViewGeoJSON;
                 if (!Array.isArray(data?.features)) {
                     throw new Error(
-                        "Phản hồi /api/streetview/points không phải GeoJSON FeatureCollection hợp lệ"
+                        "Phản hồi /api/streetview/points không phải GeoJSON FeatureCollection hợp lệ",
                     );
                 }
 
@@ -59,7 +65,7 @@ export function useStreetViewPoints(apiBase: string): Result {
                         (f) =>
                             f?.geometry?.type === "Point" &&
                             Array.isArray(f.geometry.coordinates) &&
-                            f.geometry.coordinates.length >= 2
+                            f.geometry.coordinates.length >= 2,
                     )
                     .map((f) => ({
                         ...f.properties,
@@ -67,25 +73,22 @@ export function useStreetViewPoints(apiBase: string): Result {
                         lat: f.geometry.coordinates[1],
                     }));
 
-                // Debug — bỏ khi ổn định
-                console.log("[SV points] raw features:", data.features.length, "→ parsed:", parsed.length, {
-                    ids: parsed.map((p) => p.id),
-                    validGeometry: parsed.length === data.features.length,
-                });
-
                 setGeojson(data);
                 setPoints(parsed);
                 setError(null);
             } catch (e) {
                 if (controller.signal.aborted) return;
-                const err = e instanceof Error ? e : new Error("Không xác định được lỗi tải Street View points");
+                const err =
+                    e instanceof Error
+                        ? e
+                        : new Error("Không xác định được lỗi tải Street View points");
                 console.error("[SV points] fetch error:", err);
                 setError(err);
             }
         })();
 
         return () => controller.abort();
-    }, [apiBase]);
+    }, [apiBase, version]);
 
     return { points, geojson, error };
 }

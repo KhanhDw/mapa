@@ -1,4 +1,16 @@
+
 import "./ActivityBar.css";
+import {
+    MapPin,
+    Search,
+    Layers,
+    Zap,
+    Cable,
+    Globe2,
+    MapPinned,
+    CirclePlus,
+    Settings,
+} from "lucide-react";
 
 export type PanelType =
     | "info"
@@ -10,6 +22,7 @@ export type PanelType =
     | "poiManagement"
     | "settings"
     | "contribute";
+
 export type MapType = "esri" | "selfhost" | "osm" | "test";
 
 interface Props {
@@ -42,15 +55,36 @@ function ActivityButton({
     );
 }
 
-export function ActivityBar({ activePanel, onPanelToggle }: Props) {
+const iconProps = {
+    size: 21,
+    strokeWidth: 1.8,
+    "aria-hidden": true as const,
+};
+
+export function ActivityBar({
+    activePanel,
+    onPanelToggle,
+}: Props) {
     return (
         <nav className="activity-bar" aria-label="Thanh công cụ">
-            {/* PHẦN TRÊN: Logo & Các nhóm chức năng chính */}
+
+            {/* PHẦN TRÊN */}
             <div className="activity-bar__top">
-                <div className="activity-bar__brand" role="img" aria-label="Mapa">
-                    <img src="/logo.png" alt="Mapa" width={28} height={28} />
+
+                <div
+                    className="activity-bar__brand"
+                    role="img"
+                    aria-label="Mapa"
+                >
+                    <img
+                        src="/logo.png"
+                        alt="Mapa"
+                        width={28}
+                        height={28}
+                    />
                 </div>
 
+                {/* Bản đồ & tìm kiếm */}
                 <div
                     className="activity-bar__group"
                     role="group"
@@ -61,20 +95,7 @@ export function ActivityBar({ activePanel, onPanelToggle }: Props) {
                         onClick={() => onPanelToggle("info")}
                         label="Thông tin điểm"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" />
-                            <circle cx="12" cy="10" r="2.5" />
-                        </svg>
+                        <MapPin {...iconProps} />
                     </ActivityButton>
 
                     <ActivityButton
@@ -82,20 +103,7 @@ export function ActivityBar({ activePanel, onPanelToggle }: Props) {
                         onClick={() => onPanelToggle("search")}
                         label="Tìm kiếm"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <circle cx="11" cy="11" r="7" />
-                            <path d="m20 20-3.5-3.5" />
-                        </svg>
+                        <Search {...iconProps} />
                     </ActivityButton>
 
                     <ActivityButton
@@ -103,44 +111,24 @@ export function ActivityBar({ activePanel, onPanelToggle }: Props) {
                         onClick={() => onPanelToggle("layers")}
                         label="Lớp bản đồ"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <path d="M12 3l9 5-9 5-9-5 9-5z" />
-                            <path d="M3 13l9 5 9-5M3 18l9 5 9-5" />
-                        </svg>
+                        <Layers {...iconProps} />
                     </ActivityButton>
                 </div>
 
                 <div className="activity-bar__divider" />
 
-                <div className="activity-bar__group" role="group" aria-label="Điện lực">
+                {/* Điện lực */}
+                <div
+                    className="activity-bar__group"
+                    role="group"
+                    aria-label="Điện lực"
+                >
                     <ActivityButton
                         active={activePanel === "electric"}
                         onClick={() => onPanelToggle("electric")}
                         label="Thông tin trụ điện"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
-                        </svg>
+                        <Zap {...iconProps} />
                     </ActivityButton>
 
                     <ActivityButton
@@ -148,25 +136,13 @@ export function ActivityBar({ activePanel, onPanelToggle }: Props) {
                         onClick={() => onPanelToggle("poleManagement")}
                         label="Quản lý trụ điện"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <path d="M12 3v18M6 7h12M8 7l-3 5h6L8 7zm8 0-3 5h6l-3-5zM9 21h6" />
-                            <circle cx="12" cy="15" r="2" />
-                        </svg>
+                        <Cable {...iconProps} />
                     </ActivityButton>
                 </div>
 
                 <div className="activity-bar__divider" />
 
+                {/* Quản lý hệ thống */}
                 <div
                     className="activity-bar__group"
                     role="group"
@@ -177,20 +153,7 @@ export function ActivityBar({ activePanel, onPanelToggle }: Props) {
                         onClick={() => onPanelToggle("streetviewManagement")}
                         label="Quản lý ảnh Street View"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <circle cx="12" cy="12" r="9" />
-                            <path d="M3.6 9h16.8M3.6 15h16.8M12 3a14.5 14.5 0 0 0 0 18M12 3a14.5 14.5 0 0 1 0 18" />
-                        </svg>
+                        <Globe2 {...iconProps} />
                     </ActivityButton>
 
                     <ActivityButton
@@ -198,49 +161,27 @@ export function ActivityBar({ activePanel, onPanelToggle }: Props) {
                         onClick={() => onPanelToggle("poiManagement")}
                         label="Quản lý địa điểm (POI)"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" />
-                            <circle cx="12" cy="10" r="2.5" />
-                            <path d="M16 21h5M18.5 18.5v5" />
-                        </svg>
+                        <MapPinned {...iconProps} />
                     </ActivityButton>
                 </div>
             </div>
 
-            {/* PHẦN DƯỚI: Ghim xuống đáy Activity Bar */}
+            {/* PHẦN DƯỚI */}
             <div className="activity-bar__bottom">
+
                 <div className="activity-bar__divider" />
 
-                <div className="activity-bar__group" role="group" aria-label="Khác">
+                <div
+                    className="activity-bar__group"
+                    role="group"
+                    aria-label="Khác"
+                >
                     <ActivityButton
                         active={activePanel === "contribute"}
                         onClick={() => onPanelToggle("contribute")}
                         label="Đóng góp địa điểm"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <circle cx="12" cy="12" r="9" />
-                            <path d="M12 8v8M8 12h8" />
-                        </svg>
+                        <CirclePlus {...iconProps} />
                     </ActivityButton>
 
                     <ActivityButton
@@ -248,20 +189,7 @@ export function ActivityBar({ activePanel, onPanelToggle }: Props) {
                         onClick={() => onPanelToggle("settings")}
                         label="Cài đặt"
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="21"
-                            height="21"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            aria-hidden="true"
-                        >
-                            <circle cx="12" cy="12" r="3" />
-                            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-                        </svg>
+                        <Settings {...iconProps} />
                     </ActivityButton>
                 </div>
             </div>

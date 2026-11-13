@@ -9,7 +9,7 @@ import {
 } from "./components/layout/Activitybar";
 import {
   SearchPanel,
-  ElectricPanel,
+  PoleDetailPanel,
   SettingsPanel,
   type SearchResult,
   type LayerVisibility,
@@ -18,7 +18,7 @@ import {
 import { LayersPanel } from "./components/layout/panels/LayersPanel";
 import { createDefaultLayerVisibility } from "./components/maps/EsriSatelliteMap/layers/registry";
 import { ContributePanel } from "./components/layout/panels/contribute/ContributePanel";
-import { PoleManagementPanel } from "./components/layout/panels/ElectricPanel/PoleManagementPanel";
+import { PoleManagementPanel } from "./components/layout/panels/PoleDetailPanel/PoleManagementPanel";
 import { StreetViewManagementPanel } from "./components/layout/panels/StreetViewManagementPanel";
 import { PoiManagementPanel } from "./components/layout/panels/PoiManagementPanel";
 
@@ -74,7 +74,6 @@ export default function App() {
     clickKey: string;
   } | null>(null);
 
-  // ✅ Mới — chỉ bật 5 lớp ưu tiên
   const [layers, setLayers] = useState<LayerVisibility>(() =>
     createDefaultLayerVisibility(),
   );
@@ -92,14 +91,14 @@ export default function App() {
     requestId: number;
   } | null>(null);
 
-  // Version counters dùng để refetch / re-render dữ liệu sau khi management thay đổi.
-  // NOTE: useStreetViewPoints hiện chưa nhận version — cần sửa hook:
-  //   useStreetViewPoints(API_BASE, streetViewVersion)
-  // để streetview points thực sự được refetch sau khi đổi dữ liệu.
+  // ✅ FIX #2: version counters để refetch sau khi management thay đổi.
+  // TODO: khi đã sửa hook `useStreetViewPoints(API_BASE, streetViewVersion)` thì
+  //       truyền version vào và thêm nó vào deps useEffect trong hook.
   const [streetViewVersion, setStreetViewVersion] = useState(0);
   const [poisVersion, setPoisVersion] = useState(0);
   void streetViewVersion;
   void poisVersion;
+
 
   const [streetViewNavigationRequest, setStreetViewNavigationRequest] = useState<{
     image: StreetViewImage;
@@ -111,19 +110,16 @@ export default function App() {
     requestId: number;
   } | null>(null);
 
-  const {
-    points: svPoints,
-    geojson: svGeojson,
-    error: svPointsError,
-  } = useStreetViewPoints(API_BASE);
+  const { points: svPoints, geojson: svGeojson, error: svPointsError } =
+    useStreetViewPoints(API_BASE, streetViewVersion);
 
-  // FIX #2a: bật click marker ở cả chế độ mặc định và info để click map xem thông tin.
+
   const { clickInfo, clear: clearClick } = useClickMarker(
     mapInstance,
     activePanel === "contribute" ||
     isRecordingPoleLocation ||
     activePanel === null ||
-    activePanel === "info"
+    activePanel === "info",
   );
 
   const {
@@ -132,20 +128,42 @@ export default function App() {
     error: pointInfoError,
   } = useClickPointInfo(API_BASE, clickInfo);
 
-  // FIX #2b: chỉ auto-mở info panel khi KHÔNG ở contribute / recording.
+  // ✅ FIX #1: auto-mở info panel chỉ khi có CLICK MỚI.
+  // Trước đây mỗi lần `activePanel` đổi (VD: user bấm ActivityBar) là info panel
+  // bị cưỡng bức mở lại vì `clickInfo` vẫn còn set.
+  const prevClickKeyRef = useRef<string>("");
   useEffect(() => {
-    if (!clickInfo) return;
+    if (!clickInfo) {
+      prevClickKeyRef.current = "";
+      return;
+    }
+    const newKey = `${clickInfo.lng}|${clickInfo.lat}`;
+    if (prevClickKeyRef.current === newKey) return; // không phải click mới → bỏ qua
+    prevClickKeyRef.current = newKey;
+
     if (isRecordingPoleLocation) return;
     if (activePanel === "contribute") return;
     setActivePanel("info");
   }, [clickInfo, isRecordingPoleLocation, activePanel]);
 
+  // ✅ FIX #1 (phần 2): chỉ clear click khi RỜI info panel.
+  // Trước đây effect chạy ở mọi render activePanel !== "info" → xoá clickInfo
+  // ngay sau khi user vừa click map (race với effect auto-mở info).
+  const clearClickRef = useRef(clearClick);
   useEffect(() => {
-    if (activePanel !== "info") {
-      clearClick();
+    clearClickRef.current = clearClick;
+  }, [clearClick]);
+
+  const prevActivePanelRef = useRef<PanelType | null>(activePanel);
+  useEffect(() => {
+    const wasInfo = prevActivePanelRef.current === "info";
+    const isInfo = activePanel === "info";
+    if (wasInfo && !isInfo) {
+      clearClickRef.current();
       setSelectedPoi(null);
     }
-  }, [activePanel, clearClick]);
+    prevActivePanelRef.current = activePanel;
+  }, [activePanel]);
 
   useEffect(() => {
     if (svPointsError) console.error("[sv-points] fetch error:", svPointsError);
@@ -223,7 +241,7 @@ export default function App() {
     } catch (error) {
       if (controller.signal.aborted) return;
       setSearchError(
-        error instanceof Error ? error.message : "Không thể tìm kiếm"
+        error instanceof Error ? error.message : "Không thể tìm kiếm",
       );
       setSearchResults([]);
     } finally {
@@ -267,7 +285,7 @@ export default function App() {
       poleLocationRecordedHandler.current = null;
       setIsRecordingPoleLocation(false);
     },
-    []
+    [],
   );
 
   const handleGoToPole = useCallback((pole: ElectricPole) => {
@@ -296,7 +314,7 @@ export default function App() {
       poleLocationRecordedHandler.current = onLocationRecorded;
       setIsRecordingPoleLocation(true);
     },
-    []
+    [],
   );
 
   const handleStopPoleLocationRecording = useCallback(() => {
@@ -311,16 +329,42 @@ export default function App() {
     setIsRecordingPoleLocation(false);
   }, []);
 
-  const handleSearchResultClick = (_result: SearchResult) => {
-    if (mapType !== "esri") {
-      setSearchError(
-        "Điều hướng kết quả tìm kiếm hiện chỉ hỗ trợ bản đồ Esri Satellite."
-      );
-    }
-  };
+  // ✅ FIX #3: search result click giờ thực sự điều hướng bản đồ.
+  // (Trước đây chỉ set lỗi cho non-esri còn esri thì no-op.)
+  const handleSearchResultClick = useCallback(
+    (result: SearchResult) => {
+      if (mapType !== "esri") {
+        setSearchError(
+          "Điều hướng kết quả tìm kiếm hiện chỉ hỗ trợ bản đồ Esri Satellite.",
+        );
+        return;
+      }
+      if (!mapInstance) return;
+      setSearchError(null);
 
-  // FIX #4: contribute xong đóng panel thay vì no-op.
+      // SearchResult shape có thể khác — điều chỉnh tên field cho khớp type của bạn.
+      const r = result as unknown as {
+        lng?: number;
+        lat?: number;
+        center?: [number, number];
+        geometry?: { coordinates?: [number, number] };
+      };
+      const lng = r.lng ?? r.center?.[0] ?? r.geometry?.coordinates?.[0];
+      const lat = r.lat ?? r.center?.[1] ?? r.geometry?.coordinates?.[1];
+
+      if (typeof lng === "number" && typeof lat === "number") {
+        mapInstance.flyTo({ center: [lng, lat], zoom: 17, duration: 800 });
+      } else {
+        setSearchError("Không xác định được tọa độ của kết quả tìm kiếm.");
+      }
+    },
+    [mapType, mapInstance],
+  );
+
+  // ✅ FIX #4: contribute xong bump version để (tương lai) refetch dữ liệu mới.
   const handleContributeCreated = useCallback(() => {
+    setStreetViewVersion((v) => v + 1);
+    setPoisVersion((v) => v + 1);
     handlePanelClose();
   }, [handlePanelClose]);
 
@@ -344,7 +388,7 @@ export default function App() {
       }
       setSvModal({ open: true, startId: id });
     },
-    [svPoints, mapInstance]
+    [svPoints, mapInstance],
   );
 
   const handlePoiClick = useCallback(
@@ -359,7 +403,7 @@ export default function App() {
         duration: 600,
       });
     },
-    [handleOpenStreetViewById, mapInstance]
+    [handleOpenStreetViewById, mapInstance],
   );
 
   const handlePoiDetails = useCallback(
@@ -374,10 +418,9 @@ export default function App() {
         duration: 600,
       });
     },
-    [clickInfo, mapInstance]
+    [clickInfo, mapInstance],
   );
 
-  // FIX #5: adapter an toàn — GeneralPanel có thể truyền PoiInfo hoặc id.
   const handlePoiStreetView = useCallback(
     (poiOrId: PoiInfo | number) => {
       if (typeof poiOrId === "number") {
@@ -394,7 +437,7 @@ export default function App() {
         });
       }
     },
-    [handleOpenStreetViewById, mapInstance]
+    [handleOpenStreetViewById, mapInstance],
   );
 
   const handleCloseLocationDetails = useCallback(() => {
@@ -403,7 +446,6 @@ export default function App() {
     handlePanelClose();
   }, [clearClick, handlePanelClose]);
 
-  // FIX #1: sidebar phải render cả khi activePanel === "info".
   const isSidebarOpen = activePanel !== null;
   const isWideSidebar = isManagementPanel(activePanel);
 
@@ -455,7 +497,7 @@ export default function App() {
           {activePanel === "contribute" && (
             <ContributePanel
               onClose={handlePanelClose}
-              mapInstance={mapInstance}          // ← thêm dòng này
+              mapInstance={mapInstance}
               onCreated={handleContributeCreated}
             />
           )}
@@ -494,7 +536,7 @@ export default function App() {
           )}
 
           {activePanel === "electric" && (
-            <ElectricPanel
+            <PoleDetailPanel
               pole={electricPoles.find((p) => p.id === selectedPoleId) ?? null}
               onClose={handlePanelClose}
               onGoToPole={handleGoToPole}
@@ -571,7 +613,7 @@ export default function App() {
                 mapInstance?.flyTo({ center: [p.lng, p.lat], zoom: 17 })
               }
             />,
-            document.body
+            document.body,
           )}
       </main>
     </div>
