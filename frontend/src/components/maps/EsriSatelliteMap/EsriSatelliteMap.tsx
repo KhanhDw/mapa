@@ -27,8 +27,8 @@ import {
     getMapLibreWorkerUrl,
 } from "../../../config";
 
-
 import type { StreetViewGeoJSON } from "./hooks/useStreetViewPoints";
+
 interface Props {
     electricPoles: ElectricPole[];
     onElectricPoleSelect: (pole: ElectricPole) => void;
@@ -54,19 +54,29 @@ function EsriSatelliteMap({
     const mapRef = useRef<MapLibreMap | null>(null);
     const [mapReady, setMapReady] = useState(false);
     const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
-    // Ref giữ callback ổn định để dùng trong map load (tránh closure cũ)
-    const onStreetViewIconClickRef = useRef(onStreetViewIconClick);
-    useEffect(() => {
-        onStreetViewIconClickRef.current = onStreetViewIconClick;
-    }, [onStreetViewIconClick]);
 
-    // Đồng bộ Layer Visibility
+    // ===== Refs cho tất cả callbacks – tránh closure cũ + tránh re-attach =====
+    const onStreetViewIconClickRef = useRef(onStreetViewIconClick);
+    const onMapInstanceReadyRef = useRef(onMapInstanceReady);
+    const onPoleLocationRecordedRef = useRef(onPoleLocationRecorded);
+    const onElectricPoleSelectRef = useRef(onElectricPoleSelect);
+    const isRecordingPoleLocationRef = useRef(isRecordingPoleLocation);
+    const electricPolesRef = useRef(electricPoles);
+
+    useEffect(() => { onStreetViewIconClickRef.current = onStreetViewIconClick; }, [onStreetViewIconClick]);
+    useEffect(() => { onMapInstanceReadyRef.current = onMapInstanceReady; }, [onMapInstanceReady]);
+    useEffect(() => { onPoleLocationRecordedRef.current = onPoleLocationRecorded; }, [onPoleLocationRecorded]);
+    useEffect(() => { onElectricPoleSelectRef.current = onElectricPoleSelect; }, [onElectricPoleSelect]);
+    useEffect(() => { isRecordingPoleLocationRef.current = isRecordingPoleLocation; }, [isRecordingPoleLocation]);
+    useEffect(() => { electricPolesRef.current = electricPoles; }, [electricPoles]);
+
+    // ===== Layer Visibility =====
     useEffect(() => {
         if (!mapReady || !mapRef.current) return;
         applyLayerVisibility(mapRef.current, layers);
     }, [mapReady, layers]);
 
-    // Init map (chỉ 1 lần)
+    // ===== Init map – CHỈ 1 LẦN =====
     useEffect(() => {
         if (!mapContainer.current || mapRef.current) return;
 
@@ -98,9 +108,7 @@ function EsriSatelliteMap({
             },
             transformRequest: (url) => {
                 if (url.startsWith("/")) {
-                    return {
-                        url: new URL(url, window.location.origin).href,
-                    };
+                    return { url: new URL(url, window.location.origin).href };
                 }
                 return { url };
             },
@@ -120,13 +128,12 @@ function EsriSatelliteMap({
             bindUserPoiHover(map);
             ensureStreetViewLayer({
                 map,
-                onIconClick: (id) =>
-                    onStreetViewIconClickRef.current?.(id),
+                onIconClick: (id) => onStreetViewIconClickRef.current?.(id),
             });
             addElectricPoleLayer(map);
             mapRef.current = map;
             setMapInstance(map);
-            onMapInstanceReady?.(map);
+            onMapInstanceReadyRef.current?.(map);
             setMapReady(true);
         });
 
@@ -136,48 +143,45 @@ function EsriSatelliteMap({
             setMapInstance(null);
             setMapReady(false);
         };
-    }, [onMapInstanceReady]);
+    }, []); // ⬅️ QUAN TRỌNG: bỏ onMapInstanceReady khỏi deps
 
-    // Update electric poles
+    // ===== Update electric poles =====
     useEffect(() => {
         if (!mapReady || !mapRef.current) return;
         setElectricPoleData(mapRef.current, electricPoles);
     }, [mapReady, electricPoles]);
 
-    // Click vào pole để chọn
+    // ===== Click pole để chọn =====
     useEffect(() => {
         const map = mapInstance;
         if (!map || !map.getLayer(ELECTRIC_POLE_LAYER_ID)) return;
 
         const onPoleClick = (event: maplibregl.MapLayerMouseEvent) => {
-            if (isRecordingPoleLocation) return;
+            if (isRecordingPoleLocationRef.current) return;
             const poleId = Number(event.features?.[0]?.properties?.poleId);
-            const pole = electricPoles.find((item) => item.id === poleId);
-            if (pole) onElectricPoleSelect(pole);
+            const pole = electricPolesRef.current.find((item) => item.id === poleId);
+            if (pole) onElectricPoleSelectRef.current(pole);
         };
-        const setPointerCursor = () => {
-            map.getCanvas().style.cursor = "pointer";
-        };
-        const clearPointerCursor = () => {
-            map.getCanvas().style.cursor = "";
-        };
+        const setPointerCursor = () => { map.getCanvas().style.cursor = "pointer"; };
+        const clearPointerCursor = () => { map.getCanvas().style.cursor = ""; };
 
         map.on("click", ELECTRIC_POLE_LAYER_ID, onPoleClick);
         map.on("mouseenter", ELECTRIC_POLE_LAYER_ID, setPointerCursor);
         map.on("mouseleave", ELECTRIC_POLE_LAYER_ID, clearPointerCursor);
+
         return () => {
             map.off("click", ELECTRIC_POLE_LAYER_ID, onPoleClick);
             map.off("mouseenter", ELECTRIC_POLE_LAYER_ID, setPointerCursor);
             map.off("mouseleave", ELECTRIC_POLE_LAYER_ID, clearPointerCursor);
         };
-    }, [mapInstance, electricPoles, isRecordingPoleLocation, onElectricPoleSelect]);
+    }, [mapInstance]); // ⬅️ chỉ phụ thuộc mapInstance
 
-    // Ghi vị trí pole trên map
+    // ===== Click trên map để ghi tọa độ =====
     useEffect(() => {
         if (!mapInstance || !isRecordingPoleLocation) return;
 
         const handleMapClick = (event: maplibregl.MapMouseEvent) => {
-            onPoleLocationRecorded({
+            onPoleLocationRecordedRef.current({
                 lng: event.lngLat.lng,
                 lat: event.lngLat.lat,
             });
@@ -186,15 +190,14 @@ function EsriSatelliteMap({
         return () => {
             mapInstance.off("click", handleMapClick);
         };
-    }, [mapInstance, isRecordingPoleLocation, onPoleLocationRecorded]);
+    }, [mapInstance, isRecordingPoleLocation]); // ⬅️ bỏ onPoleLocationRecorded khỏi deps
 
-    // Update Street View data (geojson được fetch từ App)
+    // ===== Update Street View =====
     useEffect(() => {
         if (!mapReady || !mapRef.current || !streetViewGeojson) return;
         setStreetViewData(mapRef.current, streetViewGeojson);
     }, [mapReady, streetViewGeojson]);
 
-    // Chỉ render map container – wrapper/sidebar do App quản lý
     return <div ref={mapContainer} className="map-container" />;
 }
 

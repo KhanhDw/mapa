@@ -1,7 +1,32 @@
+
+import { useMemo, useState } from "react";
+import {
+    Activity,
+    Check,
+    Eye,
+    EyeOff,
+    Layers3,
+    Map,
+    MapPin,
+    Route,
+    Search,
+    SlidersHorizontal,
+    TrainFront,
+    Trees,
+    Waves,
+    X,
+    Building2,
+    Shield,
+    Navigation,
+    Tag,
+    UserRound,
+} from "lucide-react";
+
 import "./generalPanel/generalPanel.css";
 import "./LayersPanel.css";
-import type { ReactNode } from "react";
+
 import type { LayerKey, LayerVisibility } from "./types";
+
 import {
     DEFAULT_LAYER_KEYS,
     DEFAULT_LAYER_KEY_SET,
@@ -15,157 +40,168 @@ interface Props {
     onClose: () => void;
 }
 
-const svg = {
-    viewBox: "0 0 24 24",
-    width: 18,
-    height: 18,
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-};
-
-const ICONS: Partial<Record<LayerKey, ReactNode>> = {
-    streetview: (
-        <svg {...svg}>
-            <circle cx="12" cy="8" r="3.5" />
-            <path d="M5 19c1.5-3.5 4.2-5 7-5s5.5 1.5 7 5" />
-            <path d="M2 12c2.5 1.5 6 2.2 10 2.2s7.5-.7 10-2.2" strokeDasharray="2 2" />
-        </svg>
-    ),
-    roads: (
-        <svg {...svg}>
-            <path d="M8 3L5 21M16 3l3 18M12 4v3M12 10.5v3M12 17v3" />
-        </svg>
-    ),
-    roadNames: (
-        <svg {...svg}>
-            <path d="M5 19L12 5l7 14M7.5 14h9" />
-        </svg>
-    ),
-    roadsMajor: (
-        <svg {...svg}>
-            <path d="M4 20L12 4l8 16M8 14h8" />
-        </svg>
-    ),
-    roadsMinor: (
-        <svg {...svg}>
-            <path d="M6 20L12 8l6 12" />
-        </svg>
-    ),
-    roadsLocal: (
-        <svg {...svg}>
-            <path d="M8 20L12 10l4 10" />
-        </svg>
-    ),
-    railways: (
-        <svg {...svg}>
-            <path d="M6 4v16M18 4v16M6 8h12M6 12h12M6 16h12" />
-        </svg>
-    ),
-    water: (
-        <svg {...svg}>
-            <path d="M3 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 18c2-2 4-2 6 0s4 2 6 0 4-2 6 0" />
-        </svg>
-    ),
-    waterways: (
-        <svg {...svg}>
-            <path d="M3 8c3 0 3 4 6 4s3-4 6-4 3 4 6 4M3 16c3 0 3 4 6 4s3-4 6-4 3 4 6 4" />
-        </svg>
-    ),
-    landuse: (
-        <svg {...svg}>
-            <rect x="3" y="3" width="8" height="8" rx="1" />
-            <rect x="13" y="3" width="8" height="8" rx="1" />
-            <rect x="3" y="13" width="8" height="8" rx="1" />
-            <rect x="13" y="13" width="8" height="8" rx="1" />
-        </svg>
-    ),
-    natural: (
-        <svg {...svg}>
-            <path d="M12 3l4 6-4 2-4-2 4-6zM8 13l4-2 4 2-4 8-4-8z" />
-        </svg>
-    ),
-    protected: (
-        <svg {...svg}>
-            <path d="M12 3l8 4v6c0 5-4 8-8 8s-8-3-8-8V7l8-4z" />
-        </svg>
-    ),
-    buildings: (
-        <svg {...svg}>
-            <rect x="4" y="6" width="16" height="14" rx="1" />
-            <path d="M9 6V3h6v3M9 11h.01M15 11h.01M9 15h.01M15 15h.01" />
-        </svg>
-    ),
-    admin: (
-        <svg {...svg}>
-            <path d="M3 8l4-3 5 3 5-3 4 3v10l-4 3-5-3-5 3-4-3V8z" />
-        </svg>
-    ),
-    places: (
-        <svg {...svg}>
-            <circle cx="12" cy="10" r="3" />
-            <path d="M12 21c4-5 8-8 8-12a8 8 0 1 0-16 0c0 4 4 7 8 12z" />
-        </svg>
-    ),
-    pois: (
-        <svg {...svg}>
-            <circle cx="12" cy="12" r="4" />
-            <circle cx="12" cy="12" r="9" strokeDasharray="2 2" />
-        </svg>
-    ),
-    userPois: (
-        <svg {...svg}>
-            <circle cx="12" cy="12" r="4" fill="currentColor" />
-            <circle cx="12" cy="12" r="9" strokeDasharray="2 3" />
-        </svg>
-    ),
-};
-
 type LayerMetaItem = (typeof LAYER_META)[number];
 
-export function LayersPanel({ layers, onToggle, onClose }: Props) {
-    const activeCount = LAYER_META.filter((m) => layers[m.key]).length;
+const ICONS: Partial<Record<LayerKey, React.ReactNode>> = {
+    streetview: <Navigation size={19} strokeWidth={1.8} />,
+    roads: <Route size={19} strokeWidth={1.8} />,
+    roadNames: <Tag size={19} strokeWidth={1.8} />,
+    roadsMajor: <Route size={19} strokeWidth={2.3} />,
+    roadsMinor: <Route size={18} strokeWidth={1.6} />,
+    roadsLocal: <Navigation size={18} strokeWidth={1.7} />,
+    railways: <TrainFront size={19} strokeWidth={1.8} />,
+    water: <Waves size={19} strokeWidth={1.8} />,
+    waterways: <Waves size={19} strokeWidth={1.8} />,
+    landuse: <Map size={19} strokeWidth={1.8} />,
+    natural: <Trees size={19} strokeWidth={1.8} />,
+    protected: <Shield size={19} strokeWidth={1.8} />,
+    buildings: <Building2 size={19} strokeWidth={1.8} />,
+    admin: <Map size={19} strokeWidth={1.8} />,
+    places: <MapPin size={19} strokeWidth={1.8} />,
+    pois: <MapPin size={19} strokeWidth={2.2} />,
+    userPois: <UserRound size={19} strokeWidth={1.8} />,
+};
 
-    // 5 lớp mặc định, đúng thứ tự: streetview, roads, roadNames, pois, userPois
-    const defaultMetas = DEFAULT_LAYER_KEYS
-        .map((key) => LAYER_META.find((m) => m.key === key))
-        .filter((m): m is LayerMetaItem => Boolean(m));
+export function LayersPanel({
+    layers,
+    onToggle,
+    onClose,
+}: Props) {
+    const [query, setQuery] = useState("");
+    const [activeOnly, setActiveOnly] = useState(false);
 
-    // Các lớp còn lại (không nằm trong nhóm mặc định)
-    const remainingMetas = LAYER_META.filter(
-        (m) => !DEFAULT_LAYER_KEY_SET.has(m.key),
+    const activeCount = LAYER_META.filter(
+        (meta) => Boolean(layers[meta.key])
+    ).length;
+
+    const totalCount = LAYER_META.length;
+
+    const progress = totalCount > 0
+        ? (activeCount / totalCount) * 100
+        : 0;
+
+    const normalizedQuery = query.trim().toLocaleLowerCase("vi");
+
+    // Giữ thứ tự 5 lớp mặc định như registry hiện tại.
+    const defaultMetas = useMemo(
+        () =>
+            DEFAULT_LAYER_KEYS
+                .map((key) =>
+                    LAYER_META.find((meta) => meta.key === key)
+                )
+                .filter(
+                    (meta): meta is LayerMetaItem => Boolean(meta)
+                ),
+        []
     );
 
-    const renderRow = ({ key, title, description }: LayerMetaItem) => {
-        const isChecked = Boolean(layers[key]);
+    const remainingMetas = useMemo(
+        () =>
+            LAYER_META.filter(
+                (meta) => !DEFAULT_LAYER_KEY_SET.has(meta.key)
+            ),
+        []
+    );
+
+    const filterMetas = (items: LayerMetaItem[]) => {
+        return items.filter((meta) => {
+            const isActive = Boolean(layers[meta.key]);
+
+            if (activeOnly && !isActive) {
+                return false;
+            }
+
+            if (!normalizedQuery) {
+                return true;
+            }
+
+            const searchableText = [
+                meta.title,
+                meta.description,
+                meta.key,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLocaleLowerCase("vi");
+
+            return searchableText.includes(normalizedQuery);
+        });
+    };
+
+    const filteredDefaults = filterMetas(defaultMetas);
+
+    const filteredGroups = useMemo(() => {
+        return LAYER_GROUPS.map((group) => {
+            const items = remainingMetas.filter(
+                (meta) => meta.category === group.id
+            );
+
+            return {
+                ...group,
+                items: filterMetas(items),
+                total: items.length,
+            };
+        }).filter((group) => group.items.length > 0);
+    }, [remainingMetas, normalizedQuery, activeOnly, layers]);
+
+    const visibleCount =
+        filteredDefaults.length +
+        filteredGroups.reduce(
+            (sum, group) => sum + group.items.length,
+            0
+        );
+
+    const hasFilter = normalizedQuery.length > 0 || activeOnly;
+
+    const renderRow = (meta: LayerMetaItem) => {
+        const isChecked = Boolean(layers[meta.key]);
+
         return (
-            <li key={key}>
+            <li
+                key={meta.key}
+                className="lp-item"
+            >
                 <button
                     type="button"
-                    className="layer-row"
+                    className={`lp-row ${isChecked ? "is-active" : ""}`}
                     role="switch"
                     aria-checked={isChecked}
-                    onClick={() => onToggle(key)}
+                    aria-label={`${meta.title}: ${isChecked ? "Đang bật" : "Đang tắt"
+                        }`}
+                    onClick={() => onToggle(meta.key)}
                 >
-                    <span className="layer-row__icon">
-                        {ICONS[key] ?? (
-                            <svg {...svg}>
-                                <circle cx="12" cy="12" r="6" />
-                            </svg>
-                        )}
-                    </span>
-                    <span className="layer-row__text">
-                        <span className="layer-row__title">{title}</span>
-                        <span className="layer-row__desc">{description}</span>
-                    </span>
                     <span
-                        className={`layer-switch${isChecked ? " is-on" : ""}`}
+                        className={`lp-row__icon ${isChecked ? "is-active" : ""
+                            }`}
                         aria-hidden="true"
                     >
-                        <span className="layer-switch__knob" />
+                        {ICONS[meta.key] ?? (
+                            <Layers3 size={19} strokeWidth={1.8} />
+                        )}
+                    </span>
+
+                    <span className="lp-row__content">
+                        <span className="lp-row__title">
+                            {meta.title}
+                        </span>
+
+                        <span className="lp-row__description">
+                            {meta.description}
+                        </span>
+                    </span>
+
+                    <span className="lp-row__state">
+                        <span
+                            className={`lp-switch ${isChecked ? "is-on" : ""
+                                }`}
+                            aria-hidden="true"
+                        >
+                            <span className="lp-switch__thumb">
+                                {isChecked && (
+                                    <Check size={10} strokeWidth={3} />
+                                )}
+                            </span>
+                        </span>
                     </span>
                 </button>
             </li>
@@ -173,64 +209,257 @@ export function LayersPanel({ layers, onToggle, onClose }: Props) {
     };
 
     return (
-        <div
+        <aside
             className="coord-sidebar layers-panel"
             role="region"
-            aria-label="Lớp bản đồ"
+            aria-label="Quản lý lớp bản đồ"
         >
-            <header className="coord-sidebar__header">
-                <div>
-                    <h2>Lớp bản đồ</h2>
-                    <p className="cs-muted">
-                        Đang bật <strong>{activeCount}</strong>/{LAYER_META.length} lớp hiển thị
-                    </p>
+            {/* HEADER */}
+            <header className="lp-header">
+                <div className="lp-header__main">
+                    <div className="lp-header__icon">
+                        <Layers3 size={21} strokeWidth={1.8} />
+                    </div>
+
+                    <div className="lp-header__text">
+                        <div className="lp-header__title-row">
+                            <h2>Lớp bản đồ</h2>
+
+                            <span className="lp-header__badge">
+                                <Activity size={11} />
+                                Layers
+                            </span>
+                        </div>
+
+                        <p>Quản lý dữ liệu hiển thị trên bản đồ</p>
+                    </div>
                 </div>
+
                 <button
                     type="button"
-                    className="coord-sidebar__close"
+                    className="lp-close"
                     onClick={onClose}
-                    aria-label="Đóng"
-                    title="Đóng bảng lớp bản đồ"
+                    aria-label="Đóng bảng lớp bản đồ"
+                    title="Đóng"
                 >
-                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                        <path
-                            d="M6 6l12 12M18 6L6 18"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            fill="none"
-                        />
-                    </svg>
+                    <X size={18} />
                 </button>
             </header>
 
-            <div className="coord-sidebar__scroll">
-                {/* Nhóm 5 lớp mặc định, luôn đứng đầu */}
-                {defaultMetas.length > 0 && (
-                    <section className="layer-group layer-group--default">
-                        <h3 className="layer-group__title">Lớp mặc định</h3>
-                        <ul className="layer-list">
-                            {defaultMetas.map(renderRow)}
+            {/* OVERVIEW */}
+            <section className="lp-overview">
+                <div className="lp-overview__top">
+                    <div className="lp-overview__label">
+                        <span className="lp-overview__dot" />
+                        Lớp đang hiển thị
+                    </div>
+
+                    <div className="lp-overview__count">
+                        <strong>{activeCount}</strong>
+                        <span>/ {totalCount}</span>
+                    </div>
+                </div>
+
+                <div
+                    className="lp-progress"
+                    role="progressbar"
+                    aria-label="Tỷ lệ lớp bản đồ đang bật"
+                    aria-valuemin={0}
+                    aria-valuemax={totalCount}
+                    aria-valuenow={activeCount}
+                >
+                    <span
+                        className="lp-progress__bar"
+                        style={{ width: `${progress}%` }}
+                    />
+                </div>
+
+                <div className="lp-overview__bottom">
+                    <span>
+                        {activeCount === 0
+                            ? "Chưa có lớp nào được bật"
+                            : `${activeCount} lớp đang hoạt động`}
+                    </span>
+
+                    <span>
+                        {Math.round(progress)}%
+                    </span>
+                </div>
+            </section>
+
+            {/* SEARCH */}
+            <section className="lp-toolbar">
+                <div className="lp-search">
+                    <Search
+                        size={17}
+                        className="lp-search__icon"
+                    />
+
+                    <input
+                        type="search"
+                        value={query}
+                        onChange={(event) =>
+                            setQuery(event.target.value)
+                        }
+                        placeholder="Tìm lớp bản đồ..."
+                        aria-label="Tìm lớp bản đồ"
+                    />
+
+                    {query && (
+                        <button
+                            type="button"
+                            className="lp-search__clear"
+                            onClick={() => setQuery("")}
+                            aria-label="Xóa tìm kiếm"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
+
+                <button
+                    type="button"
+                    className={`lp-filter ${activeOnly ? "is-active" : ""
+                        }`}
+                    onClick={() => setActiveOnly((value) => !value)}
+                    aria-pressed={activeOnly}
+                    title={
+                        activeOnly
+                            ? "Hiển thị tất cả lớp"
+                            : "Chỉ hiển thị lớp đang bật"
+                    }
+                >
+                    <SlidersHorizontal size={16} />
+                    <span>
+                        {activeOnly ? "Đang bật" : "Bộ lọc"}
+                    </span>
+                </button>
+            </section>
+
+            {/* FILTER SUMMARY */}
+            {hasFilter && (
+                <div className="lp-filter-summary">
+                    <span>
+                        Tìm thấy <strong>{visibleCount}</strong> lớp
+                    </span>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setQuery("");
+                            setActiveOnly(false);
+                        }}
+                    >
+                        Xóa bộ lọc
+                        <X size={12} />
+                    </button>
+                </div>
+            )}
+
+            {/* LAYER LIST */}
+            <div className="coord-sidebar__scroll lp-content">
+                {!hasFilter && (
+                    <div className="lp-section-intro">
+                        <span className="lp-section-intro__icon">
+                            <Eye size={15} />
+                        </span>
+
+                        <span>
+                            Bật hoặc tắt các lớp dữ liệu muốn hiển thị
+                        </span>
+                    </div>
+                )}
+
+                {/* DEFAULT LAYERS */}
+                {filteredDefaults.length > 0 && (
+                    <section className="lp-group lp-group--default">
+                        <div className="lp-group__heading">
+                            <div className="lp-group__heading-left">
+                                <span className="lp-group__marker lp-group__marker--primary" />
+                                <h3>Lớp mặc định</h3>
+                            </div>
+
+                            <span className="lp-group__count">
+                                {filteredDefaults.length}
+                            </span>
+                        </div>
+
+                        <ul className="lp-list">
+                            {filteredDefaults.map(renderRow)}
                         </ul>
                     </section>
                 )}
 
-                {/* Các nhóm còn lại */}
-                {LAYER_GROUPS.map((group) => {
-                    const items = remainingMetas.filter(
-                        (m) => m.category === group.id,
-                    );
-                    if (items.length === 0) return null;
-                    return (
-                        <section key={group.id} className="layer-group">
-                            <h3 className="layer-group__title">{group.title}</h3>
-                            <ul className="layer-list">
-                                {items.map(renderRow)}
-                            </ul>
-                        </section>
-                    );
-                })}
+                {/* OTHER GROUPS */}
+                {filteredGroups.map((group) => (
+                    <section
+                        key={group.id}
+                        className="lp-group"
+                    >
+                        <div className="lp-group__heading">
+                            <div className="lp-group__heading-left">
+                                <span className="lp-group__marker" />
+                                <h3>{group.title}</h3>
+                            </div>
+
+                            <span className="lp-group__count">
+                                {group.items.length}
+                            </span>
+                        </div>
+
+                        <ul className="lp-list">
+                            {group.items.map(renderRow)}
+                        </ul>
+                    </section>
+                ))}
+
+                {/* NO RESULTS */}
+                {visibleCount === 0 && (
+                    <div className="lp-empty">
+                        <div className="lp-empty__icon">
+                            {activeOnly ? (
+                                <EyeOff size={23} />
+                            ) : (
+                                <Search size={23} />
+                            )}
+                        </div>
+
+                        <h3>
+                            {activeOnly
+                                ? "Không có lớp đang bật"
+                                : "Không tìm thấy lớp"}
+                        </h3>
+
+                        <p>
+                            {activeOnly
+                                ? "Hiện tại không có lớp nào phù hợp với bộ lọc."
+                                : "Thử tìm kiếm bằng tên hoặc mô tả khác."}
+                        </p>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setQuery("");
+                                setActiveOnly(false);
+                            }}
+                        >
+                            Hiển thị tất cả lớp
+                        </button>
+                    </div>
+                )}
             </div>
-        </div>
+
+            {/* FOOTER */}
+            <footer className="lp-footer">
+                <div className="lp-footer__left">
+                    <span className="lp-footer__status" />
+                    <span>Dữ liệu bản đồ</span>
+                </div>
+
+                <div className="lp-footer__right">
+                    <span>{visibleCount} lớp hiển thị</span>
+                </div>
+            </footer>
+        </aside>
     );
 }

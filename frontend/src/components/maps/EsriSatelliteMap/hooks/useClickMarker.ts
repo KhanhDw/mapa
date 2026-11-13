@@ -10,17 +10,23 @@ interface Result {
     clear: () => void;
 }
 
+/**
+ * Bind click vào map để đặt marker + trả toạ độ.
+ * @param enabled true = CHO PHÉP click đặt marker (mặc định true).
+ *                Truyền false khi đang ghi pole / contribute / management panel.
+ */
 export function useClickMarker(
     map: MapLibreMap | null,
-    disabled = false
+    enabled = true,
 ): Result {
     const [clickInfo, setClickInfo] = useState<ClickInfo | null>(null);
     const markerRef = useRef<maplibregl.Marker | null>(null);
 
     useEffect(() => {
-        if (!map || disabled) return;
+        if (!map || !enabled) return;
 
         const onClick = (e: maplibregl.MapMouseEvent) => {
+            // Bỏ qua click lên icon Street View / cột điện — để layer đó tự xử lý.
             if (map.getLayer(SV_LAYER_ID)) {
                 const hit = map.queryRenderedFeatures(e.point, {
                     layers: [SV_LAYER_ID],
@@ -57,7 +63,7 @@ export function useClickMarker(
             }
             markerRef.current = null;
         };
-    }, [map, disabled]);
+    }, [map, enabled]);
 
     const clear = useCallback(() => {
         markerRef.current?.remove();

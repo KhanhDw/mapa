@@ -96,7 +96,8 @@ body,
 }
 
 .app-sidebar .coord-sidebar,
-.app-sidebar > div {
+.app-sidebar > div,
+.app-sidebar > aside {
   position: relative !important;
   inset: auto !important;
   top: auto !important;

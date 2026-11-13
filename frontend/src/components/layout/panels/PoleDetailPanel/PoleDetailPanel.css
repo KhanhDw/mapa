@@ -780,3 +780,375 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* =========================================================
+   POLE DETAIL — SAAS UI ENHANCEMENTS
+   Append to the end of PoleDetailPanel.css
+   ========================================================= */
+
+.pole-detail-panel {
+  --pd-primary: #2563eb;
+  --pd-primary-hover: #1d4ed8;
+  --pd-primary-soft: #eff6ff;
+
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow:
+    0 16px 40px rgb(15 23 42 / 10%),
+    0 2px 8px rgb(15 23 42 / 4%);
+}
+
+/* Header */
+
+.pd-header__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+}
+
+.pd-header__brand-icon {
+  display: grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 7px;
+}
+
+.pole-detail-panel__header h2 {
+  margin-top: 9px;
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -0.035em;
+}
+
+.pole-detail-panel__close {
+  width: 34px;
+  height: 34px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+}
+
+.pole-detail-panel__close:hover {
+  color: #0f172a;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+/* Section heading */
+
+.pd-section-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.pd-section-heading__text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pd-section-title {
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.pd-section-caption {
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.pd-section-title__icon {
+  width: 31px;
+  height: 31px;
+  flex: 0 0 31px;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 9px;
+}
+
+.pd-section-title__icon svg {
+  display: block;
+}
+
+/* Asset identity */
+
+.pd-identity {
+  position: relative;
+  overflow: hidden;
+  padding: 17px;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(59 130 246 / 10%), transparent 42%),
+    linear-gradient(145deg, #f8fbff, #f1f6ff);
+  border: 1px solid #dce8fa;
+  border-radius: 13px;
+}
+
+.pd-identity::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(180deg, #3b82f6, rgb(59 130 246 / 8%));
+  content: "";
+}
+
+.pd-identity__code {
+  margin-top: 17px;
+  color: #0f172a;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.pd-identity__caption {
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.pd-identity__meta {
+  margin-top: 17px;
+  padding-top: 13px;
+  border-top: 1px solid #dce6f4;
+}
+
+.pd-identity__meta-label {
+  font-size: 11px;
+}
+
+.pd-identity__meta-value {
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Status summary */
+
+.pd-status-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.pd-status-summary--good {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+
+.pd-status-summary--warning {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fef3c7;
+}
+
+.pd-status-summary--error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fee2e2;
+}
+
+.pd-status-summary svg {
+  flex: 0 0 auto;
+}
+
+/* Data cards */
+
+.pd-data-card {
+  padding: 2px 14px;
+  border-color: #e2e8f0;
+  border-radius: 11px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 2%);
+}
+
+.pd-info-row {
+  min-height: 43px;
+  align-items: center;
+}
+
+.pd-info-row__label {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.pd-info-row__value {
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.pd-info-row__value.is-mono {
+  padding: 4px 7px;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+/* Copy button */
+
+.pd-copy-btn {
+  min-height: 31px;
+  padding: 5px 9px;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pd-copy-btn:hover {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+}
+
+.pd-copy-btn.is-success {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.pd-copy-btn.is-error {
+  color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+/* Primary action */
+
+.pd-btn {
+  min-height: 43px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 5px rgb(37 99 235 / 15%);
+}
+
+.pd-btn:hover {
+  box-shadow: 0 4px 10px rgb(37 99 235 / 20%);
+}
+
+.pd-btn__arrow {
+  margin-left: auto;
+}
+
+/* Detail card */
+
+.pd-detail-card {
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+}
+
+.pd-detail-text {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+/* Empty state */
+
+.pole-detail-panel__empty-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(145deg, #eff6ff, #dbeafe);
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+}
+
+.pole-detail-panel__empty-title {
+  color: #1e293b;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.pole-detail-panel__empty-desc {
+  color: #64748b;
+  line-height: 1.75;
+}
+
+/* Footer */
+
+.pd-panel-footer {
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 10px;
+}
+
+.pd-panel-footer__spacer {
+  flex: 1;
+}
+
+.pd-panel-footer svg {
+  color: #94a3b8;
+}
+
+/* Interaction */
+
+.pole-detail-panel button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pole-detail-panel button:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 25%);
+  outline-offset: 2px;
+}
+
+.pd-btn:active,
+.pd-copy-btn:active {
+  transform: translateY(1px);
+}
+
+/* Responsive */
+
+@media (max-width: 600px) {
+  .pd-identity__code {
+    font-size: 23px;
+  }
+
+  .pd-section-caption {
+    font-size: 9px;
+  }
+
+  .pd-info-row {
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pole-detail-panel,
+  .pole-detail-panel * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,7 +1,23 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+    Activity,
+    AlertCircle,
+    AlertTriangle,
+    Check,
+    CheckCircle2,
+    Clock3,
+    Copy,
+    Crosshair,
+    FileText,
+    MapPin,
+    MoreHorizontal,
+    RadioTower,
+    X,
+} from "lucide-react";
+
 import type { ElectricPole } from "../../../../api/electricPoles";
-import "./PoleDetail.css";
+import "./PoleDetailPanel.css";
 
 interface Props {
     pole: ElectricPole | null;
@@ -9,50 +25,52 @@ interface Props {
     onGoToPole: (pole: ElectricPole) => void;
 }
 
-const STATUS_LABELS: Record<ElectricPole["status"], string> = {
-    good: "Bình thường",
-    warning: "Cảnh báo",
-    error: "Đang có sự cố",
-};
-
 type CopyState = "idle" | "ok" | "fail";
 
-function Icon({
-    children,
-    className = "",
-}: {
-    children: ReactNode;
-    className?: string;
-}) {
-    return (
-        <svg
-            className={`pd-icon ${className}`.trim()}
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-        >
-            {children}
-        </svg>
-    );
-}
+const STATUS_CONFIG: Record<
+    ElectricPole["status"],
+    {
+        label: string;
+        description: string;
+        icon: typeof CheckCircle2;
+    }
+> = {
+    good: {
+        label: "Bình thường",
+        description: "Thiết bị đang hoạt động bình thường",
+        icon: CheckCircle2,
+    },
+    warning: {
+        label: "Cảnh báo",
+        description: "Thiết bị cần được kiểm tra",
+        icon: AlertTriangle,
+    },
+    error: {
+        label: "Đang có sự cố",
+        description: "Thiết bị đang ghi nhận sự cố",
+        icon: AlertCircle,
+    },
+};
 
 function SectionTitle({
-    icon,
+    icon: Icon,
     label,
+    caption,
 }: {
-    icon: ReactNode;
+    icon: typeof MapPin;
     label: string;
+    caption?: string;
 }) {
     return (
-        <div className="pd-section-title">
-            <span className="pd-section-title__icon">{icon}</span>
-            <span>{label}</span>
+        <div className="pd-section-heading">
+            <span className="pd-section-title__icon" aria-hidden="true">
+                <Icon size={16} strokeWidth={1.8} />
+            </span>
+
+            <span className="pd-section-heading__text">
+                <span className="pd-section-title">{label}</span>
+                {caption && <span className="pd-section-caption">{caption}</span>}
+            </span>
         </div>
     );
 }
@@ -69,16 +87,30 @@ function InfoRow({
     return (
         <div className="pd-info-row">
             <span className="pd-info-row__label">{label}</span>
-            <span
-                className={`pd-info-row__value${mono ? " is-mono" : ""}`}
-            >
+            <span className={`pd-info-row__value${mono ? " is-mono" : ""}`}>
                 {value}
             </span>
         </div>
     );
 }
 
-export function PoleDetail({
+function formatDate(value: string | Date) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "Chưa cập nhật";
+    }
+
+    return date.toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
+export function PoleDetailPanel({
     pole,
     onClose,
     onGoToPole,
@@ -94,23 +126,29 @@ export function PoleDetail({
     const timer = useRef<number | undefined>(undefined);
 
     useEffect(() => {
-        return () => window.clearTimeout(timer.current);
+        return () => {
+            if (timer.current !== undefined) {
+                window.clearTimeout(timer.current);
+            }
+        };
     }, []);
 
     const infoKey = pole ? `${pole.lng}|${pole.lat}` : "";
 
-    const copy: CopyState =
+    const copy =
         copyState.key === infoKey ? copyState.value : "idle";
 
     const handleCopy = async () => {
         if (!pole) return;
 
-        const text = `${pole.lat.toFixed(6)}, ${pole.lng.toFixed(6)}`;
+        const coordinates = `${pole.lat.toFixed(6)}, ${pole.lng.toFixed(6)}`;
 
-        window.clearTimeout(timer.current);
+        if (timer.current !== undefined) {
+            window.clearTimeout(timer.current);
+        }
 
         try {
-            await navigator.clipboard.writeText(text);
+            await navigator.clipboard.writeText(coordinates);
 
             setCopyState({
                 key: infoKey,
@@ -131,23 +169,29 @@ export function PoleDetail({
         }, 2200);
     };
 
+    const status = pole ? STATUS_CONFIG[pole.status] : null;
+    const StatusIcon = status?.icon;
+
     return (
         <aside
             className="pole-detail-panel"
-            aria-label="Thông tin trụ điện"
+            aria-label="Thông tin chi tiết trụ điện"
+            aria-busy="false"
         >
-            {/* HEADER */}
             <header className="pole-detail-panel__header">
                 <div className="pole-detail-panel__heading">
-                    <span className="pole-detail-panel__eyebrow">
-                        QUẢN LÝ TÀI SẢN
-                    </span>
+                    <div className="pd-header__eyebrow">
+                        <span className="pd-header__brand-icon">
+                            <RadioTower size={15} />
+                        </span>
+                        <span>QUẢN LÝ TÀI SẢN</span>
+                    </div>
 
                     <h2>Chi tiết trụ điện</h2>
 
                     <p className="pole-detail-panel__muted">
                         {pole
-                            ? pole.pole_code
+                            ? `Mã tài sản: ${pole.pole_code}`
                             : "Thông tin tài sản trên bản đồ"}
                     </p>
                 </div>
@@ -156,33 +200,17 @@ export function PoleDetail({
                     type="button"
                     className="pole-detail-panel__close"
                     onClick={onClose}
-                    aria-label="Đóng thanh thông tin"
+                    aria-label="Đóng bảng chi tiết"
                     title="Đóng"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        width="18"
-                        height="18"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        fill="none"
-                    >
-                        <path
-                            d="M18 6L6 18M6 6l12 12"
-                            strokeLinecap="round"
-                        />
-                    </svg>
+                    <X size={18} />
                 </button>
             </header>
 
-            {/* EMPTY STATE */}
             {!pole ? (
                 <div className="pole-detail-panel__empty">
                     <div className="pole-detail-panel__empty-icon">
-                        <Icon>
-                            <path d="M12 3v18M8 7h8M8 11h8M8 15h8M6 21h12" />
-                            <path d="M5 5h14" />
-                        </Icon>
+                        <RadioTower size={28} strokeWidth={1.6} />
                     </div>
 
                     <p className="pole-detail-panel__empty-title">
@@ -190,9 +218,8 @@ export function PoleDetail({
                     </p>
 
                     <p className="pole-detail-panel__empty-desc">
-                        Chọn một trụ điện trên bản đồ hoặc trong danh
-                        sách để xem trạng thái, tọa độ và thông tin
-                        vận hành.
+                        Chọn một trụ điện trên bản đồ hoặc trong danh sách để xem
+                        trạng thái, tọa độ và thông tin vận hành.
                     </p>
 
                     <span className="pole-detail-panel__empty-hint">
@@ -202,25 +229,20 @@ export function PoleDetail({
                 </div>
             ) : (
                 <div className="pole-detail-panel__scroll">
-
-                    {/* ASSET IDENTITY */}
+                    {/* ASSET OVERVIEW */}
                     <section className="pd-identity">
                         <div className="pd-identity__topline">
-                            <span className="pd-overline">
-                                THIẾT BỊ ĐIỆN
-                            </span>
+                            <span className="pd-overline">THIẾT BỊ ĐIỆN</span>
 
-                            <span
-                                className={`pd-status pd-status--${pole.status}`}
-                            >
-                                <span className="pd-status__dot" />
-                                {STATUS_LABELS[pole.status]}
-                            </span>
+                            {status && (
+                                <span className={`pd-status pd-status--${pole.status}`}>
+                                    <span className="pd-status__dot" />
+                                    {status.label}
+                                </span>
+                            )}
                         </div>
 
-                        <h3 className="pd-identity__code">
-                            {pole.pole_code}
-                        </h3>
+                        <h3 className="pd-identity__code">{pole.pole_code}</h3>
 
                         <p className="pd-identity__caption">
                             Mã định danh trụ điện
@@ -235,19 +257,22 @@ export function PoleDetail({
                                 {pole.route || "Chưa cập nhật"}
                             </span>
                         </div>
+
+                        {status && StatusIcon && (
+                            <div className={`pd-status-summary pd-status-summary--${pole.status}`}>
+                                <StatusIcon size={15} />
+                                <span>{status.description}</span>
+                            </div>
+                        )}
                     </section>
 
                     {/* LOCATION */}
                     <section className="pd-section">
                         <div className="pd-section__header">
                             <SectionTitle
+                                icon={MapPin}
                                 label="Vị trí & tọa độ"
-                                icon={
-                                    <Icon>
-                                        <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
-                                        <circle cx="12" cy="10" r="2.5" />
-                                    </Icon>
-                                }
+                                caption="Vị trí địa lý của thiết bị"
                             />
 
                             <button
@@ -262,31 +287,23 @@ export function PoleDetail({
                                 aria-live="polite"
                                 aria-label={
                                     copy === "fail"
-                                        ? "Thử sao chép lại tọa độ"
+                                        ? "Không thể sao chép, thử lại"
                                         : "Sao chép tọa độ"
                                 }
                             >
                                 {copy === "ok" ? (
                                     <>
-                                        <Icon>
-                                            <path d="m5 12 4 4L19 6" />
-                                        </Icon>
+                                        <Check size={14} />
                                         Đã sao chép
                                     </>
                                 ) : copy === "fail" ? (
-                                    <>Không thể chép · Thử lại</>
+                                    <>
+                                        <AlertCircle size={14} />
+                                        Thử lại
+                                    </>
                                 ) : (
                                     <>
-                                        <Icon>
-                                            <rect
-                                                x="8"
-                                                y="8"
-                                                width="13"
-                                                height="13"
-                                                rx="2"
-                                            />
-                                            <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
-                                        </Icon>
+                                        <Copy size={14} />
                                         Sao chép
                                     </>
                                 )}
@@ -314,16 +331,12 @@ export function PoleDetail({
                             className="pd-btn pd-btn--primary"
                             onClick={() => onGoToPole(pole)}
                         >
-                            <Icon>
-                                <circle cx="12" cy="12" r="3" />
-                                <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
-                            </Icon>
-
-                            Định vị trên bản đồ
-
-                            <Icon className="pd-btn__arrow">
-                                <path d="M5 12h14m-6-6 6 6-6 6" />
-                            </Icon>
+                            <Crosshair size={17} />
+                            <span>Định vị trên bản đồ</span>
+                            <MoreHorizontal
+                                className="pd-btn__arrow"
+                                size={17}
+                            />
                         </button>
                     </section>
 
@@ -332,20 +345,14 @@ export function PoleDetail({
                         <section className="pd-section">
                             <div className="pd-section__header">
                                 <SectionTitle
+                                    icon={FileText}
                                     label="Thông tin chi tiết"
-                                    icon={
-                                        <Icon>
-                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                            <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
-                                        </Icon>
-                                    }
+                                    caption="Mô tả và ghi chú tài sản"
                                 />
                             </div>
 
                             <div className="pd-detail-card">
-                                <p className="pd-detail-text">
-                                    {pole.detail}
-                                </p>
+                                <p className="pd-detail-text">{pole.detail}</p>
                             </div>
                         </section>
                     )}
@@ -354,42 +361,38 @@ export function PoleDetail({
                     <section className="pd-section">
                         <div className="pd-section__header">
                             <SectionTitle
+                                icon={Clock3}
                                 label="Lịch sử dữ liệu"
-                                icon={
-                                    <Icon>
-                                        <circle cx="12" cy="12" r="9" />
-                                        <path d="M12 7v5l3 2" />
-                                    </Icon>
-                                }
+                                caption="Thời gian ghi nhận trên hệ thống"
                             />
                         </div>
 
                         <div className="pd-data-card">
                             <InfoRow
                                 label="Ngày tạo"
-                                value={new Date(
-                                    pole.created_at
-                                ).toLocaleString("vi-VN")}
+                                value={formatDate(pole.created_at)}
                             />
 
                             <div className="pd-data-card__divider" />
 
                             <InfoRow
                                 label="Cập nhật lần cuối"
-                                value={new Date(
-                                    pole.updated_at
-                                ).toLocaleString("vi-VN")}
+                                value={formatDate(pole.updated_at)}
                             />
                         </div>
                     </section>
 
-                    {/* FOOTER */}
                     <footer className="pd-panel-footer">
                         <span className="pd-panel-footer__indicator" />
-                        Dữ liệu tài sản
+                        <span>Dữ liệu tài sản</span>
+                        <span className="pd-panel-footer__spacer" />
+                        <Activity size={13} />
+                        <span>Thông tin chi tiết</span>
                     </footer>
                 </div>
             )}
         </aside>
     );
 }
+
+export default PoleDetailPanel;
