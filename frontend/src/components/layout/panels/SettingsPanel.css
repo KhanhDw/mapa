@@ -12,19 +12,15 @@
   display: flex;
   align-items: center;
   gap: 12px;
-
   width: 100%;
   padding: 10px 12px;
-
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius-sm);
-
   background: #ffffff;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease,
@@ -51,15 +47,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-
   border-radius: 9px;
   background: #f1f5f9;
   color: #64748b;
-
   transition:
     background-color 0.15s ease,
     color 0.15s ease;

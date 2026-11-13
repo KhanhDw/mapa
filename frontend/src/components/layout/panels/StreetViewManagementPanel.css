@@ -1,21 +1,25 @@
 /* ============================================================================
-   StreetViewManagementPanel.css (Theme Trắng Sáng Hoàn Chỉnh)
+   StreetViewManagementPanel.css — aligned with canonical --cs-* tokens
    ============================================================================ */
 
 .sv-dashboard {
   color-scheme: light;
-  --sv-bg: #ffffff;
-  --sv-surface: #f8fafc;
-  --sv-border: #e2e8f0;
-  --sv-text: #0f172a;
-  --sv-muted: #64748b;
-  --sv-primary: #2563eb;
+  --sv-bg: var(--cs-bg, #ffffff);
+  --sv-surface: var(--cs-card-bg, #f8fafc);
+  --sv-border: var(--cs-border, #e4e4e7);
+  --sv-text: var(--cs-text-main, #09090b);
+  --sv-muted: var(--cs-text-muted, #52525b);
+  --sv-subtle: var(--cs-text-subtle, #a1a1aa);
+  --sv-primary: var(--cs-primary, #2563eb);
+  --sv-primary-hover: var(--cs-primary-hover, #1d4ed8);
+  --sv-primary-light: var(--cs-primary-light, #eff6ff);
   --sv-on-primary: #ffffff;
   --sv-ok: #16a34a;
   --sv-warn: #d97706;
   --sv-danger: #dc2626;
   --sv-danger-text: #dc2626;
-  --sv-radius: 10px;
+  --sv-radius-sm: var(--cs-radius-sm, 6px);
+  --sv-radius: var(--cs-radius-md, 10px);
 
   display: flex;
   flex-direction: column;
@@ -69,7 +73,7 @@
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--sv-radius-sm);
   background: transparent;
   color: var(--sv-muted);
   cursor: pointer;
@@ -97,7 +101,6 @@
   gap: 12px;
   background: var(--sv-bg);
 }
-
 .sv-dashboard__scroll > * {
   flex-shrink: 0;
 }
@@ -156,14 +159,14 @@
   box-sizing: border-box;
   padding: 8px 10px;
   border: 1px solid var(--sv-border);
-  border-radius: 8px;
+  border-radius: var(--sv-radius-sm);
   background: var(--sv-bg);
   color: var(--sv-text);
   font: inherit;
 }
 .sv-field input::placeholder,
 .sv-search input::placeholder {
-  color: #94a3b8;
+  color: var(--sv-subtle);
 }
 .sv-field input:focus,
 .sv-search input:focus {
@@ -181,7 +184,7 @@
   gap: 6px;
   padding: 7px 12px;
   border: 1px solid var(--sv-border);
-  border-radius: 8px;
+  border-radius: var(--sv-radius-sm);
   background: var(--sv-bg);
   color: var(--sv-text);
   font: inherit;
@@ -206,7 +209,7 @@
   color: var(--sv-on-primary);
 }
 .sv-btn--primary:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: var(--sv-primary-hover);
 }
 
 .sv-btn--danger {
@@ -257,7 +260,7 @@
   padding: 12px;
   border-radius: var(--sv-radius);
   border: 1px solid #bfdbfe;
-  background: #eff6ff;
+  background: var(--sv-primary-light);
 }
 .sv-form__title {
   margin: 0;
@@ -288,7 +291,7 @@
   padding: 9px 10px;
   text-align: left;
   border: 1px dashed var(--sv-border);
-  border-radius: 8px;
+  border-radius: var(--sv-radius-sm);
   background: var(--sv-bg);
   color: var(--sv-muted);
   font: inherit;
@@ -302,7 +305,7 @@
 .sv-location-btn.is-recording {
   color: var(--sv-primary);
   border-color: var(--sv-primary);
-  background: #eff6ff;
+  background: var(--sv-primary-light);
   animation: sv-pulse 1.4s ease-in-out infinite;
 }
 
@@ -314,7 +317,7 @@
   gap: 8px;
   align-items: flex-start;
   padding: 9px 10px;
-  border-radius: 8px;
+  border-radius: var(--sv-radius-sm);
   color: var(--sv-danger-text);
   background: #fef2f2;
   border: 1px solid #fecaca;
@@ -484,7 +487,7 @@
   flex-shrink: 0;
   width: 96px;
   aspect-ratio: 2 / 1;
-  border-radius: 6px;
+  border-radius: var(--sv-radius-sm);
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -626,7 +629,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--sv-radius-sm);
   background: var(--sv-surface);
   border: 1px solid var(--sv-border);
 }
@@ -653,7 +656,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--sv-radius-sm);
   background: var(--sv-surface);
   border: 1px solid var(--sv-border);
 }

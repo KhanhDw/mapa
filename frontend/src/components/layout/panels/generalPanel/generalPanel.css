@@ -1,18 +1,21 @@
 /* ==========================================================================
-   CoordSidebar — Modern UI
+   generalPanel — Modern UI (CANONICAL TOKEN SOURCE for --cs-*)
    ========================================================================== */
 
 :root {
   --cs-bg: #ffffff;
-  --cs-border: #e2e8f0;
-  --cs-text-main: #172033;
-  --cs-text-muted: #64748b;
+  --cs-border: #e4e4e7;
+  --cs-text-main: #09090b;
+  --cs-text-muted: #52525b;
+  --cs-text-subtle: #a1a1aa; /* NEW — dùng cho label phụ */
   --cs-primary: #2563eb;
   --cs-primary-hover: #1d4ed8;
   --cs-primary-light: #eff6ff;
   --cs-card-bg: #f8fafc;
-  --cs-radius-sm: 8px;
-  --cs-radius-md: 12px;
+
+  --cs-radius-sm: 6px;
+  --cs-radius-md: 10px;
+
   --cs-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
@@ -21,10 +24,8 @@
    ========================================================================== */
 
 .coord-sidebar {
-  position: absolute;
-  top: 0;
-  left: 12px;
   top: 12px;
+  left: 12px;
   z-index: 100;
 
   display: flex;
@@ -97,18 +98,15 @@
 
 .coord-sidebar__header h2 {
   margin: 0;
-
   font-size: 16px;
   font-weight: 650;
   line-height: 1.5;
   letter-spacing: -0.025em;
-
   color: var(--cs-text-main);
 }
 
 .coord-sidebar__header .cs-muted {
   margin-top: 3px;
-
   font-size: 12px;
   line-height: 1.5;
   color: var(--cs-text-muted);
@@ -118,18 +116,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   flex-shrink: 0;
   width: 34px;
   height: 34px;
   padding: 0;
-
   border: 1px solid transparent;
   border-radius: 8px;
-
   background: transparent;
   color: var(--cs-text-muted);
-
   cursor: pointer;
   transition:
     background-color 0.18s ease,
@@ -138,13 +132,13 @@
 }
 
 .coord-sidebar__close:hover {
-  background: #f4f4f5;
-  border-color: #e4e4e7;
+  background: var(--cs-card-bg);
+  border-color: var(--cs-border);
   color: var(--cs-text-main);
 }
 
 .coord-sidebar__close:active {
-  background: #e4e4e7;
+  background: var(--cs-border);
 }
 
 .coord-sidebar__close:focus-visible {
@@ -160,14 +154,11 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 20px;
-
+  gap: 16px;
   min-height: 0;
   padding: 20px;
-
   overflow-x: hidden;
   overflow-y: auto;
-
   scrollbar-width: thin;
   scrollbar-color: #d4d4d8 transparent;
 }
@@ -175,24 +166,19 @@
 .coord-sidebar__scroll::-webkit-scrollbar {
   width: 6px;
 }
-
 .coord-sidebar__scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .coord-sidebar__scroll::-webkit-scrollbar-thumb {
   background: #d4d4d8;
   border-radius: 10px;
 }
-
 .coord-sidebar__scroll::-webkit-scrollbar-thumb:hover {
   background: #a1a1aa;
 }
 
 /* ==========================================================================
    Empty State
-   Áp dụng trực tiếp với JSX hiện tại:
-   <aside className="coord-sidebar">
    ========================================================================== */
 
 .coord-sidebar > .cs-empty-state {
@@ -201,10 +187,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
   min-height: 0;
   padding: 32px 28px;
-
   text-align: center;
 }
 
@@ -212,19 +196,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
   width: 68px;
   height: 68px;
   margin-bottom: 22px;
-
   flex-shrink: 0;
-
   color: var(--cs-primary);
   background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
-
   border: 1px solid #dbeafe;
   border-radius: 20px;
-
   box-shadow:
     0 4px 12px rgba(37, 99, 235, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -238,23 +217,19 @@
 
 .cs-empty-state__title {
   margin: 0 0 10px;
-
   font-size: 16px;
   font-weight: 650;
   line-height: 1.5;
   letter-spacing: -0.02em;
-
   color: var(--cs-text-main);
 }
 
 .cs-empty-state__desc {
   max-width: 260px;
   margin: 0;
-
   font-size: 13px;
   font-weight: 400;
   line-height: 1.8;
-
   color: var(--cs-text-muted);
 }
 
@@ -265,10 +240,8 @@
 .cs-coords-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-
+  gap: 10px;
   padding: 14px;
-
   background: var(--cs-card-bg);
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius-md);
@@ -284,25 +257,19 @@
 .cs-seg {
   display: flex;
   gap: 2px;
-
   padding: 3px;
-
-  background: #e4e4e7;
+  background: var(--cs-border);
   border-radius: 7px;
 }
 
 .cs-seg__tab {
   padding: 5px 10px;
-
   border: none;
   border-radius: 5px;
-
   background: transparent;
   color: var(--cs-text-muted);
-
   font-size: 12px;
   font-weight: 500;
-
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
@@ -318,18 +285,13 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-
   padding: 6px 8px;
-
   border: none;
   border-radius: var(--cs-radius-sm);
-
   background: transparent;
   color: var(--cs-primary);
-
   font-size: 12px;
   font-weight: 550;
-
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
@@ -349,11 +311,9 @@
 .cs-copy-btn:hover {
   background: var(--cs-primary-light);
 }
-
 .cs-copy-btn.is-success {
   color: #16a34a;
 }
-
 .cs-copy-btn.is-error {
   color: #dc2626;
 }
@@ -362,9 +322,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-
   padding: 12px;
-
   background: #ffffff;
   border: 1px solid #f1f5f9;
   border-radius: var(--cs-radius-sm);
@@ -379,8 +337,7 @@
 
 .cs-coords-label {
   flex-shrink: 0;
-
-  color: #a1a1aa;
+  color: var(--cs-text-subtle);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -390,11 +347,8 @@
   min-width: 0;
   overflow-wrap: anywhere;
   text-align: right;
-
   color: var(--cs-text-main);
-
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-
   font-size: 12px;
   font-weight: 600;
 }
@@ -420,10 +374,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-
   color: var(--cs-text-muted);
-
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -436,12 +388,9 @@
 
 .cs-badge {
   padding: 3px 8px;
-
   border-radius: 12px;
-
-  background: #f4f4f5;
+  background: var(--cs-card-bg);
   color: var(--cs-text-muted);
-
   font-size: 11px;
   font-weight: 600;
 }
@@ -453,7 +402,6 @@
 
 .cs-address-text {
   margin: 0;
-
   color: var(--cs-text-main);
   font-weight: 400;
   line-height: 1.7;
@@ -468,9 +416,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-
   padding: 14px;
-
   background: var(--cs-card-bg);
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius-md);
@@ -478,7 +424,6 @@
 
 .cs-road-card__name {
   margin: 0;
-
   color: var(--cs-text-main);
   font-size: 14px;
   font-weight: 650;
@@ -494,14 +439,10 @@
 .cs-chip {
   display: inline-flex;
   align-items: center;
-
   padding: 4px 8px;
-
   border-radius: 5px;
-
-  background: #e4e4e7;
+  background: var(--cs-border);
   color: #3f3f46;
-
   font-size: 11px;
   font-weight: 500;
 }
@@ -513,8 +454,8 @@
 }
 
 .cs-chip--neutral {
-  background: #f4f4f5;
-  color: #71717a;
+  background: var(--cs-card-bg);
+  color: var(--cs-text-muted);
 }
 
 .cs-road-card__meta {
@@ -522,7 +463,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-
   color: var(--cs-text-muted);
   font-size: 12px;
 }
@@ -539,10 +479,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-
   margin: 0;
   padding: 0;
-
   list-style: none;
 }
 
@@ -551,13 +489,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-
   padding: 10px;
-
   background: #ffffff;
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius-sm);
-
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease,
@@ -574,12 +509,10 @@
   flex: 1;
   min-width: 0;
   padding: 0;
-
   border: none;
   background: none;
   color: inherit;
   font: inherit;
-
   text-align: left;
   cursor: pointer;
 }
@@ -587,10 +520,10 @@
 .cs-poi-details {
   flex-shrink: 0;
   padding: 5px 8px;
-  border: 1px solid #e4e4e7;
+  border: 1px solid var(--cs-border);
   border-radius: 5px;
   background: #ffffff;
-  color: #52525b;
+  color: var(--cs-text-muted);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -598,20 +531,17 @@
 
 .cs-poi-details:hover {
   border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--cs-primary-light);
+  color: var(--cs-primary-hover);
 }
 
 .cs-poi-item__title {
   display: block;
-
   margin-bottom: 4px;
-
   color: var(--cs-text-main);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.5;
-
   overflow-wrap: anywhere;
 }
 
@@ -620,7 +550,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-
   font-size: 11px;
 }
 
@@ -628,7 +557,6 @@
   color: var(--cs-primary);
   font-weight: 500;
 }
-
 .cs-poi-item__dist {
   color: var(--cs-text-muted);
 }
@@ -638,20 +566,15 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-
   flex-shrink: 0;
   margin-left: 4px;
   padding: 5px 8px;
-
   border: 1px solid #bfdbfe;
   border-radius: 5px;
-
   background: var(--cs-primary-light);
   color: var(--cs-primary);
-
   font-size: 11px;
   font-weight: 600;
-
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -670,10 +593,8 @@
 .cs-sv-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-
+  gap: 10px;
   padding: 14px;
-
   background: var(--cs-card-bg);
   border: 1px solid var(--cs-border);
   border-radius: var(--cs-radius-md);
@@ -707,16 +628,12 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-
   width: 100%;
   padding: 9px 14px;
-
   border: 1px solid transparent;
   border-radius: var(--cs-radius-sm);
-
   font-size: 13px;
   font-weight: 600;
-
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -755,10 +672,8 @@
 
 .cs-skeleton__line {
   height: 14px;
-
-  background: #f4f4f5;
+  background: var(--cs-card-bg);
   border-radius: 4px;
-
   animation: cs-pulse 1.5s ease-in-out infinite;
 }
 
@@ -767,7 +682,6 @@
   100% {
     opacity: 1;
   }
-
   50% {
     opacity: 0.4;
   }
@@ -777,13 +691,10 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-
   padding: 12px;
-
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: var(--cs-radius-sm);
-
   color: #dc2626;
   font-size: 12px;
   line-height: 1.6;
@@ -791,7 +702,6 @@
 
 .cs-muted {
   margin: 0;
-
   color: var(--cs-text-muted);
   font-size: 13px;
   line-height: 1.5;
@@ -811,21 +721,13 @@
     border-radius: 14px;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .coord-sidebar {
-      animation: none;
-    }
-  }
-
   .coord-sidebar__header {
     padding: 14px 16px;
   }
-
   .coord-sidebar__scroll {
     padding: 16px;
     gap: 16px;
   }
-
   .coord-sidebar > .cs-empty-state {
     padding: 24px 20px;
   }
@@ -834,14 +736,12 @@
     width: 60px;
     height: 60px;
     margin-bottom: 18px;
-
     border-radius: 17px;
   }
 
   .cs-empty-state__title {
     font-size: 15px;
   }
-
   .cs-empty-state__desc {
     font-size: 12px;
   }
@@ -862,14 +762,14 @@
   }
 }
 
+/* ==========================================================================
+   Pole Status Badge (nearby_poles)
+   ========================================================================== */
+
 .cs-poi-item__cat--user {
   background: #fef3c7;
   color: #92400e;
 }
-
-/* ==========================================================================
-   Pole Status Badge (nearby_poles)
-   ========================================================================== */
 
 .cs-pole-status {
   display: inline-flex;
@@ -895,12 +795,10 @@
   background: #dcfce7;
   color: #15803d;
 }
-
 .cs-pole-status--warning {
   background: #fef3c7;
   color: #b45309;
 }
-
 .cs-pole-status--error {
   background: #fee2e2;
   color: #b91c1c;

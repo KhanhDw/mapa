@@ -1,3 +1,7 @@
+/* ==========================================================================
+   ContributePanel — aligned with canonical --cs-* tokens
+   ========================================================================== */
+
 .contribute-panel .coord-sidebar__scroll {
   gap: 16px;
 }
@@ -7,9 +11,9 @@
   flex-direction: column;
   gap: 10px;
   padding: 14px;
-  background: #f8fafc;
-  border: 1px solid #e4e4e7;
-  border-radius: 10px;
+  background: var(--cs-card-bg, #f8fafc);
+  border: 1px solid var(--cs-border, #e4e4e7);
+  border-radius: var(--cs-radius-md, 10px);
 }
 
 .contribute-section__title {
@@ -18,7 +22,7 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 650;
-  color: #09090b;
+  color: var(--cs-text-main, #09090b);
 }
 
 .contribute-badge {
@@ -28,7 +32,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--cs-primary, #2563eb);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -45,20 +49,31 @@
   padding: 10px;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  border-radius: 8px;
+  border-radius: var(--cs-radius-sm, 6px);
   font-size: 12px;
   font-weight: 600;
   color: #059669;
 }
 
+/* Single neutral hint (merged from 2 duplicate rules) */
 .contribute-hint {
-  padding: 16px;
-  background: #fef3c7;
-  border: 1px dashed #fbbf24;
-  border-radius: 8px;
-  text-align: center;
-  color: #92400e;
-  font-size: 12px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--cs-text-muted, #52525b);
+  background: var(--cs-card-bg, #f8fafc);
+  border: 1px solid var(--cs-border, #e4e4e7);
+  border-radius: var(--cs-radius-sm, 6px);
+}
+
+.contribute-hint--active {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .contribute-field {
@@ -66,7 +81,7 @@
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: #52525b;
+  color: var(--cs-text-muted, #52525b);
 }
 
 .contribute-field > span {
@@ -77,12 +92,12 @@
 .contribute-field select,
 .contribute-field textarea {
   padding: 8px 10px;
-  border: 1px solid #e4e4e7;
-  border-radius: 6px;
+  border: 1px solid var(--cs-border, #e4e4e7);
+  border-radius: var(--cs-radius-sm, 6px);
   font-size: 13px;
   font-family: inherit;
   background: #fff;
-  color: #09090b;
+  color: var(--cs-text-main, #09090b);
   transition: border-color 0.15s;
 }
 
@@ -90,7 +105,7 @@
 .contribute-field select:focus,
 .contribute-field textarea:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--cs-primary, #2563eb);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -115,8 +130,8 @@
   gap: 8px;
   padding: 6px 10px;
   background: #fff;
-  border: 1px solid #e4e4e7;
-  border-radius: 6px;
+  border: 1px solid var(--cs-border, #e4e4e7);
+  border-radius: var(--cs-radius-sm, 6px);
   font-size: 12px;
 }
 
@@ -125,7 +140,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #52525b;
+  color: var(--cs-text-muted, #52525b);
 }
 
 .contribute-photo-item > button {
@@ -177,31 +192,14 @@
   width: auto;
   margin-top: 8px;
 }
-.contribute-hint {
-  margin-top: 6px;
-  padding: 8px 10px;
-  font-size: 12.5px;
-  color: #64748b;
-  background: #f1f5f9;
-  border-radius: 6px;
-}
-
-.contribute-hint--active {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
 
 .cs-btn--pick {
   margin-top: 6px;
   border: 1px dashed #3b82f6;
-  color: #2563eb;
-  background: #eff6ff;
+  color: var(--cs-primary, #2563eb);
+  background: var(--cs-primary-light, #eff6ff);
 }
+
 .cs-btn--pick:hover {
   background: #dbeafe;
 }

@@ -5,7 +5,10 @@ import type {
     LayerSpecification,
     Map as MapLibreMap,
 } from "maplibre-gl";
-import type { LayerKey } from "../../../layout/panels/types";
+import type {
+    LayerKey,
+    LayerVisibility,
+} from "../../../layout/panels/types";
 import {
     ICON_MATCH,
     USER_ICON_MATCH,
@@ -68,6 +71,31 @@ export const LAYER_META: LayerMeta[] = [
     { key: "userPois", category: "place", title: "POI đóng góp", description: "Địa điểm do người dùng gửi" },
 ];
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * 5 lớp bật mặc định: 3 lớp đầu + 2 lớp cuối trong LAYER_META
+ *  - streetview, roads, roadNames, pois, userPois
+ * Chốt cứng key (thay vì slice) để không vỡ khi ai đó chèn/xoá phần tử.
+ * ──────────────────────────────────────────────────────────────────────────── */
+export const DEFAULT_LAYER_KEYS: LayerKey[] = [
+    "streetview",
+    "roads",
+    "roadNames",
+    "pois",
+    "userPois",
+];
+
+export const DEFAULT_LAYER_KEY_SET: ReadonlySet<LayerKey> =
+    new Set<LayerKey>(DEFAULT_LAYER_KEYS);
+
+/** Tạo LayerVisibility mặc định: chỉ bật 5 lớp ưu tiên, tắt phần còn lại. */
+export function createDefaultLayerVisibility(): LayerVisibility {
+    const out = {} as LayerVisibility;
+    for (const meta of LAYER_META) {
+        out[meta.key] = DEFAULT_LAYER_KEY_SET.has(meta.key);
+    }
+    return out;
+}
+
 export interface ExtraLayerDef {
     key: LayerKey;
     sourceId: string;
@@ -78,7 +106,6 @@ export interface ExtraLayerDef {
     beforeAdd?: (map: MapLibreMap) => void;
     spec: (sourceId: string, layerId: string) => LayerSpecification;
     tilePath?: string;
-
 }
 
 function matchExpr(
@@ -91,7 +118,6 @@ function matchExpr(
     out.push(fallback);
     return out as unknown as ExpressionSpecification;
 }
-
 
 // Gọi cùng origin để Vite proxy chuyển request đến backend.
 // const MVT_BASE = "/mvt";

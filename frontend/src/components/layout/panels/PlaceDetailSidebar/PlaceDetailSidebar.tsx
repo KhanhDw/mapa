@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PoiInfo } from "../CoordSidebar/CoordSidebar";
+import type { PoiInfo } from "../generalPanel/generalPanel";
 import "./PlaceDetailSidebar.css";
 
 interface UserPoiDetails {
@@ -96,8 +96,8 @@ export function PlaceDetailSidebar({
         result.key === detailKey
             ? result.error
             : isUserPlace && !validUserPoiId
-              ? "Mã địa điểm người dùng không hợp lệ."
-              : null;
+                ? "Mã địa điểm người dùng không hợp lệ."
+                : null;
     const detailLoading =
         isUserPlace && validUserPoiId && result.key !== detailKey;
     const name = place.name?.trim() || "Địa điểm chưa đặt tên";

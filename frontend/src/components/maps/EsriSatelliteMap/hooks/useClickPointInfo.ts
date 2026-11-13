@@ -5,7 +5,7 @@ import type {
     PoiInfo,
     RoadInfo,
     StreetViewHit,
-} from "../../../sidebar/CoordSidebar/CoordSidebar";
+} from "../../../layout/panels/generalPanel/generalPanel";
 import {
     POINT_INFO_POI_LIMIT,
     POINT_INFO_POLE_LIMIT,

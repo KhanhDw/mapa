@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { SearchResult } from "../../../api/search";
-import "../CoordSidebar/CoordSidebar.css";
+import type { SearchResult } from "../../../../api/search";
+import "../generalPanel/generalPanel.css";
 import "./SearchPanel.css";
 
 interface Props {
@@ -190,4 +190,4 @@ export function SearchPanel({
     );
 }
 
-export type { SearchResult } from "../../../api/search";
+export type { SearchResult } from "../../../../api/search";

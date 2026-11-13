@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import "../sidebar/CoordSidebar/CoordSidebar.css";
 import "./ContributePanel.css";
 import {
     useContributeForm,

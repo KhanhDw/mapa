@@ -1,49 +1,193 @@
-const { app, BrowserWindow } = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
+const { app, BrowserWindow, Menu, session, ipcMain, net } = require("electron");
 
 let mainWindow = null;
 let pyProcess = null;
 
-function startPythonBackend() {
-  const isDev = !app.isPackaged;
+const IS_DEV = !app.isPackaged;
+const PY_PORT = 8000;
 
-  if (isDev) {
-    // Trong môi trường dev, dùng python từ môi trường ảo backend hiện tại
-    const pythonExecutable = path.join(
-      __dirname,
-      "../backend/myenv/Scripts/python.exe",
-    );
-    const scriptPath = path.join(__dirname, "../backend/src/main.py");
+// Chỉ cho phép tải tile từ ESRI
+const ALLOWED_TILE_HOSTS = new Set([
+  "server.arcgisonline.com",
+  "services.arcgisonline.com",
+  "basemaps.arcgis.com",
+]);
 
-    pyProcess = spawn(
-      pythonExecutable,
-      [
-        "-m",
-        "uvicorn",
-        "src.main:app",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        "8000",
-      ],
-      {
-        cwd: path.join(__dirname, "../backend"),
-      },
-    );
+/* ---------------- Python Backend ---------------- */
+
+function killPython() {
+  if (!pyProcess) return;
+
+  if (process.platform === "win32") {
+    spawn("taskkill", ["/pid", String(pyProcess.pid), "/T", "/F"]);
   } else {
-    // Khi đã build thành file .exe (Production), Python và các package sẽ được đóng gói bên trong resource của app
-    // (Bạn sẽ cấu hình đóng gói python bằng electron-builder ở bước sau)
+    pyProcess.kill("SIGTERM");
   }
 
-  pyProcess.stdout.on("data", (data) => {
-    console.log(`[Python stdout]: ${data}`);
+  pyProcess = null;
+}
+
+function startPythonBackend() {
+  if (!IS_DEV) return;
+
+  const pythonExecutable = path.join(
+    __dirname,
+    "../backend/myenv/Scripts/python.exe",
+  );
+
+  pyProcess = spawn(
+    pythonExecutable,
+    [
+      "-m",
+      "uvicorn",
+      "src.main:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      String(PY_PORT),
+    ],
+    {
+      cwd: path.join(__dirname, "../backend"),
+    },
+  );
+
+  pyProcess.stdout.on("data", (d) => {
+    console.log(`[Python stdout]: ${d}`);
   });
 
-  pyProcess.stderr.on("data", (data) => {
-    console.error(`[Python stderr]: ${data}`);
+  pyProcess.stderr.on("data", (d) => {
+    console.error(`[Python stderr]: ${d}`);
+  });
+
+  pyProcess.on("error", (err) => {
+    console.error("[Python] spawn error:", err);
+  });
+
+  pyProcess.on("exit", (code, signal) => {
+    console.log(`[Python] exited code=${code} signal=${signal}`);
+    pyProcess = null;
   });
 }
+
+/* ---------------- CSP ---------------- */
+
+function applyCSP() {
+  const TILE_HOSTS = [
+    "https://server.arcgisonline.com",
+    "https://services.arcgisonline.com",
+    "https://basemaps.arcgis.com",
+  ].join(" ");
+
+  const PROD_CSP = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    `img-src 'self' data: blob: ${TILE_HOSTS}`,
+    "font-src 'self' data:",
+    `connect-src 'self' http://127.0.0.1:${PY_PORT} http://localhost:${PY_PORT} ${TILE_HOSTS}`,
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+  ].join("; ");
+
+  const DEV_CSP = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    `img-src 'self' data: blob: ${TILE_HOSTS}`,
+    "font-src 'self' data:",
+    `connect-src 'self' ws://localhost:5173 http://127.0.0.1:${PY_PORT} http://localhost:${PY_PORT} ${TILE_HOSTS}`,
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+  ].join("; ");
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [IS_DEV ? DEV_CSP : PROD_CSP],
+      },
+    });
+  });
+}
+
+/* ---------------- ESRI TILE IPC ---------------- */
+
+ipcMain.handle("fetch-esri-tile", async (event, tileUrl) => {
+  try {
+    // Không cho renderer truy cập URL tùy ý
+    if (typeof tileUrl !== "string" || tileUrl.length > 2048) {
+      throw new Error("Invalid tile URL");
+    }
+
+    const parsedUrl = new URL(tileUrl);
+
+    if (
+      parsedUrl.protocol !== "https:" ||
+      !ALLOWED_TILE_HOSTS.has(parsedUrl.hostname) ||
+      (!/^\/ArcGIS\/rest\/services\/[^?#]+\/tile\/\d+\/\d+\/\d+\/?$/i.test(
+        parsedUrl.pathname,
+      ) &&
+        !/^\/ArcGIS\/rest\/services\/[^?#]+\/MapServer\/tile\/\d+\/\d+\/\d+\/?$/i.test(
+          parsedUrl.pathname,
+        ))
+    ) {
+      throw new Error("ESRI tile URL not allowed");
+    }
+
+    const request = net.request({
+      method: "GET",
+      url: parsedUrl.toString(),
+    });
+
+    const result = await new Promise((resolve, reject) => {
+      request.on("response", (response) => {
+        const chunks = [];
+
+        response.on("data", (chunk) => {
+          chunks.push(Buffer.from(chunk));
+        });
+
+        response.on("end", () => {
+          const buffer = Buffer.concat(chunks);
+
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            reject(new Error(`ESRI HTTP ${response.statusCode}`));
+            return;
+          }
+
+          resolve({
+            data: buffer,
+            contentType: response.headers["content-type"]?.[0] || "image/jpeg",
+          });
+        });
+
+        response.on("error", reject);
+      });
+
+      request.on("error", reject);
+      request.end();
+    });
+
+    return {
+      success: true,
+      data: result.data,
+      contentType: result.contentType,
+    };
+  } catch (error) {
+    console.error("[ESRI TILE ERROR]", error);
+
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+});
+
+/* ---------------- Window ---------------- */
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -52,29 +196,45 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
-  const isDev = !app.isPackaged;
-  if (isDev) {
+  if (IS_DEV) {
     mainWindow.loadURL("http://localhost:5173");
-    mainWindow.webContents.openDevTools(); // Mở F12 khi dev
+    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, "../frontend/dist/index.html"));
   }
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
 }
 
+/* ---------------- Lifecycle ---------------- */
+
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
+
+  applyCSP();
   startPythonBackend();
   createWindow();
+
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
 });
 
-// Khi tắt app thì đồng thời tắt luôn tiến trình python chạy ngầm
 app.on("window-all-closed", () => {
-  if (pyProcess) {
-    pyProcess.kill();
-  }
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  killPython();
 });
