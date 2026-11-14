@@ -7,43 +7,24 @@ import {
   type PanelType,
   type MapType,
 } from "./components/layout/Activitybar";
-import {
-  SearchPanel,
-  PoleDetailPanel,
-  SettingsPanel,
-  type SearchResult,
-  type LayerVisibility,
-  type LayerKey,
-} from "./components/layout/panels";
-import { LayersPanel } from "./components/layout/panels/LayersPanel";
+import { type LayerVisibility, type LayerKey } from "./components/layout/panels";
 import { createDefaultLayerVisibility } from "./components/maps/EsriSatelliteMap/layers/registry";
-import { ContributePanel } from "./components/layout/panels/contribute/ContributePanel";
-import { PoleManagementPanel } from "./components/layout/panels/PoleDetailPanel/PoleManagementPanel";
-import { StreetViewManagementPanel } from "./components/layout/panels/StreetViewManagementPanel";
-import { PoiManagementPanel } from "./components/layout/panels/PoiManagementPanel";
 
-import { fetchElectricPoles } from "./api/electricPoles";
 import type { ElectricPole } from "./api/electricPoles";
 import type { StreetViewImage } from "./api/streetview";
 import type { PoiItem } from "./api/pois";
-import { searchMap } from "./api/search";
-
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import EsriSatelliteMap from "./components/maps/EsriSatelliteMap/EsriSatelliteMap";
-import SatelliteMap from "./components/maps/SatelliteMap/SatelliteMap";
-import OsmPolygonMap from "./components/maps/OsmPolygonMap/OsmPolygonMap";
-import TestPSV from "./components/dev/TestPSV";
 
 import { useStreetViewPoints } from "./components/maps/EsriSatelliteMap/hooks/useStreetViewPoints";
 import { useClickMarker } from "./components/maps/EsriSatelliteMap/hooks/useClickMarker";
 import { useClickPointInfo } from "./components/maps/EsriSatelliteMap/hooks/useClickPointInfo";
-import {
-  GeneralPanel,
-  type PoiInfo,
-} from "./components/layout/panels/generalPanel/generalPanel";
-import { PlaceDetailSidebar } from "./components/layout/panels/PlaceDetailSidebar/PlaceDetailSidebar";
+import { type PoiInfo } from "./components/layout/panels/generalPanel/generalPanel";
 import { StreetViewModal } from "./components/streetview/StreetViewModal/StreetViewModal";
 import { API_BASE } from "./config";
+
+import { useMapSearch } from "./app/hooks/useMapSearch";
+import { useElectricPoles } from "./app/hooks/useElectricPoles";
+import { SidebarContent } from "./app/SidebarContent";
+import { MapContainerView } from "./components/layout/MapContainerView";
 
 import "./App.css";
 
@@ -58,10 +39,7 @@ export default function App() {
   const [mapType, setMapType] = useState<MapType>("esri");
   const [activePanel, setActivePanel] = useState<PanelType | null>(null);
   const [mapKey, setMapKey] = useState(0);
-  const [electricPoles, setElectricPoles] = useState<ElectricPole[]>([]);
-  const [electricPolesVersion, setElectricPolesVersion] = useState(0);
   const [selectedPoleId, setSelectedPoleId] = useState<number | null>(null);
-
   const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
 
   const [svModal, setSvModal] = useState<{
@@ -86,19 +64,14 @@ export default function App() {
   const poleLocationRecordedHandler = useRef<
     ((location: { lng: number; lat: number }) => void) | null
   >(null);
+
   const [poleNavigationRequest, setPoleNavigationRequest] = useState<{
     pole: ElectricPole;
     requestId: number;
   } | null>(null);
 
-  // ✅ FIX #2: version counters để refetch sau khi management thay đổi.
-  // TODO: khi đã sửa hook `useStreetViewPoints(API_BASE, streetViewVersion)` thì
-  //       truyền version vào và thêm nó vào deps useEffect trong hook.
   const [streetViewVersion, setStreetViewVersion] = useState(0);
   const [poisVersion, setPoisVersion] = useState(0);
-  void streetViewVersion;
-  void poisVersion;
-
 
   const [streetViewNavigationRequest, setStreetViewNavigationRequest] = useState<{
     image: StreetViewImage;
@@ -110,17 +83,12 @@ export default function App() {
     requestId: number;
   } | null>(null);
 
+  // Custom Hooks
+  const { electricPoles, refreshPoles } = useElectricPoles();
+  const { searchResults, searchLoading, searchError, handleSearch } = useMapSearch(activePanel);
+
   const { points: svPoints, geojson: svGeojson, error: svPointsError } =
     useStreetViewPoints(API_BASE, streetViewVersion);
-
-
-  // const { clickInfo, clear: clearClick } = useClickMarker(
-  //   mapInstance,
-  //   activePanel === "contribute" ||
-  //   isRecordingPoleLocation ||
-  //   activePanel === null ||
-  //   activePanel === "info", // cái này là đang giới hạn tại info không được lấy tọa độ nếu không phải là tab info kích hoạt
-  // );
 
   const { clickInfo, clear: clearClick } = useClickMarker(
     mapInstance,
@@ -133,9 +101,7 @@ export default function App() {
     error: pointInfoError,
   } = useClickPointInfo(API_BASE, clickInfo);
 
-  // ✅ FIX #1: auto-mở info panel chỉ khi có CLICK MỚI.
-  // Trước đây mỗi lần `activePanel` đổi (VD: user bấm ActivityBar) là info panel
-  // bị cưỡng bức mở lại vì `clickInfo` vẫn còn set.
+  // Auto-mở info panel khi có click mới
   const prevClickKeyRef = useRef<string>("");
   useEffect(() => {
     if (!clickInfo) {
@@ -143,7 +109,7 @@ export default function App() {
       return;
     }
     const newKey = `${clickInfo.lng}|${clickInfo.lat}`;
-    if (prevClickKeyRef.current === newKey) return; // không phải click mới → bỏ qua
+    if (prevClickKeyRef.current === newKey) return;
     prevClickKeyRef.current = newKey;
 
     if (isRecordingPoleLocation) return;
@@ -151,9 +117,6 @@ export default function App() {
     setActivePanel("info");
   }, [clickInfo, isRecordingPoleLocation, activePanel]);
 
-  // ✅ FIX #1 (phần 2): chỉ clear click khi RỜI info panel.
-  // Trước đây effect chạy ở mọi render activePanel !== "info" → xoá clickInfo
-  // ngay sau khi user vừa click map (race với effect auto-mở info).
   const clearClickRef = useRef(clearClick);
   useEffect(() => {
     clearClickRef.current = clearClick;
@@ -206,62 +169,6 @@ export default function App() {
       duration: 800,
     });
   }, [mapInstance, poiNavigationRequest]);
-
-  useEffect(() => {
-    let active = true;
-    fetchElectricPoles()
-      .then((poles) => {
-        if (active) setElectricPoles(poles);
-      })
-      .catch((error: unknown) => {
-        if (active) console.error("[electric-poles] fetch error:", error);
-      });
-    return () => {
-      active = false;
-    };
-  }, [electricPolesVersion]);
-
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const searchAbortController = useRef<AbortController | null>(null);
-
-  const handleSearch = useCallback(async (query: string) => {
-    searchAbortController.current?.abort();
-    const trimmedQuery = query.trim();
-    if (trimmedQuery.length < 2) {
-      setSearchResults([]);
-      setSearchError(null);
-      setSearchLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    searchAbortController.current = controller;
-    setSearchLoading(true);
-    setSearchError(null);
-    try {
-      const results = await searchMap(trimmedQuery, controller.signal);
-      if (!controller.signal.aborted) setSearchResults(results);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      setSearchError(
-        error instanceof Error ? error.message : "Không thể tìm kiếm",
-      );
-      setSearchResults([]);
-    } finally {
-      if (!controller.signal.aborted) setSearchLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activePanel !== "search") {
-      searchAbortController.current?.abort();
-      searchAbortController.current = null;
-    }
-  }, [activePanel]);
-
-  useEffect(() => () => searchAbortController.current?.abort(), []);
 
   const handlePanelToggle = (panel: PanelType) => {
     const next = activePanel === panel ? null : panel;
@@ -334,21 +241,14 @@ export default function App() {
     setIsRecordingPoleLocation(false);
   }, []);
 
-  // ✅ FIX #3: search result click giờ thực sự điều hướng bản đồ.
-  // (Trước đây chỉ set lỗi cho non-esri còn esri thì no-op.)
   const handleSearchResultClick = useCallback(
-    (result: SearchResult) => {
+    (result: any) => {
       if (mapType !== "esri") {
-        setSearchError(
-          "Điều hướng kết quả tìm kiếm hiện chỉ hỗ trợ bản đồ Esri Satellite.",
-        );
         return;
       }
       if (!mapInstance) return;
-      setSearchError(null);
 
-      // SearchResult shape có thể khác — điều chỉnh tên field cho khớp type của bạn.
-      const r = result as unknown as {
+      const r = result as {
         lng?: number;
         lat?: number;
         center?: [number, number];
@@ -359,14 +259,11 @@ export default function App() {
 
       if (typeof lng === "number" && typeof lat === "number") {
         mapInstance.flyTo({ center: [lng, lat], zoom: 17, duration: 800 });
-      } else {
-        setSearchError("Không xác định được tọa độ của kết quả tìm kiếm.");
       }
     },
     [mapType, mapInstance],
   );
 
-  // ✅ FIX #4: contribute xong bump version để (tương lai) refetch dữ liệu mới.
   const handleContributeCreated = useCallback(() => {
     setStreetViewVersion((v) => v + 1);
     setPoisVersion((v) => v + 1);
@@ -471,142 +368,65 @@ export default function App() {
         <aside
           className={`app-sidebar ${isWideSidebar ? "app-sidebar--wide" : ""}`}
         >
-          {activePanel === "layers" && (
-            <LayersPanel
-              layers={layers}
-              onToggle={toggleLayer}
-              onClose={handlePanelClose}
-            />
-          )}
-
-          {activePanel === "settings" && (
-            <SettingsPanel
-              onClose={handlePanelClose}
-              mapType={mapType}
-              onMapTypeChange={setMapType}
-              showMapSwitcher={SHOW_SWITCHER}
-            />
-          )}
-
-          {activePanel === "search" && (
-            <SearchPanel
-              onClose={handlePanelClose}
-              results={searchResults}
-              loading={searchLoading}
-              error={searchError}
-              onSearch={handleSearch}
-              onResultClick={handleSearchResultClick}
-            />
-          )}
-
-          {activePanel === "contribute" && (
-            <ContributePanel
-              onClose={handlePanelClose}
-              mapInstance={mapInstance}
-              onCreated={handleContributeCreated}
-            />
-          )}
-
-          {activePanel === "poleManagement" && (
-            <PoleManagementPanel
-              onClose={handlePanelClose}
-              onChanged={() => setElectricPolesVersion((v) => v + 1)}
-              isRecordingLocation={isRecordingPoleLocation}
-              onStartLocationRecording={handleStartPoleLocationRecording}
-              onStopLocationRecording={handleStopPoleLocationRecording}
-              onGoToPole={handleGoToPole}
-            />
-          )}
-
-          {activePanel === "streetviewManagement" && (
-            <StreetViewManagementPanel
-              onClose={handlePanelClose}
-              onChanged={() => setStreetViewVersion((v) => v + 1)}
-              isRecordingLocation={isRecordingPoleLocation}
-              onStartLocationRecording={handleStartPoleLocationRecording}
-              onStopLocationRecording={handleStopPoleLocationRecording}
-              onGoToImage={handleGoToStreetViewImage}
-            />
-          )}
-
-          {activePanel === "poiManagement" && (
-            <PoiManagementPanel
-              onClose={handlePanelClose}
-              onChanged={() => setPoisVersion((v) => v + 1)}
-              isRecordingLocation={isRecordingPoleLocation}
-              onStartLocationRecording={handleStartPoleLocationRecording}
-              onStopLocationRecording={handleStopPoleLocationRecording}
-              onGoToPoi={handleGoToPoi}
-            />
-          )}
-
-          {activePanel === "electric" && (
-            <PoleDetailPanel
-              pole={electricPoles.find((p) => p.id === selectedPoleId) ?? null}
-              onClose={handlePanelClose}
-              onGoToPole={handleGoToPole}
-            />
-          )}
-
-          {showLocationSidebar && activePoi && (
-            <PlaceDetailSidebar
-              place={activePoi}
-              apiBase={API_BASE}
-              onBack={() => setSelectedPoi(null)}
-              onClose={handleCloseLocationDetails}
-              onOpenStreetView={handleOpenStreetViewById}
-            />
-          )}
-
-          {showLocationSidebar && !activePoi && (
-            <GeneralPanel
-              info={clickInfo}
-              onClose={handleCloseLocationDetails}
-              road={pointInfo?.road}
-              streetview={pointInfo?.streetview}
-              address={pointInfo?.address}
-              pois={pointInfo?.pois}
-              nearbyPoles={pointInfo?.nearby_poles}
-              loading={pointInfoLoading}
-              addressLoading={pointInfoLoading}
-              poisLoading={pointInfoLoading}
-              error={pointInfoError?.message ?? null}
-              onOpenStreetView={handleOpenStreetViewById}
-              onPoiClick={handlePoiClick}
-              onPoiDetails={handlePoiDetails}
-              onPoiStreetView={handlePoiStreetView}
-            />
-          )}
+          <SidebarContent
+            activePanel={activePanel}
+            mapType={mapType}
+            setMapType={setMapType}
+            showMapSwitcher={SHOW_SWITCHER}
+            layers={layers}
+            toggleLayer={toggleLayer}
+            onClose={handlePanelClose}
+            searchResults={searchResults}
+            searchLoading={searchLoading}
+            searchError={searchError}
+            onSearch={handleSearch}
+            onSearchResultClick={handleSearchResultClick}
+            mapInstance={mapInstance}
+            onContributeCreated={handleContributeCreated}
+            refreshPoles={refreshPoles}
+            isRecordingPoleLocation={isRecordingPoleLocation}
+            onStartLocationRecording={handleStartPoleLocationRecording}
+            onStopLocationRecording={handleStopPoleLocationRecording}
+            onGoToPole={handleGoToPole}
+            onGoToImage={handleGoToStreetViewImage}
+            onGoToPoi={handleGoToPoi}
+            setStreetViewVersion={setStreetViewVersion}
+            setPoisVersion={setPoisVersion}
+            electricPoles={electricPoles}
+            selectedPoleId={selectedPoleId}
+            showLocationSidebar={showLocationSidebar}
+            activePoi={activePoi}
+            clickInfo={clickInfo}
+            pointInfo={pointInfo}
+            pointInfoLoading={pointInfoLoading}
+            pointInfoError={pointInfoError}
+            apiBase={API_BASE}
+            setSelectedPoi={setSelectedPoi}
+            handleCloseLocationDetails={handleCloseLocationDetails}
+            handleOpenStreetViewById={handleOpenStreetViewById}
+            handlePoiClick={handlePoiClick}
+            handlePoiDetails={handlePoiDetails}
+            handlePoiStreetView={handlePoiStreetView}
+          />
         </aside>
       )}
 
       {/* PANEL 3: MAP VIEW */}
       <main className="app-map-panel">
-        <ErrorBoundary
-          key={`${mapType}-${mapKey}`}
-          onReset={() => setMapKey((k) => k + 1)}
-        >
-          {mapType === "esri" && (
-            <div
-              className={`map-wrapper${showLocationSidebar ? " has-sidebar" : ""}`}
-            >
-              <EsriSatelliteMap
-                electricPoles={electricPoles}
-                onElectricPoleSelect={handleElectricPoleSelect}
-                isRecordingPoleLocation={isRecordingPoleLocation}
-                onPoleLocationRecorded={handlePoleLocationRecorded}
-                layers={layers}
-                onMapInstanceReady={handleMapInstanceReady}
-                streetViewGeojson={svGeojson}
-                onStreetViewIconClick={handleStreetViewIconClick}
-              />
-            </div>
-          )}
-
-          {mapType === "selfhost" && <SatelliteMap />}
-          {mapType === "osm" && <OsmPolygonMap />}
-          {mapType === "test" && <TestPSV />}
-        </ErrorBoundary>
+        <MapContainerView
+          mapType={mapType}
+          mapKey={mapKey}
+          setMapKey={setMapKey}
+          showLocationSidebar={showLocationSidebar}
+          electricPoles={electricPoles}
+          onElectricPoleSelect={handleElectricPoleSelect}
+          isRecordingPoleLocation={isRecordingPoleLocation}
+          onPoleLocationRecorded={handlePoleLocationRecorded}
+          layers={layers}
+          onMapInstanceReady={handleMapInstanceReady}
+          svGeojson={svGeojson}
+          onStreetViewIconClick={handleStreetViewIconClick}
+        />
 
         {svModal?.open &&
           createPortal(
