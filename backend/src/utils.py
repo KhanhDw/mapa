@@ -1,15 +1,6 @@
-import json
-
 from fastapi import HTTPException
 
 from .config import settings
-
-
-def parse_link_positions(value):
-    """`link_positions` có thể là JSON string (asyncpg mặc định) hoặc list."""
-    if isinstance(value, str):
-        return json.loads(value)
-    return value or []
 
 
 def validate_bbox(

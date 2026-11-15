@@ -3,112 +3,101 @@ Output format is aligned.
 Expanded display is used automatically.
 
 ========== 1.1 EXTENSIONS ==========
- extname | extversion 
----------+------------
- plpgsql | 1.0
- postgis | 3.5.2
-(2 rows)
-
-========== 1.2 SCHEMAS ==========
-    schema_name    |   schema_owner    
--------------------+-------------------
- clean             | postgres
- ogr_system_tables | postgres
- public            | pg_database_owner
- qa                | postgres
- raw               | postgres
- user_data         | postgres
+        extname         | extversion 
+------------------------+------------
+ fuzzystrmatch          | 1.2
+ pg_trgm                | 1.6
+ plpgsql                | 1.0
+ postgis                | 3.5.2
+ postgis_tiger_geocoder | 3.5.2
+ postgis_topology       | 3.5.2
 (6 rows)
 
+========== 1.2 SCHEMAS ==========
+ schema_name |   schema_owner    
+-------------+-------------------
+ public      | pg_database_owner
+ tiger       | postgres
+ tiger_data  | postgres
+ topology    | postgres
+ user_data   | postgres
+(5 rows)
+
 ========== 1.3 ROLES ==========
-   rolname   | rolsuper | rolcanlogin | rolcreatedb 
--------------+----------+-------------+-------------
- api_reader  | f        | t           | f
- mapa_api    | f        | t           | f
- postgres    | t        | t           | t
- tile_reader | f        | t           | f
-(4 rows)
+ rolname  | rolsuper | rolcanlogin | rolcreatedb 
+----------+----------+-------------+-------------
+ postgres | t        | t           | t
+(1 row)
 
 ========== 1.4 POSTGIS VERSION ==========
-                                                                                                                                                                   postgis_full_version                                                                                                                                                                    
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- POSTGIS="3.5.2 dea6d0a" [EXTENSION] PGSQL="170" GEOS="3.9.0-CAPI-1.16.2" PROJ="7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 7.2.1) LIBXML="2.9.10" LIBJSON="0.15" LIBPROTOBUF="1.3.3" WAGYU="0.5.0 (Internal)"
+                                                                                                                                                                        postgis_full_version                                                                                                                                                                        
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ POSTGIS="3.5.2 dea6d0a" [EXTENSION] PGSQL="170" GEOS="3.9.0-CAPI-1.16.2" PROJ="7.2.1 NETWORK_ENABLED=OFF URL_ENDPOINT=https://cdn.proj.org USER_WRITABLE_DIRECTORY=/var/lib/postgresql/.local/share/proj DATABASE_PATH=/usr/share/proj/proj.db" (compiled against PROJ 7.2.1) LIBXML="2.9.10" LIBJSON="0.15" LIBPROTOBUF="1.3.3" WAGYU="0.5.0 (Internal)" TOPOLOGY
 (1 row)
 
 
 ========== 2.1 ALL TABLES + SIZE ==========
-      schema       |           table_name           | est_rows |  size   | kind 
--------------------+--------------------------------+----------+---------+------
- clean             | admin_areas                    |     9082 | 16 MB   | m
- clean             | buildings                      |  1272265 | 283 MB  | m
- clean             | landuse                        |    72459 | 31 MB   | m
- clean             | natural                        |    34010 | 3960 kB | m
- clean             | natural_areas                  |      628 | 304 kB  | m
- clean             | places                         |    14699 | 2144 kB | m
- clean             | places_areas                   |     1155 | 3816 kB | m
- clean             | pofw                           |     1375 | 240 kB  | m
- clean             | pofw_areas                     |     2880 | 768 kB  | m
- clean             | pois                           |    74933 | 10 MB   | m
- clean             | pois_areas                     |    43996 | 11 MB   | m
- clean             | protected_areas                |      116 | 1280 kB | m
- clean             | railways                       |     3776 | 784 kB  | m
- clean             | roads_local                    |  1226772 | 314 MB  | m
- clean             | roads_major                    |   100364 | 20 MB   | m
- clean             | roads_minor                    |  1793937 | 351 MB  | m
- clean             | traffic                        |    72480 | 9688 kB | m
- clean             | traffic_areas                  |     4736 | 1168 kB | m
- clean             | transport                      |    18925 | 2896 kB | m
- clean             | transport_areas                |      438 | 168 kB  | m
- clean             | water_areas                    |    39758 | 17 MB   | m
- clean             | waterways                      |    38681 | 21 MB   | m
- ogr_system_tables | metadata                       |       -1 | 32 kB   | r
- public            | geography_columns              |       -1 | 0 bytes | v
- public            | geometry_columns               |       -1 | 0 bytes | v
- public            | osm_roads                      |  1023418 | 350 MB  | r
- public            | pois                           |       -1 | 72 kB   | r
- public            | spatial_ref_sys                |     8501 | 7144 kB | r
- public            | streetview_images              |        4 | 40 kB   | r
- public            | vietnam_roads                  |  3140236 | 1229 MB | r
- qa                | report                         |       20 | 32 kB   | r
- raw               | gis_osm_adminareas_a_free      |     9082 | 67 MB   | r
- raw               | gis_osm_buildings_a_free       |  1272136 | 328 MB  | r
- raw               | gis_osm_landuse_a_free         |    72459 | 63 MB   | r
- raw               | gis_osm_natural_a_free         |      628 | 880 kB  | r
- raw               | gis_osm_natural_free           |    34010 | 5208 kB | r
- raw               | gis_osm_places_a_free          |     1155 | 7992 kB | r
- raw               | gis_osm_places_free            |    15084 | 2592 kB | r
- raw               | gis_osm_pofw_a_free            |     2880 | 1080 kB | r
- raw               | gis_osm_pofw_free              |     1375 | 312 kB  | r
- raw               | gis_osm_pois_a_free            |    43996 | 16 MB   | r
- raw               | gis_osm_pois_free              |    75074 | 13 MB   | r
- raw               | gis_osm_protected_areas_a_free |      116 | 4168 kB | r
- raw               | gis_osm_railways_free          |     3776 | 1600 kB | r
- raw               | gis_osm_roads_free             |  3144397 | 1060 MB | r
- raw               | gis_osm_traffic_a_free         |     4736 | 1712 kB | r
- raw               | gis_osm_traffic_free           |    72480 | 12 MB   | r
- raw               | gis_osm_transport_a_free       |      438 | 400 kB  | r
- raw               | gis_osm_transport_free         |    18925 | 3448 kB | r
- raw               | gis_osm_water_a_free           |    39758 | 55 MB   | r
- raw               | gis_osm_waterways_free         |    38681 | 40 MB   | r
- user_data         | electric_poles                 |       -1 | 56 kB   | r
- user_data         | poi_photos                     |       -1 | 48 kB   | r
- user_data         | pois                           |       -1 | 56 kB   | r
-(54 rows)
+  schema   |        table_name        | est_rows |    size    | kind 
+-----------+--------------------------+----------+------------+------
+ public    | geography_columns        |       -1 | 0 bytes    | v
+ public    | geometry_columns         |       -1 | 0 bytes    | v
+ public    | pois                     |       -1 | 24 kB      | r
+ public    | spatial_ref_sys          |     8500 | 7144 kB    | r
+ public    | streetview_images        |       -1 | 24 kB      | r
+ public    | vietnam_roads            |       -1 | 40 kB      | r
+ tiger     | addr                     |       -1 | 24 kB      | r
+ tiger     | addrfeat                 |       -1 | 48 kB      | r
+ tiger     | bg                       |       -1 | 16 kB      | r
+ tiger     | county                   |       -1 | 32 kB      | r
+ tiger     | county_lookup            |       -1 | 24 kB      | r
+ tiger     | countysub_lookup         |       -1 | 24 kB      | r
+ tiger     | cousub                   |       -1 | 32 kB      | r
+ tiger     | direction_lookup         |       28 | 40 kB      | r
+ tiger     | edges                    |       -1 | 40 kB      | r
+ tiger     | faces                    |       -1 | 40 kB      | r
+ tiger     | featnames                |       -1 | 32 kB      | r
+ tiger     | geocode_settings         |       -1 | 16 kB      | r
+ tiger     | geocode_settings_default |       -1 | 32 kB      | r
+ tiger     | loader_lookuptables      |       -1 | 64 kB      | r
+ tiger     | loader_platform          |       -1 | 32 kB      | r
+ tiger     | loader_variables         |       -1 | 32 kB      | r
+ tiger     | pagc_gaz                 |      835 | 128 kB     | r
+ tiger     | pagc_lex                 |     2938 | 336 kB     | r
+ tiger     | pagc_rules               |     4354 | 856 kB     | r
+ tiger     | place                    |       -1 | 32 kB      | r
+ tiger     | place_lookup             |       -1 | 24 kB      | r
+ tiger     | secondary_unit_lookup    |       39 | 40 kB      | r
+ tiger     | state                    |       -1 | 40 kB      | r
+ tiger     | state_lookup             |       59 | 104 kB     | r
+ tiger     | street_type_lookup       |      609 | 128 kB     | r
+ tiger     | tabblock                 |       -1 | 16 kB      | r
+ tiger     | tabblock20               |       -1 | 16 kB      | r
+ tiger     | tract                    |       -1 | 16 kB      | r
+ tiger     | zcta5                    |       -1 | 24 kB      | r
+ tiger     | zip_lookup               |       -1 | 8192 bytes | r
+ tiger     | zip_lookup_all           |       -1 | 0 bytes    | r
+ tiger     | zip_lookup_base          |       -1 | 8192 bytes | r
+ tiger     | zip_state                |       -1 | 8192 bytes | r
+ tiger     | zip_state_loc            |       -1 | 8192 bytes | r
+ topology  | layer                    |       -1 | 24 kB      | r
+ topology  | topology                 |       -1 | 24 kB      | r
+ user_data | electric_poles           |       -1 | 32 kB      | r
+ user_data | poi_photos               |       -1 | 24 kB      | r
+ user_data | pois                     |       -1 | 40 kB      | r
+ user_data | vietnam_wards_2025       |     3321 | 119 MB     | r
+(46 rows)
 
 ========== 2.2 EXACT ROW COUNTS ==========
-           tbl            |  count  
---------------------------+---------
- public.streetview_images |       5
- user_data.pois           |       3
- public.pois              |       0
- user_data.poi_photos     |       2
- clean.places             |   14699
- clean.water_areas        |   39758
- clean.pois               |   74933
- public.osm_roads         | 1004652
- public.vietnam_roads     | 3140236
- clean.buildings          | 1272265
-(10 rows)
+             tbl              | count 
+------------------------------+-------
+ user_data.pois               |     0
+ user_data.poi_photos         |     0
+ user_data.electric_poles     |     0
+ user_data.vietnam_wards_2025 |  3321
+ public.pois                  |     0
+ public.streetview_images     |     0
+ public.vietnam_roads         |     0
+(7 rows)
 
 
 ========== 3.1 user_data.pois ==========
@@ -125,7 +114,7 @@ Expanded display is used automatically.
  created_at  | timestamp with time zone |           | not null | now()                                      | plain    |             |              | 
 Indexes:
     "pois_pkey" PRIMARY KEY, btree (id)
-    "idx_user_pois_category" btree (category)
+    "idx_search_user_pois_name_trgm" gin (name gin_trgm_ops)
     "idx_user_pois_geom" gist (geom)
 Referenced by:
     TABLE "user_data.poi_photos" CONSTRAINT "poi_photos_poi_id_fkey" FOREIGN KEY (poi_id) REFERENCES user_data.pois(id) ON DELETE CASCADE
@@ -139,8 +128,6 @@ Access method: heap
  poi_id     | bigint                   |           | not null |                                                  | plain    |             |              | 
  file_path  | text                     |           | not null |                                                  | extended |             |              | 
  thumb_path | text                     |           |          |                                                  | extended |             |              | 
- width      | integer                  |           |          |                                                  | plain    |             |              | 
- height     | integer                  |           |          |                                                  | plain    |             |              | 
  created_at | timestamp with time zone |           | not null | now()                                            | plain    |             |              | 
 Indexes:
     "poi_photos_pkey" PRIMARY KEY, btree (id)
@@ -149,300 +136,286 @@ Foreign-key constraints:
     "poi_photos_poi_id_fkey" FOREIGN KEY (poi_id) REFERENCES user_data.pois(id) ON DELETE CASCADE
 Access method: heap
 
-========== 3.3 public.pois ==========
-                                                                  Table "public.pois"
-   Column   |           Type           | Collation | Nullable |             Default              | Storage  | Compression | Stats target | Description 
-------------+--------------------------+-----------+----------+----------------------------------+----------+-------------+--------------+-------------
- id         | bigint                   |           | not null | nextval('pois_id_seq'::regclass) | plain    |             |              | 
- osm_id     | text                     |           |          |                                  | extended |             |              | 
- name       | text                     |           |          |                                  | extended |             |              | 
- category   | text                     |           |          |                                  | extended |             |              | 
- geom       | geometry(Point,4326)     |           | not null |                                  | main     |             |              | 
- created_at | timestamp with time zone |           |          | now()                            | plain    |             |              | 
+========== 3.3 user_data.electric_poles ==========
+                                                                     Table "user_data.electric_poles"
+   Column   |           Type           | Collation | Nullable |                       Default                        | Storage  | Compression | Stats target | Description 
+------------+--------------------------+-----------+----------+------------------------------------------------------+----------+-------------+--------------+-------------
+ id         | bigint                   |           | not null | nextval('user_data.electric_poles_id_seq'::regclass) | plain    |             |              | 
+ pole_code  | text                     |           | not null |                                                      | extended |             |              | 
+ route      | text                     |           | not null |                                                      | extended |             |              | 
+ status     | text                     |           | not null | 'good'::text                                         | extended |             |              | 
+ detail     | text                     |           |          |                                                      | extended |             |              | 
+ geom       | geometry(Point,4326)     |           | not null |                                                      | main     |             |              | 
+ created_at | timestamp with time zone |           | not null | now()                                                | plain    |             |              | 
+ updated_at | timestamp with time zone |           | not null | now()                                                | plain    |             |              | 
 Indexes:
-    "pois_pkey" PRIMARY KEY, btree (id)
-    "idx_pois_category" btree (category)
-    "idx_pois_geom" gist (geom)
-    "pois_osm_id_key" UNIQUE CONSTRAINT, btree (osm_id)
+    "electric_poles_pkey" PRIMARY KEY, btree (id)
+    "electric_poles_pole_code_key" UNIQUE CONSTRAINT, btree (pole_code)
+    "idx_electric_poles_geom" gist (geom)
+Check constraints:
+    "electric_poles_status_check" CHECK (status = ANY (ARRAY['good'::text, 'warning'::text, 'error'::text]))
 Access method: heap
 
-========== 3.4 public.streetview_images ==========
-                                                                    Table "public.streetview_images"
-     Column     |           Type           | Collation | Nullable |                    Default                    | Storage  | Compression | Stats target | Description 
-----------------+--------------------------+-----------+----------+-----------------------------------------------+----------+-------------+--------------+-------------
- id             | integer                  |           | not null | nextval('streetview_images_id_seq'::regclass) | plain    |             |              | 
- geom           | geometry(Point,4326)     |           | not null |                                               | main     |             |              | 
- image_url      | text                     |           | not null |                                               | extended |             |              | 
- heading        | double precision         |           |          |                                               | plain    |             |              | 
- captured_at    | timestamp with time zone |           |          |                                               | plain    |             |              | 
- next_ids       | integer[]                |           |          |                                               | extended |             |              | 
- link_positions | jsonb                    |           |          |                                               | extended |             |              | 
+========== 3.4 user_data.vietnam_wards_2025 ==========
+                                             Table "user_data.vietnam_wards_2025"
+    Column    |          Type           | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
+--------------+-------------------------+-----------+----------+---------+----------+-------------+--------------+-------------
+ ma           | text                    |           |          |         | extended |             |              | 
+ cay          | text                    |           |          |         | extended |             |              | 
+ ma1          | text                    |           |          |         | extended |             |              | 
+ khoa         | text                    |           |          |         | extended |             |              | 
+ loai         | text                    |           |          |         | extended |             |              | 
+ vido         | text                    |           |          |         | extended |             |              | 
+ tenhc        | text                    |           |          |         | extended |             |              | 
+ kinhdo       | text                    |           |          |         | extended |             |              | 
+ matinh       | text                    |           |          |         | extended |             |              | 
+ tentinh      | text                    |           |          |         | extended |             |              | 
+ matinhxa     | text                    |           |          |         | extended |             |              | 
+ dansonguoi   | text                    |           |          |         | extended |             |              | 
+ trungtamhc   | text                    |           |          |         | extended |             |              | 
+ dientichkm2  | text                    |           |          |         | extended |             |              | 
+ truocsapnhap | text                    |           |          |         | extended |             |              | 
+ area         | text                    |           |          |         | extended |             |              | 
+ geom         | geometry(Geometry,4326) |           |          |         | main     |             |              | 
+Indexes:
+    "idx_vietnam_wards_2025_geom" gist (geom)
+Access method: heap
+
+========== 3.5 public.pois ==========
+                                                               Table "public.pois"
+  Column  |         Type         | Collation | Nullable |             Default              | Storage  | Compression | Stats target | Description 
+----------+----------------------+-----------+----------+----------------------------------+----------+-------------+--------------+-------------
+ id       | integer              |           | not null | nextval('pois_id_seq'::regclass) | plain    |             |              | 
+ name     | text                 |           |          |                                  | extended |             |              | 
+ fclass   | text                 |           |          |                                  | extended |             |              | 
+ category | text                 |           |          |                                  | extended |             |              | 
+ geom     | geometry(Point,4326) |           | not null |                                  | main     |             |              | 
+Indexes:
+    "pois_pkey" PRIMARY KEY, btree (id)
+    "idx_public_pois_geom" gist (geom)
+Access method: heap
+
+========== 3.6 public.streetview_images ==========
+                                                                  Table "public.streetview_images"
+   Column   |           Type           | Collation | Nullable |                    Default                    | Storage  | Compression | Stats target | Description 
+------------+--------------------------+-----------+----------+-----------------------------------------------+----------+-------------+--------------+-------------
+ id         | integer                  |           | not null | nextval('streetview_images_id_seq'::regclass) | plain    |             |              | 
+ file_path  | text                     |           | not null |                                               | extended |             |              | 
+ heading    | double precision         |           |          | 0                                             | plain    |             |              | 
+ pitch      | double precision         |           |          | 0                                             | plain    |             |              | 
+ geom       | geometry(Point,4326)     |           | not null |                                               | main     |             |              | 
+ created_at | timestamp with time zone |           |          | now()                                         | plain    |             |              | 
 Indexes:
     "streetview_images_pkey" PRIMARY KEY, btree (id)
     "idx_streetview_geom" gist (geom)
 Access method: heap
 
-========== 3.5 public.vietnam_roads ==========
-                                                                    Table "public.vietnam_roads"
-  Column  |              Type              | Collation | Nullable |                  Default                  | Storage  | Compression | Stats target | Description 
-----------+--------------------------------+-----------+----------+-------------------------------------------+----------+-------------+--------------+-------------
- id       | integer                        |           | not null | nextval('vietnam_roads_id_seq'::regclass) | plain    |             |              | 
- fid      | integer                        |           |          |                                           | plain    |             |              | 
- osm_id   | character varying              |           |          |                                           | extended |             |              | 
- code     | integer                        |           |          |                                           | plain    |             |              | 
- fclass   | character varying              |           |          |                                           | extended |             |              | 
- name     | character varying              |           |          |                                           | extended |             |              | 
- ref      | character varying              |           |          |                                           | extended |             |              | 
- oneway   | character varying              |           |          |                                           | extended |             |              | 
- maxspeed | integer                        |           |          |                                           | plain    |             |              | 
- layer    | integer                        |           |          |                                           | plain    |             |              | 
- bridge   | character varying              |           |          |                                           | extended |             |              | 
- tunnel   | character varying              |           |          |                                           | extended |             |              | 
- geom     | geometry(MultiLineString,4326) |           |          |                                           | main     |             |              | 
+========== 3.7 public.vietnam_roads ==========
+                                                                   Table "public.vietnam_roads"
+ Column |              Type              | Collation | Nullable |                  Default                  | Storage  | Compression | Stats target | Description 
+--------+--------------------------------+-----------+----------+-------------------------------------------+----------+-------------+--------------+-------------
+ id     | integer                        |           | not null | nextval('vietnam_roads_id_seq'::regclass) | plain    |             |              | 
+ name   | text                           |           |          |                                           | extended |             |              | 
+ fclass | text                           |           |          |                                           | extended |             |              | 
+ geom   | geometry(MultiLineString,4326) |           | not null |                                           | main     |             |              | 
 Indexes:
     "vietnam_roads_pkey" PRIMARY KEY, btree (id)
+    "idx_search_roads_name_trgm" gin (name gin_trgm_ops)
     "idx_vietnam_roads_geom" gist (geom)
-    "vietnam_roads_geom_geom_idx" gist (geom)
-Access method: heap
-
-========== 3.6 clean.pois ==========
-                                             Materialized view "clean.pois"
-  Column  |         Type          | Collation | Nullable | Default | Storage  | Compression | Stats target | Description 
-----------+-----------------------+-----------+----------+---------+----------+-------------+--------------+-------------
- osm_id   | character varying(12) |           |          |         | extended |             |              | 
- fclass   | character varying(28) |           |          |         | extended |             |              | 
- category | text                  |           |          |         | extended |             |              | 
- name     | text                  |           |          |         | extended |             |              | 
- has_name | boolean               |           |          |         | plain    |             |              | 
- geom     | geometry(Point,4326)  |           |          |         | main     |             |              | 
-Indexes:
-    "pois_geom_idx" gist (geom)
-View definition:
- SELECT DISTINCT ON (osm_id, (st_centroid(geom)::geometry(Point,4326))) osm_id,
-    fclass,
-        CASE
-            WHEN fclass::text = ANY (ARRAY['restaurant'::character varying, 'fast_food'::character varying, 'cafe'::character varying, 'pub'::character varying, 'bar'::character varying, 'food_court'::character varying, 'biergarten'::character varying]::text[]) THEN 'an_uong'::text
-            WHEN fclass::text = ANY (ARRAY['hospital'::character varying, 'clinic'::character varying, 'doctors'::character varying, 'pharmacy'::character varying, 'dentist'::character varying, 'veterinary'::character varying, 'nursing_home'::character varying]::text[]) THEN 'y_te'::text
-            WHEN fclass::text = ANY (ARRAY['school'::character varying, 'university'::character varying, 'college'::character varying, 'kindergarten'::character varying, 'library'::character varying]::text[]) THEN 'giao_duc'::text
-            WHEN fclass::text = ANY (ARRAY['bank'::character varying, 'atm'::character varying]::text[]) THEN 'tai_chinh'::text
-            WHEN fclass::text = ANY (ARRAY['supermarket'::character varying, 'bakery'::character varying, 'mall'::character varying, 'department_store'::character varying, 'convenience'::character varying, 'clothes'::character varying, 'greengrocer'::character varying, 'butcher'::character varying, 'kiosk'::character varying, 'market_place'::character varying, 'bookshop'::character varying, 'shoe_shop'::character varying, 'furniture_shop'::character varying, 'jeweller'::character varying, 'mobile_phone_shop'::character varying, 'hairdresser'::character varying, 'beauty_shop'::character varying]::text[]) THEN 'mua_sam'::text
-            WHEN fclass::text = ANY (ARRAY['hotel'::character varying, 'guesthouse'::character varying, 'hostel'::character varying, 'motel'::character varying, 'chalet'::character varying, 'camp_site'::character varying, 'caravan_site'::character varying, 'attraction'::character varying, 'museum'::character varying, 'zoo'::character varying, 'theme_park'::character varying, 'viewpoint'::character varying, 'monument'::character varying, 'memorial'::character varying, 'ruins'::character varying, 'castle'::character varying, 'tourist_info'::character varying, 'artwork'::character varying, 'picnic_site'::character varying, 'archaeological'::character varying]::text[]) THEN 'du_lich'::text
-            WHEN fclass::text = ANY (ARRAY['police'::character varying, 'fire_station'::character varying, 'post_office'::character varying, 'town_hall'::character varying, 'courthouse'::character varying, 'embassy'::character varying, 'prison'::character varying, 'community_centre'::character varying, 'public_building'::character varying]::text[]) THEN 'hanh_chinh'::text
-            ELSE 'khac'::text
-        END AS category,
-    NORMALIZE(NULLIF(btrim(name::text), ''::text), NFC) AS name,
-    name IS NOT NULL AND btrim(name::text) <> ''::text AS has_name,
-    st_centroid(geom)::geometry(Point,4326) AS geom
-   FROM raw.gis_osm_pois_free
-  WHERE geom IS NOT NULL AND NOT st_isempty(geom)
-  ORDER BY osm_id, (st_centroid(geom)::geometry(Point,4326));
 Access method: heap
 
 
 ========== 4.1 CONSTRAINTS ==========
-  schema   |        tbl        |          name          |  type  |                                 def                                  
------------+-------------------+------------------------+--------+----------------------------------------------------------------------
- public    | pois              | pois_pkey              | PK     | PRIMARY KEY (id)
- public    | pois              | pois_osm_id_key        | UNIQUE | UNIQUE (osm_id)
- public    | streetview_images | streetview_images_pkey | PK     | PRIMARY KEY (id)
- public    | vietnam_roads     | vietnam_roads_pkey     | PK     | PRIMARY KEY (id)
- user_data | poi_photos        | poi_photos_poi_id_fkey | FK     | FOREIGN KEY (poi_id) REFERENCES user_data.pois(id) ON DELETE CASCADE
- user_data | poi_photos        | poi_photos_pkey        | PK     | PRIMARY KEY (id)
- user_data | pois              | pois_pkey              | PK     | PRIMARY KEY (id)
-(7 rows)
+  schema   |        tbl        |             name             |  type  |                                     def                                      
+-----------+-------------------+------------------------------+--------+------------------------------------------------------------------------------
+ public    | pois              | pois_pkey                    | PK     | PRIMARY KEY (id)
+ public    | streetview_images | streetview_images_pkey       | PK     | PRIMARY KEY (id)
+ public    | vietnam_roads     | vietnam_roads_pkey           | PK     | PRIMARY KEY (id)
+ user_data | electric_poles    | electric_poles_status_check  | CHECK  | CHECK ((status = ANY (ARRAY['good'::text, 'warning'::text, 'error'::text])))
+ user_data | electric_poles    | electric_poles_pkey          | PK     | PRIMARY KEY (id)
+ user_data | electric_poles    | electric_poles_pole_code_key | UNIQUE | UNIQUE (pole_code)
+ user_data | poi_photos        | poi_photos_poi_id_fkey       | FK     | FOREIGN KEY (poi_id) REFERENCES user_data.pois(id) ON DELETE CASCADE
+ user_data | poi_photos        | poi_photos_pkey              | PK     | PRIMARY KEY (id)
+ user_data | pois              | pois_pkey                    | PK     | PRIMARY KEY (id)
+(9 rows)
 
 ========== 4.2 INDEXES ==========
- schemaname |     tablename     |          indexname          |                                        indexdef                                         
-------------+-------------------+-----------------------------+-----------------------------------------------------------------------------------------
- clean      | pois              | pois_geom_idx               | CREATE INDEX pois_geom_idx ON clean.pois USING gist (geom)
- public     | pois              | idx_pois_category           | CREATE INDEX idx_pois_category ON public.pois USING btree (category)
- public     | pois              | idx_pois_geom               | CREATE INDEX idx_pois_geom ON public.pois USING gist (geom)
- public     | pois              | pois_osm_id_key             | CREATE UNIQUE INDEX pois_osm_id_key ON public.pois USING btree (osm_id)
- public     | pois              | pois_pkey                   | CREATE UNIQUE INDEX pois_pkey ON public.pois USING btree (id)
- public     | streetview_images | idx_streetview_geom         | CREATE INDEX idx_streetview_geom ON public.streetview_images USING gist (geom)
- public     | streetview_images | streetview_images_pkey      | CREATE UNIQUE INDEX streetview_images_pkey ON public.streetview_images USING btree (id)
- public     | vietnam_roads     | idx_vietnam_roads_geom      | CREATE INDEX idx_vietnam_roads_geom ON public.vietnam_roads USING gist (geom)
- public     | vietnam_roads     | vietnam_roads_geom_geom_idx | CREATE INDEX vietnam_roads_geom_geom_idx ON public.vietnam_roads USING gist (geom)
- public     | vietnam_roads     | vietnam_roads_pkey          | CREATE UNIQUE INDEX vietnam_roads_pkey ON public.vietnam_roads USING btree (id)
- user_data  | poi_photos        | idx_poi_photos_poi          | CREATE INDEX idx_poi_photos_poi ON user_data.poi_photos USING btree (poi_id)
- user_data  | poi_photos        | poi_photos_pkey             | CREATE UNIQUE INDEX poi_photos_pkey ON user_data.poi_photos USING btree (id)
- user_data  | pois              | idx_user_pois_category      | CREATE INDEX idx_user_pois_category ON user_data.pois USING btree (category)
- user_data  | pois              | idx_user_pois_geom          | CREATE INDEX idx_user_pois_geom ON user_data.pois USING gist (geom)
- user_data  | pois              | pois_pkey                   | CREATE UNIQUE INDEX pois_pkey ON user_data.pois USING btree (id)
-(15 rows)
+ schemaname |     tablename      |           indexname            |                                               indexdef                                               
+------------+--------------------+--------------------------------+------------------------------------------------------------------------------------------------------
+ public     | pois               | idx_public_pois_geom           | CREATE INDEX idx_public_pois_geom ON public.pois USING gist (geom)
+ public     | pois               | pois_pkey                      | CREATE UNIQUE INDEX pois_pkey ON public.pois USING btree (id)
+ public     | streetview_images  | idx_streetview_geom            | CREATE INDEX idx_streetview_geom ON public.streetview_images USING gist (geom)
+ public     | streetview_images  | streetview_images_pkey         | CREATE UNIQUE INDEX streetview_images_pkey ON public.streetview_images USING btree (id)
+ public     | vietnam_roads      | idx_search_roads_name_trgm     | CREATE INDEX idx_search_roads_name_trgm ON public.vietnam_roads USING gin (name gin_trgm_ops)
+ public     | vietnam_roads      | idx_vietnam_roads_geom         | CREATE INDEX idx_vietnam_roads_geom ON public.vietnam_roads USING gist (geom)
+ public     | vietnam_roads      | vietnam_roads_pkey             | CREATE UNIQUE INDEX vietnam_roads_pkey ON public.vietnam_roads USING btree (id)
+ user_data  | electric_poles     | electric_poles_pkey            | CREATE UNIQUE INDEX electric_poles_pkey ON user_data.electric_poles USING btree (id)
+ user_data  | electric_poles     | electric_poles_pole_code_key   | CREATE UNIQUE INDEX electric_poles_pole_code_key ON user_data.electric_poles USING btree (pole_code)
+ user_data  | electric_poles     | idx_electric_poles_geom        | CREATE INDEX idx_electric_poles_geom ON user_data.electric_poles USING gist (geom)
+ user_data  | poi_photos         | idx_poi_photos_poi             | CREATE INDEX idx_poi_photos_poi ON user_data.poi_photos USING btree (poi_id)
+ user_data  | poi_photos         | poi_photos_pkey                | CREATE UNIQUE INDEX poi_photos_pkey ON user_data.poi_photos USING btree (id)
+ user_data  | pois               | idx_search_user_pois_name_trgm | CREATE INDEX idx_search_user_pois_name_trgm ON user_data.pois USING gin (name gin_trgm_ops)
+ user_data  | pois               | idx_user_pois_geom             | CREATE INDEX idx_user_pois_geom ON user_data.pois USING gist (geom)
+ user_data  | pois               | pois_pkey                      | CREATE UNIQUE INDEX pois_pkey ON user_data.pois USING btree (id)
+ user_data  | vietnam_wards_2025 | idx_vietnam_wards_2025_geom    | CREATE INDEX idx_vietnam_wards_2025_geom ON user_data.vietnam_wards_2025 USING gist (geom)
+(16 rows)
 
 
 ========== 5.1 GEOMETRY COLUMNS ==========
- f_table_schema |   f_table_name    | f_geometry_column | coord_dimension | srid |      type       
-----------------+-------------------+-------------------+-----------------+------+-----------------
- clean          | admin_areas       | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | buildings         | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | landuse           | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | natural           | geom              |               2 | 4326 | POINT
- clean          | natural_areas     | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | places            | geom              |               2 | 4326 | POINT
- clean          | places_areas      | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | pofw              | geom              |               2 | 4326 | POINT
- clean          | pofw_areas        | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | pois              | geom              |               2 | 4326 | POINT
- clean          | pois_areas        | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | protected_areas   | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | railways          | geom              |               2 | 4326 | MULTILINESTRING
- clean          | roads_local       | geom              |               2 | 4326 | MULTILINESTRING
- clean          | roads_major       | geom              |               2 | 4326 | MULTILINESTRING
- clean          | roads_minor       | geom              |               2 | 4326 | MULTILINESTRING
- clean          | traffic           | geom              |               2 | 4326 | POINT
- clean          | traffic_areas     | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | transport         | geom              |               2 | 4326 | POINT
- clean          | transport_areas   | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | water_areas       | geom              |               2 | 4326 | MULTIPOLYGON
- clean          | waterways         | geom              |               2 | 4326 | MULTILINESTRING
- public         | osm_roads         | geom              |               2 | 4326 | LINESTRING
- public         | pois              | geom              |               2 | 4326 | POINT
- public         | streetview_images | geom              |               2 | 4326 | POINT
- public         | vietnam_roads     | geom              |               2 | 4326 | MULTILINESTRING
- user_data      | electric_poles    | geom              |               2 | 4326 | POINT
- user_data      | pois              | geom              |               2 | 4326 | POINT
-(28 rows)
+ f_table_schema |    f_table_name    | f_geometry_column | coord_dimension | srid |      type       
+----------------+--------------------+-------------------+-----------------+------+-----------------
+ public         | pois               | geom              |               2 | 4326 | POINT
+ public         | streetview_images  | geom              |               2 | 4326 | POINT
+ public         | vietnam_roads      | geom              |               2 | 4326 | MULTILINESTRING
+ user_data      | electric_poles     | geom              |               2 | 4326 | POINT
+ user_data      | pois               | geom              |               2 | 4326 | POINT
+ user_data      | vietnam_wards_2025 | geom              |               2 | 4326 | GEOMETRY
+(6 rows)
 
 
 ========== 6.1 user_data.pois (5 newest) ==========
- id |        name         |  category  |                  address                   | phone | description |    lng     |    lat    |          created_at           
-----+---------------------+------------+--------------------------------------------+-------+-------------+------------+-----------+-------------------------------
-  5 | nh├á m├íy sß╗æ 1        | attraction | 982, L├¬ Lß╗úi , Long xuy├¬n, an giang         |       |             | 105.439755 | 10.387240 | 2026-11-01 14:10:00.857401+00
-  4 | Qu├ín ─ân ven ─æã░ß╗Øng   | restaurant | L├¬ Thß╗ï Nhi├¬n                               |       |             | 105.440440 | 10.384922 | 2026-11-01 09:40:16.626282+00
-  3 | C├┤ng vi├¬n Quyanh Na | other      | 38, ─Éinh Thi├¬n Ho├áng, Long Xuy├¬n, An Giang |       |             | 105.438873 | 10.385251 | 2026-11-01 03:59:22.970441+00
-(3 rows)
-
-========== 6.2 user_data.poi_photos (5 newest) ==========
- id | poi_id |               file_path                |                thumb_path                | width | height 
-----+--------+----------------------------------------+------------------------------------------+-------+--------
-  3 |      5 | 5/0dcd7d7bbd344de58660bbea378cd339.jpg | 5/0dcd7d7bbd344de58660bbea378cd339_t.jpg |  1880 |    422
-  2 |      3 | 3/3f57c52211544d3ba9d089a85bb3fc40.jpg | 3/3f57c52211544d3ba9d089a85bb3fc40_t.jpg |  1880 |    422
-(2 rows)
-
-========== 6.3 public.pois (5 rows) ==========
- id | osm_id | name | category | geom | created_at 
-----+--------+------+----------+------+------------
+ id | name | category | address | phone | description | lng | lat | created_at 
+----+------+----------+---------+-------+-------------+-----+-----+------------
 (0 rows)
 
-========== 6.4 public.streetview_images (5 newest) ==========
- id |    lng     |    lat    |                     image_url                     | heading | next_ids |                                                link_positions                                                |          captured_at          
-----+------------+-----------+---------------------------------------------------+---------+----------+--------------------------------------------------------------------------------------------------------------+-------------------------------
-  7 | 105.437322 | 10.384186 | /panoramas/u_b458a1752d274533af5b9476928bc36c.jpg |      90 | {}       | []                                                                                                           | 2026-11-09 14:58:10.811695+00
-  4 | 105.437698 | 10.383932 | /panoramas/demo4.png                              |     180 | {3}      | [{"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}] | 
-  3 | 105.438017 | 10.383666 | /panoramas/demo3.png                              |       0 | {2,4}    | [{"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}, {"textureX": 887, "textureY": 620}] | 
-  2 | 105.438355 | 10.383373 | /panoramas/demo2.png                              |     270 | {1,3}    | [{"textureX": 728, "textureY": 500}, {"textureX": 887, "textureY": 620}]                                     | 
-  1 | 105.438687 | 10.383099 | /panoramas/demo1.png                              |      90 | {2}      | [{"textureX": 728, "textureY": 500}, {"textureX": 887, "textureY": 620}]                                     | 
+========== 6.2 user_data.poi_photos (5 newest) ==========
+ id | poi_id | file_path | thumb_path | created_at 
+----+--------+-----------+------------+------------
+(0 rows)
+
+========== 6.3 user_data.electric_poles (5 newest) ==========
+ id | pole_code | route | status | detail | lng | lat | created_at | updated_at 
+----+-----------+-------+--------+--------+-----+-----+------------+------------
+(0 rows)
+
+========== 6.4 user_data.vietnam_wards_2025 (5 rows) ==========
+  ma  |    tenhc    |  loai   |        tentinh        | dansonguoi | dientichkm2 | kinhdo  |  vido   
+------+-------------+---------+-----------------------+------------+-------------+---------+---------
+ 1054 | C├ít Hß║úi     | ─æß║Àc khu | th├ánh phß╗æ Hß║úi Ph├▓ng   | 71211      | 286.98      | 106.869 | 20.8087
+ 2789 | Ph├║ Lß╗úi     | phã░ß╗Øng  | th├ánh phß╗æ Hß╗ô Ch├¡ Minh | 107721     | 17.96       | 106.676 | 10.9861
+ 2839 | Thß╗º Dß║ºu Mß╗Öt | phã░ß╗Øng  | th├ánh phß╗æ Hß╗ô Ch├¡ Minh | 88132      | 15.68       | 106.659 | 10.9701
+ 2734 | Ch├ính Hiß╗çp  | phã░ß╗Øng  | th├ánh phß╗æ Hß╗ô Ch├¡ Minh | 56387      | 19.66       | 106.64  | 11.0147
+ 2712 | B├¼nh Dã░ãíng  | phã░ß╗Øng  | th├ánh phß╗æ Hß╗ô Ch├¡ Minh | 107576     | 58.16       | 106.687 | 11.0528
 (5 rows)
 
-========== 6.5 clean.pois (5 rows) ==========
-   osm_id   |  fclass  | category  |    name    | has_name |                        geom                        
-------------+----------+-----------+------------+----------+----------------------------------------------------
- 1000087196 | pharmacy | y_te      |            | f        | 0101000020E610000024BFD94180755A40FAEE5696E8063540
- 1000087283 | cafe     | an_uong   | C├á Ph├¬ Huy | t        | 0101000020E6100000B7A62F3A8F755A40C5B2F4FCC4063540
- 1000087307 | toilet   | khac      |            | f        | 0101000020E6100000845DB9837D755A40B10EEC9D76073540
- 1000087314 | pharmacy | y_te      |            | f        | 0101000020E61000009F44DF3884755A40802D0A16E2063540
- 1000087341 | atm      | tai_chinh |            | f        | 0101000020E6100000AF92342493755A40F0ADA305C3063540
-(5 rows)
+========== 6.5 public.pois (5 rows) ==========
+ id | name | fclass | category | lng | lat 
+----+------+--------+----------+-----+-----
+(0 rows)
+
+========== 6.6 public.streetview_images (5 newest) ==========
+ id | lng | lat | file_path | heading | pitch | created_at 
+----+-----+-----+-----------+---------+-------+------------
+(0 rows)
 
 
 ========== 7.1 CATEGORIES user_data.pois ==========
-  category  | count 
-------------+-------
- restaurant |     1
- other      |     1
- attraction |     1
-(3 rows)
+ category | count 
+----------+-------
+(0 rows)
 
 ========== 7.2 CATEGORIES public.pois (top 50) ==========
  category | count 
 ----------+-------
 (0 rows)
 
-========== 7.3 CATEGORIES clean.pois (top 50) ==========
-docker : ERROR:  column "kind" does not exist
-At line:1 char:31
-+ ... cover.sql | docker exec -i postgis-webmap psql -U postgres -d webmap_ ...
-+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (ERROR:  column "kind" does not exist:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-LINE 1: SELECT kind, count(*) FROM clean.pois GROUP BY kind ORDER BY...
-               ^
+========== 7.3 STATUS user_data.electric_poles ==========
+ status | count 
+--------+-------
+(0 rows)
+
 ========== 7.4 GEOMETRY VALIDITY ==========
-           tbl            | invalid 
---------------------------+---------
- public.streetview_images |       0
- user_data.pois           |       0
- public.pois              |       0
-(3 rows)
+             tbl              | invalid 
+------------------------------+---------
+ user_data.pois               |       0
+ user_data.electric_poles     |       0
+ public.pois                  |       0
+ public.vietnam_roads         |       0
+ public.streetview_images     |       0
+ user_data.vietnam_wards_2025 |       0
+(6 rows)
 
 ========== 7.5 NULL CHECK user_data.pois ==========
  no_name | no_cat | no_geom | no_addr | total 
 ---------+--------+---------+---------+-------
-       0 |      0 |       0 |       0 |     3
+       0 |      0 |       0 |       0 |     0
 (1 row)
 
-========== 7.6 tile_reader PERMISSIONS ==========
- table_schema |    table_name     | privilege_type 
---------------+-------------------+----------------
- public       | geography_columns | SELECT
- public       | geometry_columns  | SELECT
- public       | osm_roads         | SELECT
- public       | pois              | SELECT
- public       | spatial_ref_sys   | SELECT
- public       | streetview_images | INSERT
- public       | streetview_images | SELECT
- public       | vietnam_roads     | SELECT
- user_data    | electric_poles    | DELETE
- user_data    | electric_poles    | INSERT
- user_data    | electric_poles    | SELECT
- user_data    | electric_poles    | UPDATE
- user_data    | poi_photos        | DELETE
- user_data    | poi_photos        | INSERT
- user_data    | poi_photos        | SELECT
- user_data    | poi_photos        | UPDATE
- user_data    | pois              | DELETE
- user_data    | pois              | INSERT
- user_data    | pois              | SELECT
- user_data    | pois              | UPDATE
-(20 rows)
+========== 7.6 NULL CHECK user_data.electric_poles ==========
+ no_code | no_route | no_geom | total 
+---------+----------+---------+-------
+       0 |        0 |       0 |     0
+(1 row)
 
-========== 7.7 EXTRA user_data COLUMNS ==========
-   table_name   | ordinal_position | column_name |        data_type         | max_len | is_nullable |                    column_default                    
-----------------+------------------+-------------+--------------------------+---------+-------------+------------------------------------------------------
- electric_poles |                1 | id          | bigint                   |         | NO          | nextval('user_data.electric_poles_id_seq'::regclass)
- electric_poles |                2 | pole_code   | text                     |         | NO          | 
- electric_poles |                3 | route       | text                     |         | NO          | 
- electric_poles |                4 | status      | text                     |         | NO          | 'good'::text
- electric_poles |                5 | detail      | text                     |         | YES         | 
- electric_poles |                6 | geom        | USER-DEFINED             |         | NO          | 
- electric_poles |                7 | created_at  | timestamp with time zone |         | NO          | now()
- electric_poles |                8 | updated_at  | timestamp with time zone |         | NO          | now()
- poi_photos     |                1 | id          | bigint                   |         | NO          | nextval('user_data.poi_photos_id_seq'::regclass)
- poi_photos     |                2 | poi_id      | bigint                   |         | NO          | 
- poi_photos     |                3 | file_path   | text                     |         | NO          | 
- poi_photos     |                4 | thumb_path  | text                     |         | YES         | 
- poi_photos     |                5 | width       | integer                  |         | YES         | 
- poi_photos     |                6 | height      | integer                  |         | YES         | 
- poi_photos     |                7 | created_at  | timestamp with time zone |         | NO          | now()
- pois           |                1 | id          | bigint                   |         | NO          | nextval('user_data.pois_id_seq'::regclass)
- pois           |                2 | name        | text                     |         | NO          | 
- pois           |                3 | category    | text                     |         | NO          | 'other'::text
- pois           |                4 | address     | text                     |         | YES         | 
- pois           |                5 | phone       | text                     |         | YES         | 
- pois           |                6 | description | text                     |         | YES         | 
- pois           |                7 | geom        | USER-DEFINED             |         | NO          | 
- pois           |                8 | created_at  | timestamp with time zone |         | NO          | now()
-(23 rows)
+========== 7.7 ROLE PERMISSIONS (non-postgres) ==========
+ grantee | table_schema | table_name | privilege_type 
+---------+--------------+------------+----------------
+(0 rows)
 
-========== 7.8 CUSTOM TYPES/ENUMS ==========
+========== 7.8 ALL user_data & public COLUMNS ==========
+ table_schema |     table_name     | ordinal_position | column_name  |        data_type         | max_len | is_nullable |                    column_default                    
+--------------+--------------------+------------------+--------------+--------------------------+---------+-------------+------------------------------------------------------
+ public       | pois               |                1 | id           | integer                  |         | NO          | nextval('pois_id_seq'::regclass)
+ public       | pois               |                2 | name         | text                     |         | YES         | 
+ public       | pois               |                3 | fclass       | text                     |         | YES         | 
+ public       | pois               |                4 | category     | text                     |         | YES         | 
+ public       | pois               |                5 | geom         | USER-DEFINED             |         | NO          | 
+ public       | streetview_images  |                1 | id           | integer                  |         | NO          | nextval('streetview_images_id_seq'::regclass)
+ public       | streetview_images  |                2 | file_path    | text                     |         | NO          | 
+ public       | streetview_images  |                3 | heading      | double precision         |         | YES         | 0
+ public       | streetview_images  |                4 | pitch        | double precision         |         | YES         | 0
+ public       | streetview_images  |                5 | geom         | USER-DEFINED             |         | NO          | 
+ public       | streetview_images  |                6 | created_at   | timestamp with time zone |         | YES         | now()
+ public       | vietnam_roads      |                1 | id           | integer                  |         | NO          | nextval('vietnam_roads_id_seq'::regclass)
+ public       | vietnam_roads      |                2 | name         | text                     |         | YES         | 
+ public       | vietnam_roads      |                3 | fclass       | text                     |         | YES         | 
+ public       | vietnam_roads      |                4 | geom         | USER-DEFINED             |         | NO          | 
+ user_data    | electric_poles     |                1 | id           | bigint                   |         | NO          | nextval('user_data.electric_poles_id_seq'::regclass)
+ user_data    | electric_poles     |                2 | pole_code    | text                     |         | NO          | 
+ user_data    | electric_poles     |                3 | route        | text                     |         | NO          | 
+ user_data    | electric_poles     |                4 | status       | text                     |         | NO          | 'good'::text
+ user_data    | electric_poles     |                5 | detail       | text                     |         | YES         | 
+ user_data    | electric_poles     |                6 | geom         | USER-DEFINED             |         | NO          | 
+ user_data    | electric_poles     |                7 | created_at   | timestamp with time zone |         | NO          | now()
+ user_data    | electric_poles     |                8 | updated_at   | timestamp with time zone |         | NO          | now()
+ user_data    | poi_photos         |                1 | id           | bigint                   |         | NO          | nextval('user_data.poi_photos_id_seq'::regclass)
+ user_data    | poi_photos         |                2 | poi_id       | bigint                   |         | NO          | 
+ user_data    | poi_photos         |                3 | file_path    | text                     |         | NO          | 
+ user_data    | poi_photos         |                4 | thumb_path   | text                     |         | YES         | 
+ user_data    | poi_photos         |                5 | created_at   | timestamp with time zone |         | NO          | now()
+ user_data    | pois               |                1 | id           | bigint                   |         | NO          | nextval('user_data.pois_id_seq'::regclass)
+ user_data    | pois               |                2 | name         | text                     |         | NO          | 
+ user_data    | pois               |                3 | category     | text                     |         | NO          | 'other'::text
+ user_data    | pois               |                4 | address      | text                     |         | YES         | 
+ user_data    | pois               |                5 | phone        | text                     |         | YES         | 
+ user_data    | pois               |                6 | description  | text                     |         | YES         | 
+ user_data    | pois               |                7 | geom         | USER-DEFINED             |         | NO          | 
+ user_data    | pois               |                8 | created_at   | timestamp with time zone |         | NO          | now()
+ user_data    | vietnam_wards_2025 |                1 | ma           | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                2 | cay          | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                3 | ma1          | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                4 | khoa         | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                5 | loai         | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                6 | vido         | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                7 | tenhc        | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                8 | kinhdo       | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                9 | matinh       | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               10 | tentinh      | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               11 | matinhxa     | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               12 | dansonguoi   | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               13 | trungtamhc   | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               14 | dientichkm2  | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               15 | truocsapnhap | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               16 | area         | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               17 | geom         | USER-DEFINED             |         | YES         | 
+(53 rows)
+
+========== 7.9 CUSTOM TYPES/ENUMS ==========
  nspname | typname | labels 
 ---------+---------+--------
 (0 rows)
 
-========== 7.9 TRIGGERS ==========
+========== 7.10 TRIGGERS ==========
  schema | tbl | tgname | def 
 --------+-----+--------+-----
 (0 rows)

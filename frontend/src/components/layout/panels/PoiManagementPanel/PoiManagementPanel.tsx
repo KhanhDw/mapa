@@ -1,14 +1,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { DEFAULT_API_KEY } from "../../../api/streetview";
-import {
-    deleteUserPoi,
-    fetchSystemPois,
-    fetchUserPois,
-    updateUserPoi,
-} from "../../../api/pois";
-import type { PoiItem } from "../../../api/pois";
+
+import { poiService } from "./services/PoiService";
+
+import type { PoiItem } from "../../../../api/pois";
 import "./PoiManagementPanel.css";
 
 interface Props {
@@ -63,8 +59,6 @@ export function PoiManagementPanel({
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
-    const [apiKey, setApiKey] = useState(DEFAULT_API_KEY);
-    const [apiKeyError, setApiKeyError] = useState(false);
 
     const [mode, setMode] = useState<Mode>("list");
     const [selected, setSelected] = useState<PoiItem | null>(null);
@@ -114,9 +108,9 @@ export function PoiManagementPanel({
                 };
 
                 const res =
-                    tab === "user"
-                        ? await fetchUserPois(params)
-                        : await fetchSystemPois(params);
+    tab === "user"
+        ? await poiService.getUserPois(params)
+        : await poiService.getSystemPois(params);
 
                 if (seq !== requestSeq.current) return;
 
@@ -242,95 +236,81 @@ export function PoiManagementPanel({
         void loadPage(pois.length, true);
     };
 
-    const handleSubmitEdit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
+    const handleSubmitEdit = async (
+    event: FormEvent<HTMLFormElement>
+) => {
+    event.preventDefault();
 
-        if (!editing || busy) return;
+    if (!editing || busy) return;
 
-        if (!apiKey.trim()) {
-            setApiKeyError(true);
-            setError("Vui lòng nhập API key để lưu thay đổi.");
-            return;
-        }
+    const lng = Number(draft.lng.trim().replace(",", "."));
+    const lat = Number(draft.lat.trim().replace(",", "."));
 
-        const lng = Number(draft.lng.trim().replace(",", "."));
-        const lat = Number(draft.lat.trim().replace(",", "."));
+    if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+        setError("Kinh độ phải nằm trong khoảng -180 đến 180.");
+        return;
+    }
 
-        if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
-            setError("Kinh độ phải nằm trong khoảng -180 đến 180.");
-            return;
-        }
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+        setError("Vĩ độ phải nằm trong khoảng -90 đến 90.");
+        return;
+    }
 
-        if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-            setError("Vĩ độ phải nằm trong khoảng -90 đến 90.");
-            return;
-        }
+    if (!draft.name.trim() || !draft.category.trim()) {
+        setError("Vui lòng nhập tên địa điểm và danh mục.");
+        return;
+    }
 
-        if (!draft.name.trim() || !draft.category.trim()) {
-            setError("Vui lòng nhập tên địa điểm và danh mục.");
-            return;
-        }
+    setBusy(true);
+    setError(null);
 
-        setApiKeyError(false);
-        setBusy(true);
-        setError(null);
+    try {
+        await poiService.updatePoi(editing.id, {
+            name: draft.name.trim(),
+            category: draft.category.trim(),
+            address: draft.address.trim(),
+            lng,
+            lat,
+        });
 
-        try {
-            await updateUserPoi(
-                editing.id,
-                {
-                    name: draft.name.trim(),
-                    category: draft.category.trim(),
-                    address: draft.address.trim(),
-                    lng,
-                    lat,
-                },
-                apiKey.trim()
-            );
-
-            closeEditForm();
-            await loadPage(0);
-            onChanged();
-        } catch (err) {
-            setError(errMsg(err));
-        } finally {
-            setBusy(false);
-        }
-    };
+        closeEditForm();
+        await loadPage(0);
+        onChanged();
+    } catch (err) {
+        setError(errMsg(err));
+    } finally {
+        setBusy(false);
+    }
+};
 
     const handleDelete = async (item: PoiItem) => {
-        if (busy) return;
+    if (busy) return;
 
-        if (!apiKey.trim()) {
-            setApiKeyError(true);
-            setConfirmDeleteId(null);
-            setError("Vui lòng nhập API key để xóa địa điểm.");
-            return;
+    setBusy(true);
+    setError(null);
+
+    try {
+        await poiService.deletePoi(item.id);
+
+        if (editing?.id === item.id) {
+            closeEditForm();
         }
 
-        setApiKeyError(false);
-        setBusy(true);
-        setError(null);
-
-        try {
-            await deleteUserPoi(item.id, apiKey.trim());
-
-            if (editing?.id === item.id) closeEditForm();
-
-            if (selected?.id === item.id) {
-                setSelected(null);
-                setMode("list");
-            }
-
-            setConfirmDeleteId(null);
-            await loadPage(0);
-            onChanged();
-        } catch (err) {
-            setError(errMsg(err));
-        } finally {
-            setBusy(false);
+        if (selected?.id === item.id) {
+            setSelected(null);
+            setMode("list");
         }
-    };
+
+        setConfirmDeleteId(null);
+
+        await loadPage(0);
+        onChanged();
+    } catch (err) {
+        setError(errMsg(err));
+    } finally {
+        setBusy(false);
+    }
+};
 
     const hasEditLocation = Boolean(draft.lng.trim() && draft.lat.trim());
 
@@ -567,29 +547,6 @@ export function PoiManagementPanel({
                             </span>
                         </button>
                     </div>
-
-                    {tab === "user" && (
-                        <section className="poi-api-panel">
-                            <label className="sv-field">
-                                <span>API KEY QUẢN TRỊ</span>
-                                <input
-                                    type="password"
-                                    className={apiKeyError ? "sv-input-error" : ""}
-                                    value={apiKey}
-                                    onChange={(event) => {
-                                        setApiKey(event.target.value);
-                                        setApiKeyError(false);
-                                    }}
-                                    placeholder="Nhập X-API-Key"
-                                    autoComplete="off"
-                                />
-                            </label>
-                            <span className="poi-api-hint">
-                                <LockIcon />
-                                Dùng để xác thực thao tác sửa và xóa POI.
-                            </span>
-                        </section>
-                    )}
 
                     {editing && (
                         <form className="sv-form poi-edit-form" onSubmit={handleSubmitEdit}>
@@ -967,12 +924,6 @@ const GlobeIcon = () => (
     </svg>
 );
 
-const LockIcon = () => (
-    <svg {...svg(13)}>
-        <rect x="4" y="10" width="16" height="11" rx="2" />
-        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-    </svg>
-);
 
 const CheckIcon = () => (
     <svg {...svg(16)}><path d="m5 12 4 4L19 6" /></svg>

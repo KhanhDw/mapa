@@ -71,7 +71,7 @@ export default function App() {
   } | null>(null);
 
   const [streetViewVersion, setStreetViewVersion] = useState(0);
-  const [poisVersion, setPoisVersion] = useState(0);
+  const [, setPoisVersion] = useState(0);
 
   const [streetViewNavigationRequest, setStreetViewNavigationRequest] = useState<{
     image: StreetViewImage;

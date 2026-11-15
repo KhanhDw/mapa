@@ -3,12 +3,12 @@ export { ContributePanel } from "./contribute/ContributePanel";
 export { GeneralPanel } from "./generalPanel/generalPanel";
 export { LayersPanel } from "./LayersPanel";
 export { PlaceDetailSidebar } from "./PlaceDetailPanel/PlaceDetailPanel";
-export { PoiManagementPanel } from "./PoiManagementPanel";
+export { PoiManagementPanel } from "./PoiManagementPanel/PoiManagementPanel";
 export { PoleDetailPanel } from "./PoleDetailPanel/PoleDetailPanel";
 export { PoleManagementPanel } from "./PoleDetailPanel/PoleManagementPanel";
 export { SearchPanel } from "./SearchPanel/SearchPanel";
 export { SettingsPanel } from "./SettingsPanel";
-export { StreetViewManagementPanel } from "./StreetViewManagementPanel";
+export { StreetViewManagementPanel } from "./StreetViewManagementPanel/StreetViewManagementPanel";
 
 // Constants & Types
 export type { PoiInfo } from "./generalPanel/generalPanel";

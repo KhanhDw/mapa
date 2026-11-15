@@ -1,99 +1,105 @@
-import { API_BASE } from "../config";
 
-export type SearchResultKind = "place" | "road";
+import axios from "axios";
 
-export type SearchLineGeometry =
-    | { type: "LineString"; coordinates: [number, number][] }
-    | { type: "MultiLineString"; coordinates: [number, number][][] };
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
-export interface SearchResult {
-    id: string | number;
-    name: string;
-    kind: SearchResultKind;
-    category?: string | null;
-    address?: string | null;
-    lat: number;
-    lng: number;
-    source: "osm" | "user";
-    geometry?: SearchLineGeometry | null;
-    bbox?: [number, number, number, number] | null;
+const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+// =========================
+// Types
+// =========================
+
+export type SearchSource = "admin" | "osm" | "user";
+
+export interface PlaceSearchResult {
+  id: string;
+  name: string;
+  kind: "admin" | "place";
+  category: string | null;
+  address: string | null;
+  lat: number;
+  lng: number;
+  source: SearchSource;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
+export type RoadGeometry =
+  | {
+      type: "LineString";
+      coordinates: number[][];
+    }
+  | {
+      type: "MultiLineString";
+      coordinates: number[][][];
+    };
+
+export type RoadBbox = [
+  west: number,
+  south: number,
+  east: number,
+  north: number
+];
+
+export interface RoadSearchResult {
+  id: string;
+  name: string;
+  kind: "road";
+  category: string | null;
+  address: null;
+  lat: number;
+  lng: number;
+  source: "osm";
+  geometry: RoadGeometry;
+  bbox: RoadBbox;
 }
 
-function isCoordinate(value: unknown): value is [number, number] {
-    return (
-        Array.isArray(value) &&
-        value.length >= 2 &&
-        typeof value[0] === "number" &&
-        Number.isFinite(value[0]) &&
-        typeof value[1] === "number" &&
-        Number.isFinite(value[1])
-    );
+export type SearchResult =
+  | PlaceSearchResult
+  | RoadSearchResult;
+
+export interface SearchResponse {
+  results: SearchResult[];
 }
 
-function isLineGeometry(value: unknown): value is SearchLineGeometry {
-    if (!isRecord(value) || !Array.isArray(value.coordinates)) return false;
-    if (value.type === "LineString") {
-        return value.coordinates.every(isCoordinate);
-    }
-    if (value.type === "MultiLineString") {
-        return value.coordinates.every(
-            (line) => Array.isArray(line) && line.every(isCoordinate)
-        );
-    }
-    return false;
+export interface SearchParams {
+  q: string;
 }
 
-function isSearchResult(value: unknown): value is SearchResult {
-    if (!isRecord(value)) return false;
-    const hasValidBase =
-        (typeof value.id === "string" || typeof value.id === "number") &&
-        typeof value.name === "string" &&
-        (value.kind === "place" || value.kind === "road") &&
-        (value.source === "osm" || value.source === "user") &&
-        typeof value.lng === "number" &&
-        Number.isFinite(value.lng) &&
-        typeof value.lat === "number" &&
-        Number.isFinite(value.lat);
-    if (!hasValidBase) return false;
-    if (value.kind === "road") {
-        return isLineGeometry(value.geometry) && Array.isArray(value.bbox);
-    }
-    return true;
-}
+// =========================
+// API
+// =========================
 
-export async function searchMap(
-    query: string,
-    signal?: AbortSignal
-): Promise<SearchResult[]> {
-    const params = new URLSearchParams({ q: query });
-    const response = await fetch(
-        `${API_BASE.replace(/\/+$/, "")}/api/search?${params}`,
-        { signal }
-    );
-    if (!response.ok) {
-        const body = await response.text();
-        let message = `Tìm kiếm thất bại (HTTP ${response.status})`;
-        if (body) {
-            try {
-                const parsed: { detail?: unknown } = JSON.parse(body);
-                if (typeof parsed.detail === "string") message = parsed.detail;
-            } catch {
-                message = body;
-            }
-        }
-        throw new Error(message);
+/**
+ * GET /api/search
+ *
+ * Tìm kiếm hợp nhất:
+ * - Đơn vị hành chính (xã/phường/đặc khu)
+ * - POI hệ thống (OSM)
+ * - POI do người dùng đóng góp
+ * - Đường giao thông
+ *
+ * Query:
+ * - q: 2–100 ký tự
+ *
+ * Response:
+ * - results: danh sách kết quả tìm kiếm
+ *
+ * Giới hạn backend:
+ * - Tối đa 12 kết quả địa điểm
+ * - Tối đa 8 kết quả đường
+ */
+export const searchMap = async (
+  q: string
+): Promise<SearchResponse> => {
+  const response = await api.get<SearchResponse>(
+    "/api/search",
+    {
+      params: {
+        q,
+      },
     }
+  );
 
-    const body: unknown = await response.json();
-    if (!isRecord(body) || !Array.isArray(body.results)) {
-        throw new Error("Phản hồi tìm kiếm không hợp lệ");
-    }
-    if (!body.results.every(isSearchResult)) {
-        throw new Error("Dữ liệu kết quả tìm kiếm không hợp lệ");
-    }
-    return body.results;
-}
+  return response.data;
+};

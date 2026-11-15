@@ -24,6 +24,7 @@ _REQUIRED_TABLES = (
     "user_data.pois",
     "user_data.poi_photos",
     "user_data.electric_poles",
+    "user_data.vietnam_wards_2025",
 )
 
 
