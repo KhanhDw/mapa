@@ -1,94 +1,122 @@
-import { API_BASE } from "../config";
+
+import axios from "axios";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const WRITE_API_KEY = import.meta.env.VITE_WRITE_API_KEY || "";
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+const writeHeaders = {
+  "X-API-Key": WRITE_API_KEY,
+};
 
 export type ElectricPoleStatus = "good" | "warning" | "error";
 
 export interface ElectricPole {
-    id: number;
-    pole_code: string;
-    route: string;
-    status: ElectricPoleStatus;
-    detail: string | null;
-    lng: number;
-    lat: number;
-    created_at: string;
-    updated_at: string;
+  id: number;
+  pole_code: string;
+  route: string;
+  status: ElectricPoleStatus;
+  detail: string | null;
+  lng: number;
+  lat: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ElectricPoleInput {
-    pole_code: string;
-    route: string;
-    status: ElectricPoleStatus;
-    detail: string | null;
-    lng: number;
-    lat: number;
+  pole_code: string;
+  route: string;
+  status?: ElectricPoleStatus;
+  lng: number;
+  lat: number;
+  detail?: string | null;
 }
 
-async function ensureSuccess(response: Response): Promise<void> {
-    if (response.ok) return;
+export interface ElectricPoleListResponse {
+  items: ElectricPole[];
+  total: number;
+}
 
-    const body = await response.text();
-    let message = `Yêu cầu thất bại (HTTP ${response.status})`;
-    if (body) {
-        try {
-            const parsed: { detail?: unknown } = JSON.parse(body);
-            if (typeof parsed.detail === "string") message = parsed.detail;
-        } catch {
-            message = body;
-        }
+/**
+ * GET /api/electric-poles
+ * search: tìm theo pole_code hoặc route.
+ */
+export const getElectricPoles = async (
+  search?: string
+): Promise<ElectricPoleListResponse> => {
+  const response = await api.get<ElectricPoleListResponse>(
+    "/api/electric-poles",
+    {
+      params: search?.trim() ? { search: search.trim() } : undefined,
     }
-    throw new Error(message);
-}
+  );
 
-async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(url, init);
-    await ensureSuccess(response);
-    return response.json() as Promise<T>;
-}
+  return response.data;
+};
 
-function writeHeaders(apiKey: string): HeadersInit {
-    return {
-        "Content-Type": "application/json",
-        "X-API-Key": apiKey,
-    };
-}
+/**
+ * GET /api/electric-poles/{pole_id}
+ */
+export const getElectricPole = async (
+  poleId: number
+): Promise<ElectricPole> => {
+  const response = await api.get<ElectricPole>(
+    `/api/electric-poles/${poleId}`
+  );
 
-export async function fetchElectricPoles(): Promise<ElectricPole[]> {
-    const result = await requestJson<{ items: ElectricPole[] }>(
-        `${API_BASE}/api/electric-poles`
-    );
-    return result.items;
-}
+  return response.data;
+};
 
-export function createElectricPole(
-    pole: ElectricPoleInput,
-    apiKey: string
-): Promise<ElectricPole> {
-    return requestJson(`${API_BASE}/api/electric-poles`, {
-        method: "POST",
-        headers: writeHeaders(apiKey),
-        body: JSON.stringify(pole),
-    });
-}
+/**
+ * POST /api/electric-poles
+ * Requires X-API-Key.
+ * Backend returns HTTP 201.
+ */
+export const createElectricPole = async (
+  data: ElectricPoleInput
+): Promise<ElectricPole> => {
+  const response = await api.post<ElectricPole>(
+    "/api/electric-poles",
+    data,
+    {
+      headers: writeHeaders,
+    }
+  );
 
-export function updateElectricPole(
-    id: number,
-    pole: ElectricPoleInput,
-    apiKey: string
-): Promise<ElectricPole> {
-    return requestJson(`${API_BASE}/api/electric-poles/${id}`, {
-        method: "PUT",
-        headers: writeHeaders(apiKey),
-        body: JSON.stringify(pole),
-    });
-}
+  return response.data;
+};
 
-export async function deleteElectricPole(
-    id: number,
-    apiKey: string
-): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/electric-poles/${id}`, {
-        method: "DELETE",
-        headers: writeHeaders(apiKey),
-    });
-    await ensureSuccess(response);
-}
+/**
+ * PUT /api/electric-poles/{pole_id}
+ * Requires X-API-Key.
+ */
+export const updateElectricPole = async (
+  poleId: number,
+  data: ElectricPoleInput
+): Promise<ElectricPole> => {
+  const response = await api.put<ElectricPole>(
+    `/api/electric-poles/${poleId}`,
+    data,
+    {
+      headers: writeHeaders,
+    }
+  );
+
+  return response.data;
+};
+
+/**
+ * DELETE /api/electric-poles/{pole_id}
+ * Requires X-API-Key.
+ * Backend returns HTTP 204 with no response body.
+ */
+export const deleteElectricPole = async (
+  poleId: number
+): Promise<void> => {
+  await api.delete(`/api/electric-poles/${poleId}`, {
+    headers: writeHeaders,
+  });
+};

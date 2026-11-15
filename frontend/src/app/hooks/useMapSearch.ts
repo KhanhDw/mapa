@@ -1,16 +1,19 @@
+
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { SearchResult } from "../../api/search";
 import { searchMap } from "../../api/search";
-import type { SearchResult } from "../../components/layout/panels";
 
 export function useMapSearch(activePanel: string | null) {
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
-    const searchAbortController = useRef<AbortController | null>(null);
+
+    const searchRequestId = useRef(0);
 
     const handleSearch = useCallback(async (query: string) => {
-        searchAbortController.current?.abort();
         const trimmedQuery = query.trim();
+        const requestId = ++searchRequestId.current;
+
         if (trimmedQuery.length < 2) {
             setSearchResults([]);
             setSearchError(null);
@@ -18,30 +21,50 @@ export function useMapSearch(activePanel: string | null) {
             return;
         }
 
-        const controller = new AbortController();
-        searchAbortController.current = controller;
         setSearchLoading(true);
         setSearchError(null);
+
         try {
-            const results = await searchMap(trimmedQuery, controller.signal);
-            if (!controller.signal.aborted) setSearchResults(results);
-        } catch (error) {
-            if (controller.signal.aborted) return;
-            setSearchError(error instanceof Error ? error.message : "Không thể tìm kiếm");
+            const response = await searchMap(trimmedQuery);
+
+            // Chỉ cập nhật nếu đây là request mới nhất
+            if (requestId === searchRequestId.current) {
+                setSearchResults(response.results);
+            }
+        } catch (error: unknown) {
+            if (requestId !== searchRequestId.current) return;
+
+            setSearchError(
+                error instanceof Error
+                    ? error.message
+                    : "Không thể tìm kiếm"
+            );
+
             setSearchResults([]);
         } finally {
-            if (!controller.signal.aborted) setSearchLoading(false);
+            if (requestId === searchRequestId.current) {
+                setSearchLoading(false);
+            }
         }
     }, []);
 
     useEffect(() => {
         if (activePanel !== "search") {
-            searchAbortController.current?.abort();
-            searchAbortController.current = null;
+            searchRequestId.current++;
+            setSearchLoading(false);
         }
     }, [activePanel]);
 
-    useEffect(() => () => searchAbortController.current?.abort(), []);
+    useEffect(() => {
+        return () => {
+            searchRequestId.current++;
+        };
+    }, []);
 
-    return { searchResults, searchLoading, searchError, handleSearch };
+    return {
+        searchResults,
+        searchLoading,
+        searchError,
+        handleSearch,
+    };
 }

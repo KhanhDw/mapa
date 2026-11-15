@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "---": "cd backend && python -m uvicorn src.main:app --reload --host 127.0.0.1 --port 8000",
-    "back": "powershell -ExecutionPolicy Bypass -File ./run_back.ps1",
+    "back": "powershell -ExecutionPolicy Bypass -Command \"& './backend/myenv/Scripts/Activate.ps1'; ./run_back.ps1\"",
     "front": "cd frontend && npm run dev",
     "init-back": "cd backend && python -m pip install -r requirements.txt",
     "dev:full": "concurrently \"npm run back\" \"npm run front\" \"wait-on http://localhost:5173 && electron .\"",

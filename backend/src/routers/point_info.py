@@ -1,13 +1,14 @@
-"""Thông tin tại 1 điểm: đường gần nhất, street view gần nhất, các POI quanh đó.
+# backend\src\routers\point_info.py
+"""Thông tin tại 1 điểm: đơn vị hành chính (xã/phường), đường gần nhất,
+street view gần nhất, các POI và trụ điện quanh đó.
 
-Nguồn POI (spec DB §5):
-    - clean.pois (74k rows) — OSM thật, category VN + fclass EN
-    - user_data.pois (user contribute) — category EN, không có fclass
-    BỎ public.pois — chỉ là test data, đã xoá.
-
-Performance:
-    geom && ST_Expand(pt, radius_m / 60000)   -- prefilter GiST
-    AND ST_DWithin(geom::geography, pt::geography, radius_m)  -- exact
+Đồng bộ schema DB v2:
+- user_data.vietnam_wards_2025 : ranh giới hành chính cấp xã/phường (ST_Contains / ST_Intersects)
+- public.vietnam_roads         : id, name, fclass, geom (bỏ osm_id, ref, oneway, maxspeed)
+- public.pois                  : id, name, fclass, category, geom (thay thế clean.pois)
+- user_data.pois               : id, name, category, address, phone, description, geom
+- public.streetview_images     : id, file_path, heading, pitch, geom, created_at
+- user_data.electric_poles     : id, pole_code, route, status, detail, geom
 """
 import logging
 
@@ -21,8 +22,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["point-info"])
 
+_WARD_SQL = """
+    SELECT ma, tenhc, loai, matinh, tentinh, matinhxa,
+           dansonguoi, trungtamhc, dientichkm2, truocsapnhap
+    FROM user_data.vietnam_wards_2025
+    WHERE geom && ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)
+      AND ST_Intersects(geom, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326))
+    LIMIT 1
+"""
+
 _ROAD_SQL = """
-    SELECT osm_id, name, ref, fclass, oneway, maxspeed,
+    SELECT id, name, fclass,
            ST_Distance(geom::geography,
                ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography
            ) AS distance_m
@@ -39,7 +49,7 @@ _ROAD_SQL = """
 """
 
 _SV_SQL = """
-    SELECT id,
+    SELECT id, file_path, heading, pitch,
            ST_Distance(geom::geography,
                ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography
            ) AS distance_m
@@ -55,9 +65,6 @@ _SV_SQL = """
     LIMIT 1
 """
 
-# Trụ điện gần điểm click. Bán kính riêng vì trụ thưa hơn đường rất nhiều —
-# 50m (radius_m mặc định) thường trả rỗng, 200m hợp lý cho UX.
-# ORDER BY geom <-> pt kích hoạt KNN scan trên GiST index.
 _POLES_SQL = """
     SELECT id, pole_code, route, status, detail,
            ST_X(geom) AS lng, ST_Y(geom) AS lat,
@@ -76,28 +83,25 @@ _POLES_SQL = """
     LIMIT $4
 """
 
-# clean.pois: osm_id (varchar) làm id, category VN, fclass EN.
-# user_data.pois: id (bigint), category EN, fclass NULL.
-# Khóa POI là cặp (source, id) — OSM và user dùng id hệ riêng.
 _POI_SQL = """
     WITH ref AS (
         SELECT ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326) AS pt
     ),
     cand AS (
-        -- OSM POI (74k real data từ clean.pois materialized view)
+        -- System / OSM POI từ public.pois
         SELECT 'osm'::text AS source,
-               p.osm_id::text AS id,
+               p.id::text AS id,
                p.name,
-               p.category,                  -- VN: an_uong, y_te, ...
-               p.fclass,                    -- EN: restaurant, cafe, pharmacy, ...
+               p.category,
+               p.fclass,
                p.geom,
                0 AS photo_count
-        FROM clean.pois p CROSS JOIN ref
+        FROM public.pois p CROSS JOIN ref
         WHERE p.geom && ST_Expand(ref.pt, $3::float8 / 60000.0)
           AND ST_DWithin(p.geom::geography, ref.pt::geography, $3::float8)
           AND (
-                p.has_name = true                                    -- ưu tiên có tên
-                OR p.fclass IN (                                     -- hoặc fclass quan trọng
+                (p.name IS NOT NULL AND btrim(p.name) <> '')
+                OR p.fclass IN (
                     'fuel', 'parking', 'charging_station',
                     'hospital', 'clinic', 'pharmacy',
                     'school', 'university', 'kindergarten',
@@ -108,12 +112,12 @@ _POI_SQL = """
                 )
             )
         UNION ALL
-        -- User POI
-        SELECT 'user'::text,
-               u.id::text,
+        -- User POI từ user_data.pois
+        SELECT 'user'::text AS source,
+               u.id::text AS id,
                u.name,
-               u.category,                  -- EN: cafe, hotel, ...
-               NULL::varchar(28) AS fclass, -- user POI không có fclass
+               u.category,
+               NULL::text AS fclass,
                u.geom,
                (SELECT count(*)::int FROM user_data.poi_photos ph WHERE ph.poi_id = u.id)
         FROM user_data.pois u CROSS JOIN ref
@@ -143,27 +147,43 @@ _POI_SQL = """
 """
 
 
+def _to_ward(row) -> dict | None:
+    if not row:
+        return None
+    full_name = f"{row['loai']} {row['tenhc']}".strip() if row["loai"] else row["tenhc"]
+    return {
+        "ma": row["ma"],
+        "tenhc": row["tenhc"],
+        "loai": row["loai"],
+        "full_name": full_name,
+        "matinh": row["matinh"],
+        "tentinh": row["tentinh"],
+        "matinhxa": row["matinhxa"],
+        "dansonguoi": row["dansonguoi"],
+        "trungtamhc": row["trungtamhc"],
+        "dientichkm2": row["dientichkm2"],
+        "truocsapnhap": row["truocsapnhap"],
+    }
+
+
 def _to_road(row) -> dict | None:
     if not row:
         return None
     return {
-        "osm_id": row["osm_id"],
+        "id": int(row["id"]),
         "name": row["name"],
-        "ref": row["ref"],
         "fclass": row["fclass"],
-        "oneway": row["oneway"],
-        "maxspeed": row["maxspeed"],
         "distance_m": float(row["distance_m"]),
     }
 
 
 def _to_poi(row) -> dict:
     return {
-        "source": row["source"],                 # "osm" | "user"
-        "id": row["id"],                         # string (osm_id hoặc user id as text)
+        "source": row["source"],
+        "id": row["id"],
         "name": row["name"],
-        "category": row["category"],             # VN (osm) hoặc EN (user)
-        "fclass": row["fclass"],                 # EN (osm) hoặc null (user)
+        "category": row["category"],
+        "fclass": row["fclass"],
         "photo_count": int(row["photo_count"]),
         "lng": float(row["lng"]),
         "lat": float(row["lat"]),
@@ -203,6 +223,7 @@ async def get_point_info(
 ):
     try:
         async with pool.acquire() as conn:
+            ward_row = await conn.fetchrow(_WARD_SQL, lng, lat)
             road_row = await conn.fetchrow(_ROAD_SQL, lng, lat, radius_m)
             sv_row = await conn.fetchrow(_SV_SQL, lng, lat, radius_m)
             poi_rows = await conn.fetch(_POI_SQL, lng, lat, radius_m, poi_limit)
@@ -216,13 +237,27 @@ async def get_point_info(
         msg = "DB error" if not settings.is_dev else "DB error (xem log server)"
         raise HTTPException(500, msg)
 
+    ward_info = _to_ward(ward_row)
+    address_label = (
+        f"{ward_info['full_name']}, {ward_info['tentinh']}"
+        if ward_info and ward_info.get("tentinh")
+        else (ward_info["full_name"] if ward_info else None)
+    )
+
     return {
+        "ward": ward_info,
         "road": _to_road(road_row),
         "streetview": (
-            {"id": int(sv_row["id"]), "distance_m": float(sv_row["distance_m"])}
+            {
+                "id": int(sv_row["id"]),
+                "file_path": sv_row["file_path"],
+                "heading": float(sv_row["heading"] or 0),
+                "pitch": float(sv_row["pitch"] or 0),
+                "distance_m": float(sv_row["distance_m"]),
+            }
             if sv_row else None
         ),
-        "address": None,
+        "address": address_label,
         "pois": [_to_poi(r) for r in poi_rows],
         "nearby_poles": [_to_nearby_pole(r) for r in pole_rows],
     }

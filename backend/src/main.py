@@ -30,11 +30,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app):
-    """Compose lifespan: DB pool + tile proxy client.
-
-    Đặt ở main.py (không phải db.py) để db.py không phải import routers,
-    tránh vòng lặp db → routers.tiles → db.
-    """
+    """Compose lifespan: DB pool + tile proxy client."""
     await _init_pool()
     await tiles.init_client()
     try:
@@ -57,18 +53,14 @@ class CachedStaticFiles(StaticFiles):
 
 
 def create_app() -> FastAPI:
-
-     # DEBUG
     logger.info("[MOUNT] CWD = %s", __import__("os").getcwd())
     logger.info("[MOUNT] PANORAMAS_DIR = %s", settings.PANORAMAS_DIR)
     logger.info("[MOUNT] pano exists = %s", settings.PANORAMAS_DIR.exists())
-    logger.info("[MOUNT] pano files = %s",
-                list(settings.PANORAMAS_DIR.iterdir()) if settings.PANORAMAS_DIR.exists() else "N/A")
 
     app = FastAPI(
         lifespan=lifespan,
         title="Webmap API",
-        version="2.4.0",
+        version="3.0.0",
     )
 
     app.add_middleware(
@@ -94,10 +86,9 @@ def create_app() -> FastAPI:
     app.include_router(point_info.router)
     app.include_router(search.router)
     app.include_router(contribute.router)
-    app.include_router(contribute_public.router)   
+    app.include_router(contribute_public.router)
     app.include_router(electric_poles.router)
-    app.include_router(poi_management.router) 
-    app.include_router(poi_management.router) 
+    app.include_router(poi_management.router)
     app.include_router(tiles.router)
 
     # Static assets

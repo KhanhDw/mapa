@@ -1,3 +1,12 @@
+# backend\src\routers\search.py
+"""Tìm kiếm hợp nhất: Đơn vị hành chính (xã/phường), POI (public + user), Đường.
+
+Đồng bộ schema DB v2:
+- user_data.vietnam_wards_2025 : tìm kiếm xã/phường/đặc khu
+- public.pois                  : thay thế clean.pois (dùng id, name, category)
+- user_data.pois               : id, name, category, address, geom
+- public.vietnam_roads         : dùng id, name, fclass, geom (bỏ osm_id, ref)
+"""
 import json
 import logging
 
@@ -13,33 +22,59 @@ router = APIRouter(tags=["search"])
 
 _PLACE_SQL = r"""
     WITH matches AS (
-        SELECT 'osm'::text AS source, osm_id::text AS id, name,
-               fclass AS category, NULL::text AS address,
-               ST_X(geom) AS lng, ST_Y(geom) AS lat,
+        -- 1. Đơn vị hành chính xã/phường (3.321 đơn vị)
+        SELECT 'admin'::text AS source,
+               COALESCE(ma, tenhc)::text AS id,
+               CASE WHEN loai IS NOT NULL AND btrim(loai) <> ''
+                    THEN loai || ' ' || tenhc
+                    ELSE tenhc
+               END AS name,
+               COALESCE(loai, 'ward')::text AS category,
+               tentinh AS address,
+               COALESCE(NULLIF(kinhdo, '')::float8, ST_X(ST_PointOnSurface(geom))) AS lng,
+               COALESCE(NULLIF(vido, '')::float8, ST_Y(ST_PointOnSurface(geom))) AS lat,
                0 AS source_order
-        FROM clean.places
-        WHERE name ILIKE $1 ESCAPE '\'
+        FROM user_data.vietnam_wards_2025
+        WHERE tenhc ILIKE $1 ESCAPE ''
+           OR tentinh ILIKE $1 ESCAPE ''
         UNION ALL
-        SELECT 'osm', osm_id::text, name, category, NULL::text,
-               ST_X(geom), ST_Y(geom), 1
-        FROM clean.pois
-        WHERE name ILIKE $1 ESCAPE '\'
+        -- 2. System POIs (public.pois)
+        SELECT 'osm'::text AS source,
+               id::text AS id,
+               name,
+               COALESCE(category, fclass, 'poi')::text AS category,
+               NULL::text AS address,
+               ST_X(geom) AS lng,
+               ST_Y(geom) AS lat,
+               1 AS source_order
+        FROM public.pois
+        WHERE name IS NOT NULL
+          AND btrim(name) <> ''
+          AND name ILIKE $1 ESCAPE ''
         UNION ALL
-        SELECT 'user', id::text, name, category, address,
-               ST_X(geom), ST_Y(geom), 2
+        -- 3. User POIs (user_data.pois)
+        SELECT 'user'::text AS source,
+               id::text AS id,
+               name,
+               category,
+               address,
+               ST_X(geom) AS lng,
+               ST_Y(geom) AS lat,
+               2 AS source_order
         FROM user_data.pois
-        WHERE name ILIKE $1 ESCAPE '\'
-           OR address ILIKE $1 ESCAPE '\'
+        WHERE name ILIKE $1 ESCAPE ''
+           OR address ILIKE $1 ESCAPE ''
     )
     SELECT source, id, name, category, address, lng, lat
     FROM matches
-    ORDER BY CASE WHEN name ILIKE $2 ESCAPE '\' THEN 0 ELSE 1 END,
+    WHERE lng IS NOT NULL AND lat IS NOT NULL
+    ORDER BY CASE WHEN name ILIKE $2 ESCAPE '' THEN 0 ELSE 1 END,
              source_order, name
-    LIMIT 10
+    LIMIT 12
 """
 
 _ROAD_SQL = r"""
-    SELECT osm_id::text AS id, name, fclass AS category, ref,
+    SELECT id::text AS id, name, fclass AS category,
            ST_X(ST_Centroid(geom)) AS lng,
            ST_Y(ST_Centroid(geom)) AS lat,
            ST_AsGeoJSON(geom, 6) AS geometry,
@@ -50,8 +85,8 @@ _ROAD_SQL = r"""
     FROM public.vietnam_roads
     WHERE name IS NOT NULL
       AND btrim(name) <> ''
-      AND name ILIKE $1 ESCAPE '\'
-    ORDER BY CASE WHEN name ILIKE $2 ESCAPE '\' THEN 0 ELSE 1 END,
+      AND name ILIKE $1 ESCAPE ''
+    ORDER BY CASE WHEN name ILIKE $2 ESCAPE '' THEN 0 ELSE 1 END,
              ST_Length(geom::geography) DESC
     LIMIT 8
 """
@@ -61,7 +96,7 @@ def _result_from_place(row: asyncpg.Record) -> dict:
     return {
         "id": row["id"],
         "name": row["name"],
-        "kind": "place",
+        "kind": "admin" if row["source"] == "admin" else "place",
         "category": row["category"],
         "address": row["address"],
         "lat": float(row["lat"]),
@@ -76,7 +111,7 @@ def _result_from_road(row: asyncpg.Record) -> dict:
         "name": row["name"],
         "kind": "road",
         "category": row["category"],
-        "address": row["ref"],
+        "address": None,
         "lat": float(row["lat"]),
         "lng": float(row["lng"]),
         "source": "osm",

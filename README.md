@@ -15,5 +15,5 @@ docker exec -it postgis-webmap psql -U postgres -d webmap_db
 # cấu trúc và bảng dữ liệu đang có trong database docker
 
 ```powershell
-Get-Content db\discover.sql | docker exec -i postgis-webmap psql -U postgres -d webmap_db 2>&1 | Out-File -Encoding utf8 db\discover_output.txt
+Get-Content db\discover1.sql | docker exec -i postgis-webmap psql -U postgres -d webmap_db 2>&1 | Out-File -Encoding utf8 db\discover_output.txt
 ```

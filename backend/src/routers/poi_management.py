@@ -1,22 +1,23 @@
-"""CRUD cho user_data.pois + đọc clean.pois (system, read-only).
+# backend\src\routers\poi_management.py
+"""CRUD cho user_data.pois + đọc public.pois (system, read-only).
 
-Tách khỏi contribute.py để panel quản lý có endpoint riêng.
+Đồng bộ schema DB v2:
+- Thay thế clean.pois bằng public.pois (cột: id, name, fclass, category, geom).
 """
 import asyncio
 import logging
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from pydantic import BaseModel, Field
 
 from ..config import settings
 from ..db import get_pool
 from .contribute import (
+    BIGINT_MAX,
     UserPoiIn,
-    require_write_key,
     _media_url,
     _remove_files,
-    BIGINT_MAX,
+    require_write_key,
 )
 
 logger = logging.getLogger(__name__)
@@ -141,7 +142,6 @@ async def delete_user_poi(
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
-        # Lấy danh sách file trước khi cascade DELETE
         photos = await conn.fetch(
             "SELECT file_path, thumb_path FROM user_data.poi_photos WHERE poi_id = $1",
             poi_id,
@@ -153,7 +153,6 @@ async def delete_user_poi(
     if deleted is None:
         raise HTTPException(404, "Không tìm thấy địa điểm")
 
-    # Xóa file vật lý (sau DB delete — orphan vô hại)
     paths = []
     for p in photos:
         if p["file_path"]:
@@ -200,7 +199,7 @@ async def delete_poi_photo(
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# SYSTEM POIs — read-only từ clean.pois (materialized view)
+# SYSTEM POIs — read-only từ public.pois
 # ══════════════════════════════════════════════════════════════════════════
 
 @router.get("/api/system-pois")
@@ -213,7 +212,7 @@ async def list_system_pois(
     offset: int = Query(0, ge=0),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
-    """List OSM POIs (read-only, không cho sửa/xóa)."""
+    """List System/OSM POIs từ public.pois (read-only)."""
     conditions: list[str] = []
     args: list = []
 
@@ -226,24 +225,26 @@ async def list_system_pois(
     if category:
         args.append(category)
         conditions.append(f"category = ${len(args)}")
-    if has_name is not None:
-        args.append(has_name)
-        conditions.append(f"has_name = ${len(args)}")
+    if has_name is True:
+        conditions.append("(name IS NOT NULL AND btrim(name) <> '')")
+    elif has_name is False:
+        conditions.append("(name IS NULL OR btrim(name) = '')")
 
     where = (" WHERE " + " AND ".join(conditions)) if conditions else ""
 
     async with pool.acquire() as conn:
         total = await conn.fetchval(
-            f"SELECT count(*) FROM clean.pois{where}", *args
+            f"SELECT count(*) FROM public.pois{where}", *args
         )
         args_page = list(args) + [limit, offset]
         rows = await conn.fetch(
             f"""
-            SELECT osm_id, name, category, fclass, has_name,
+            SELECT id, name, category, fclass,
+                   (name IS NOT NULL AND btrim(name) <> '') AS has_name,
                    ST_X(geom) AS lng, ST_Y(geom) AS lat
-            FROM clean.pois
+            FROM public.pois
             {where}
-            ORDER BY osm_id
+            ORDER BY id
             LIMIT ${len(args) + 1} OFFSET ${len(args) + 2}
             """,
             *args_page,
@@ -252,7 +253,7 @@ async def list_system_pois(
     return {
         "items": [
             {
-                "id": r["osm_id"],
+                "id": str(r["id"]),
                 "source": "osm",
                 "name": r["name"],
                 "category": r["category"],

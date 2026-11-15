@@ -11,9 +11,6 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
-      - ./db/init-01-pois.sql:/docker-entrypoint-initdb.d/01-pois.sql:ro
-      - ./db/migrations/06_electric_poles.sql:/docker-entrypoint-initdb.d/02-electric-poles.sql:ro
-    # Chỉnh theo RAM máy: shared_buffers ~25% RAM, effective_cache_size ~50-75% RAM
     command: >
       postgres
       -c shared_buffers=1GB
@@ -26,6 +23,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 10s
 
   pg_tileserv:
     image: pramsey/pg_tileserv:latest

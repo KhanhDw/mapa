@@ -1,9 +1,8 @@
 """Public Contribute endpoints — FE dùng, KHÔNG cần X-API-Key.
 
-Logic copy từ contribute.py nhưng bỏ auth. FE gọi qua Vite proxy:
-    FE → /api/contribute/* → backend (route này) → DB + filesystem
-
-Lý do: FE không nên mang X-API-Key (lộ trong browser).
+Đồng bộ schema DB v2:
+- user_data.poi_photos không có cột width, height
+- public.streetview_images dùng file_path, heading, pitch, geom, created_at
 """
 import asyncio
 import logging
@@ -16,14 +15,14 @@ from fastapi import (APIRouter, Depends, File, Form, HTTPException,
 from ..config import settings
 from ..db import get_pool
 from .contribute import (
+    BIGINT_MAX,
     UserPoiIn,
+    _media_url,
+    _pano_url,
     _process_image,
     _read_limited,
     _remove_files,
     _write_files,
-    _media_url,
-    PANORAMAS_URL,
-    BIGINT_MAX,
 )
 
 logger = logging.getLogger(__name__)
@@ -81,17 +80,21 @@ async def upload_photo(
         _write_files, {base / rel_main: main_b, base / rel_thumb: thumb_b}
     )
     try:
-        pid = await pool.fetchval(
-            """INSERT INTO user_data.poi_photos (poi_id, file_path, thumb_path, width, height)
-               VALUES ($1, $2, $3, $4, $5) RETURNING id""",
-            poi_id, rel_main, rel_thumb, w, h,
+        row = await pool.fetchrow(
+            """INSERT INTO user_data.poi_photos (poi_id, file_path, thumb_path)
+               VALUES ($1, $2, $3) RETURNING id, created_at""",
+            poi_id, rel_main, rel_thumb,
         )
     except Exception:
         await asyncio.to_thread(_remove_files, [base / rel_main, base / rel_thumb])
         raise
     return {
-        "id": int(pid), "url": _media_url(rel_main),
-        "thumb_url": _media_url(rel_thumb), "width": w, "height": h,
+        "id": int(row["id"]),
+        "url": _media_url(rel_main),
+        "thumb_url": _media_url(rel_thumb),
+        "width": w,
+        "height": h,
+        "created_at": row["created_at"].isoformat(),
     }
 
 
@@ -99,7 +102,8 @@ async def upload_photo(
 async def upload_panorama(
     lng: float = Form(..., ge=-180, le=180),
     lat: float = Form(..., ge=-90, le=90),
-    heading: float | None = Form(None, ge=0, lt=360),
+    heading: float = Form(0.0, ge=0, lt=360),
+    pitch: float = Form(0.0, ge=-90, le=90),
     file: UploadFile = File(...),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
@@ -111,27 +115,30 @@ async def upload_panorama(
 
     filename = f"u_{uuid.uuid4().hex}.jpg"
     path = settings.PANORAMAS_DIR / filename
-    image_url = f"{PANORAMAS_URL}/{filename}"
     await asyncio.to_thread(_write_files, {path: main_b})
     try:
         row = await pool.fetchrow(
             """
             INSERT INTO public.streetview_images
-                (geom, image_url, heading, captured_at, next_ids, link_positions)
-            VALUES (ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326),
-                    $3, $4, now(), ARRAY[]::integer[], '[]'::jsonb)
-            RETURNING id, captured_at
+                (file_path, heading, pitch, geom)
+            VALUES ($1, $2, $3,
+                    ST_SetSRID(ST_MakePoint($4::float8, $5::float8), 4326))
+            RETURNING id, created_at
             """,
-            lng, lat, image_url, heading,
+            filename, heading, pitch, lng, lat,
         )
     except Exception:
         await asyncio.to_thread(_remove_files, [path])
         raise
     return {
         "id": int(row["id"]),
-        "image_url": image_url,
-        "lng": lng, "lat": lat,
+        "file_path": filename,
+        "image_url": _pano_url(filename),
+        "lng": lng,
+        "lat": lat,
         "heading": heading,
-        "width": w, "height": h,
-        "captured_at": row["captured_at"].isoformat(),
+        "pitch": pitch,
+        "width": w,
+        "height": h,
+        "created_at": row["created_at"].isoformat(),
     }

@@ -1,8 +1,10 @@
+# backend\src\routers\contribute.py
 """Thêm dữ liệu người dùng: POI (tên, loại, địa chỉ...), ảnh phẳng, ảnh 360°.
 
-- POI + ảnh phẳng  -> schema user_data (không bị tile server công bố, không bị nạp lại đè)
-- Ảnh 360°         -> public.streetview_images (next_ids rỗng), nên lớp Street View,
-                      /api/streetview/* và point_info dùng được ngay, không cần sửa gì thêm.
+Đồng bộ schema DB v2:
+- user_data.pois       : id, name, category, address, phone, description, geom, created_at
+- user_data.poi_photos : id, poi_id, file_path, thumb_path, created_at (bỏ width, height)
+- public.streetview_images : id, file_path, heading, pitch, geom, created_at
 """
 import asyncio
 import io
@@ -83,7 +85,7 @@ def _process_image(data: bytes, kind: str) -> tuple[bytes, bytes | None, int, in
         if probe.format not in ALLOWED_FORMATS:
             raise ValueError("Chỉ chấp nhận JPEG, PNG hoặc WebP")
         probe.verify()
-        img = Image.open(io.BytesIO(data))  # verify() làm hỏng object -> mở lại
+        img = Image.open(io.BytesIO(data))
         img.load()
     except ValueError:
         raise
@@ -144,6 +146,14 @@ def _media_url(rel: str | None) -> str | None:
     return f"{USER_MEDIA_URL}/{rel}" if rel else None
 
 
+def _pano_url(file_path: str | None) -> str | None:
+    if not file_path:
+        return None
+    if file_path.startswith("/"):
+        return file_path
+    return f"{PANORAMAS_URL}/{file_path}"
+
+
 # ---------- endpoints ----------
 @router.post("/user-pois", status_code=201, dependencies=[Depends(require_write_key)])
 async def create_user_poi(body: UserPoiIn, pool: asyncpg.Pool = Depends(get_pool)):
@@ -180,22 +190,30 @@ async def get_user_poi(
     if not p:
         raise HTTPException(404, "Không tìm thấy địa điểm")
     photos = await pool.fetch(
-        """SELECT id, file_path, thumb_path, width, height
+        """SELECT id, file_path, thumb_path, created_at
            FROM user_data.poi_photos WHERE poi_id = $1 ORDER BY id""",
         poi_id,
     )
     return {
-        "id": int(p["id"]), "source": "user",
-        "name": p["name"], "category": p["category"],
-        "address": p["address"], "phone": p["phone"], "description": p["description"],
-        "lng": p["lng"], "lat": p["lat"],
+        "id": int(p["id"]),
+        "source": "user",
+        "name": p["name"],
+        "category": p["category"],
+        "address": p["address"],
+        "phone": p["phone"],
+        "description": p["description"],
+        "lng": float(p["lng"]),
+        "lat": float(p["lat"]),
         "created_at": p["created_at"].isoformat(),
-        "photos": [{
-            "id": int(m["id"]),
-            "url": _media_url(m["file_path"]),
-            "thumb_url": _media_url(m["thumb_path"]),
-            "width": m["width"], "height": m["height"],
-        } for m in photos],
+        "photos": [
+            {
+                "id": int(m["id"]),
+                "url": _media_url(m["file_path"]),
+                "thumb_url": _media_url(m["thumb_path"]),
+                "created_at": m["created_at"].isoformat(),
+            }
+            for m in photos
+        ],
     }
 
 
@@ -229,17 +247,21 @@ async def upload_poi_photo(
         _write_files, {base / rel_main: main_b, base / rel_thumb: thumb_b}
     )
     try:
-        pid = await pool.fetchval(
-            """INSERT INTO user_data.poi_photos (poi_id, file_path, thumb_path, width, height)
-               VALUES ($1, $2, $3, $4, $5) RETURNING id""",
-            poi_id, rel_main, rel_thumb, w, h,
+        row = await pool.fetchrow(
+            """INSERT INTO user_data.poi_photos (poi_id, file_path, thumb_path)
+               VALUES ($1, $2, $3) RETURNING id, created_at""",
+            poi_id, rel_main, rel_thumb,
         )
     except Exception:
         await asyncio.to_thread(_remove_files, [base / rel_main, base / rel_thumb])
         raise
     return {
-        "id": int(pid), "url": _media_url(rel_main),
-        "thumb_url": _media_url(rel_thumb), "width": w, "height": h,
+        "id": int(row["id"]),
+        "url": _media_url(rel_main),
+        "thumb_url": _media_url(rel_thumb),
+        "width": w,
+        "height": h,
+        "created_at": row["created_at"].isoformat(),
     }
 
 
@@ -248,7 +270,8 @@ async def upload_poi_photo(
 async def upload_user_panorama(
     lng: float = Form(..., ge=-180, le=180),
     lat: float = Form(..., ge=-90, le=90),
-    heading: float | None = Form(None, ge=0, lt=360),
+    heading: float = Form(0.0, ge=0, lt=360),
+    pitch: float = Form(0.0, ge=-90, le=90),
     file: UploadFile = File(...),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
@@ -258,29 +281,32 @@ async def upload_user_panorama(
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-    filename = f"u_{uuid.uuid4().hex}.jpg"     # tên do server tạo, không có path traversal
+    filename = f"u_{uuid.uuid4().hex}.jpg"
     path = settings.PANORAMAS_DIR / filename
-    image_url = f"{PANORAMAS_URL}/{filename}"
     await asyncio.to_thread(_write_files, {path: main_b})
     try:
         row = await pool.fetchrow(
             """
             INSERT INTO public.streetview_images
-                (geom, image_url, heading, captured_at, next_ids, link_positions)
-            VALUES (ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326),
-                    $3, $4, now(), ARRAY[]::integer[], '[]'::jsonb)
-            RETURNING id, captured_at
+                (file_path, heading, pitch, geom)
+            VALUES ($1, $2, $3,
+                    ST_SetSRID(ST_MakePoint($4::float8, $5::float8), 4326))
+            RETURNING id, created_at
             """,
-            lng, lat, image_url, heading,
+            filename, heading, pitch, lng, lat,
         )
     except Exception:
         await asyncio.to_thread(_remove_files, [path])
         raise
     return {
         "id": int(row["id"]),
-        "image_url": image_url,
-        "lng": lng, "lat": lat,
+        "file_path": filename,
+        "image_url": _pano_url(filename),
+        "lng": lng,
+        "lat": lat,
         "heading": heading,
-        "width": w, "height": h,
-        "captured_at": row["captured_at"].isoformat(),
+        "pitch": pitch,
+        "width": w,
+        "height": h,
+        "created_at": row["created_at"].isoformat(),
     }
