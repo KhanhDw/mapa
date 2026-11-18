@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import {
     Activity,
@@ -6,20 +5,15 @@ import {
     Eye,
     EyeOff,
     Layers3,
-    Map,
     MapPin,
     Route,
     Search,
     SlidersHorizontal,
-    TrainFront,
-    Trees,
-    Waves,
     X,
     Building2,
-    Shield,
     Navigation,
-    Tag,
     UserRound,
+    Zap,
 } from "lucide-react";
 
 import "./generalPanel/generalPanel.css";
@@ -45,18 +39,9 @@ type LayerMetaItem = (typeof LAYER_META)[number];
 const ICONS: Partial<Record<LayerKey, React.ReactNode>> = {
     streetview: <Navigation size={19} strokeWidth={1.8} />,
     roads: <Route size={19} strokeWidth={1.8} />,
-    roadNames: <Tag size={19} strokeWidth={1.8} />,
-    roadsMajor: <Route size={19} strokeWidth={2.3} />,
-    roadsMinor: <Route size={18} strokeWidth={1.6} />,
-    roadsLocal: <Navigation size={18} strokeWidth={1.7} />,
-    railways: <TrainFront size={19} strokeWidth={1.8} />,
-    water: <Waves size={19} strokeWidth={1.8} />,
-    waterways: <Waves size={19} strokeWidth={1.8} />,
-    landuse: <Map size={19} strokeWidth={1.8} />,
-    natural: <Trees size={19} strokeWidth={1.8} />,
-    protected: <Shield size={19} strokeWidth={1.8} />,
+    electric_poles: <Zap size={19} strokeWidth={1.8} />,
     buildings: <Building2 size={19} strokeWidth={1.8} />,
-    admin: <Map size={19} strokeWidth={1.8} />,
+    admin: <Building2 size={19} strokeWidth={1.8} />,
     places: <MapPin size={19} strokeWidth={1.8} />,
     pois: <MapPin size={19} strokeWidth={2.2} />,
     userPois: <UserRound size={19} strokeWidth={1.8} />,
@@ -82,7 +67,7 @@ export function LayersPanel({
 
     const normalizedQuery = query.trim().toLocaleLowerCase("vi");
 
-    // Giữ thứ tự 5 lớp mặc định như registry hiện tại.
+    // Giữ thứ tự các lớp mặc định từ registry v2
     const defaultMetas = useMemo(
         () =>
             DEFAULT_LAYER_KEYS
@@ -227,7 +212,7 @@ export function LayersPanel({
 
                             <span className="lp-header__badge">
                                 <Activity size={11} />
-                                Layers
+                                Layers v2
                             </span>
                         </div>
 
@@ -453,7 +438,7 @@ export function LayersPanel({
             <footer className="lp-footer">
                 <div className="lp-footer__left">
                     <span className="lp-footer__status" />
-                    <span>Dữ liệu bản đồ</span>
+                    <span>Dữ liệu bản đồ v2</span>
                 </div>
 
                 <div className="lp-footer__right">

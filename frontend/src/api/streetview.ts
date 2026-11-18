@@ -1,421 +1,444 @@
-import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+import { apiClient } from "./http/ApiClient";
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
-const WRITE_API_KEY = import.meta.env.VITE_WRITE_API_KEY || "";
-
-const writeHeaders = {
-  "X-API-Key": WRITE_API_KEY,
-};
-
-/** Giá trị mặc định cho form nhập API key trên UI (lấy từ VITE_WRITE_API_KEY). */
-export const DEFAULT_API_KEY = WRITE_API_KEY;
-
-// =========================
-// Types
-// =========================
-
-export interface StreetViewPointProperties {
-  id: number;
-  file_path: string;
-  image_url: string | null;
-  heading: number;
-  pitch: number;
-}
-
-export interface StreetViewPointFeature {
-  type: "Feature";
-  geometry: {
-    type: "Point";
-    coordinates: [number, number];
-  };
-  properties: StreetViewPointProperties;
-}
-
-export interface StreetViewPointsResponse {
-  type: "FeatureCollection";
-  features: StreetViewPointFeature[];
-  truncated: boolean;
-}
-
-export interface StreetViewPointsParams {
-  minx?: number;
-  miny?: number;
-  maxx?: number;
-  maxy?: number;
-  limit?: number;
+export interface StreetViewPoint {
+    id: number | string;
+    lng: number;
+    lat: number;
+    heading?: number | null;
+    pitch?: number | null;
+    [key: string]: unknown;
 }
 
 export interface StreetViewImage {
-  id: number;
-  lng: number;
-  lat: number;
-  file_path: string;
-  image_url: string | null;
-  heading: number;
-  pitch: number;
-  created_at: string | null;
-  captured_at: string | null;
-  distance_meters?: number;
-
-  /**
-   * [BACKEND CAVEAT] Schema public.streetview_images hiện KHÔNG có cột
-   * next_ids / link_positions. Hai field optional để UI cũ không crash;
-   * backend sẽ luôn trả undefined cho tới khi schema được mở rộng.
-   */
-  next_ids?: number[];
-  link_positions?: Array<{ textureX: number; textureY: number }>;
+    id: number | string;
+    file_path?: string | null;
+    filename?: string | null;
+    url?: string | null;
+    lng?: number;
+    lat?: number;
+    heading?: number | null;
+    pitch?: number | null;
+    captured_at?: string | null;
+    created_at?: string | null;
+    [key: string]: unknown;
 }
 
-export interface StreetViewImageListResponse {
-  items: StreetViewImage[];
-  total: number;
+export interface StreetViewListResponse {
+    items: StreetViewImage[];
+    total: number;
 }
 
-export interface StreetViewImagesParams {
-  search?: string;
-  limit?: number;
-  offset?: number;
-}
-
-export interface StreetViewNearbyParams {
-  lng: number;
-  lat: number;
-  radius?: number;
-  exclude_id?: number;
-  limit?: number;
+export interface StreetViewPointsResponse {
+    items: StreetViewPoint[];
+    total?: number;
 }
 
 export interface StreetViewNearbyResponse {
-  items: StreetViewImage[];
+    items: StreetViewImage[];
+    total?: number;
 }
 
 export interface StreetViewUpdate {
-  heading?: number | null;
-  pitch?: number | null;
-  lng?: number | null;
-  lat?: number | null;
-  created_at?: string | null;
-  captured_at?: string | null;
-  /**
-   * [BACKEND CAVEAT] Backend Pydantic (StreetViewUpdate) chưa khai báo
-   * field này → request sẽ trả 422. Chỉ bật khi backend đã thêm cột
-   * next_ids và handler UPDATE tương ứng.
-   */
-  next_ids?: number[] | null;
+    heading?: number;
+    pitch?: number;
+    captured_at?: string | null;
+    filename?: string;
 }
 
-export interface BatchUpdateInput {
-  ids: number[];
-  delta_lng?: number | null;
-  delta_lat?: number | null;
-  created_at?: string | null;
-  captured_at?: string | null;
+export interface StreetViewBatchUpdateItem {
+    id: number | string;
+    heading?: number;
+    pitch?: number;
+    captured_at?: string | null;
+    filename?: string;
 }
 
-export interface BatchUpdateResponse {
-  updated_count: number;
+export interface StreetViewUploadData {
+    lng: number;
+    lat: number;
+    heading?: number;
+    pitch?: number;
+    filename?: string;
+    subdir?: string;
+    captured_at?: string;
 }
 
-// =========================
-// API — đọc
-// =========================
+export interface StreetViewUploadResponse {
+    id?: number | string;
+    file_path?: string;
+    filename?: string;
+    url?: string;
+    lng?: number;
+    lat?: number;
+    heading?: number;
+    pitch?: number;
+    captured_at?: string;
+    created_at?: string;
+    [key: string]: unknown;
+}
+
+export type StreetViewQueryValue = string | number | boolean | undefined;
+
+export type StreetViewQuery = Record<string, StreetViewQueryValue>;
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function buildQueryParams(query: StreetViewQuery = {}): string {
+    const params = new URLSearchParams();
+
+    Object.entries(query).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
+
+        params.set(key, String(value));
+    });
+
+    const result = params.toString();
+    return result ? `?${result}` : "";
+}
+
+function getWriteHeaders(apiKey?: string): HeadersInit {
+    const key = apiKey || import.meta.env.VITE_WRITE_API_KEY;
+
+    return key
+        ? { "X-API-Key": key }
+        : {};
+}
+
+function normalizeId(id: number | string): string {
+    return encodeURIComponent(String(id));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Read APIs                                                                  */
+/* -------------------------------------------------------------------------- */
 
 /**
  * GET /api/streetview/points
- *
- * Lấy danh sách vị trí Street View dạng GeoJSON FeatureCollection.
- * Truyền đủ 4 tham số bbox (minx, miny, maxx, maxy) hoặc không truyền gì.
+ * Lấy các điểm Street View theo vùng bản đồ.
  */
-export const getStreetViewPoints = async (
-  params?: StreetViewPointsParams
-): Promise<StreetViewPointsResponse> => {
-  const response = await api.get<StreetViewPointsResponse>(
-    "/api/streetview/points",
-    {
-      params: {
-        minx: params?.minx,
-        miny: params?.miny,
-        maxx: params?.maxx,
-        maxy: params?.maxy,
-        limit: params?.limit,
-      },
-    }
-  );
-  return response.data;
-};
+export async function getStreetViewPoints(
+    query: StreetViewQuery = {}
+): Promise<StreetViewPointsResponse> {
+    const params = buildQueryParams(query);
+
+    return apiClient.request<StreetViewPointsResponse>(
+        `/api/streetview/points${params}`
+    );
+}
 
 /**
  * GET /api/streetview/images
- *
- * Lấy danh sách ảnh phục vụ quản lý.
- * - search: tìm theo file_path hoặc id
- * - limit: mặc định 50, tối đa 200
- * - offset: mặc định 0
+ * Lấy danh sách ảnh Street View.
  */
-export const getStreetViewImages = async (
-  params?: StreetViewImagesParams
-): Promise<StreetViewImageListResponse> => {
-  const response = await api.get<StreetViewImageListResponse>(
-    "/api/streetview/images",
-    {
-      params: {
-        search: params?.search,
-        limit: params?.limit,
-        offset: params?.offset,
-      },
-    }
-  );
-  return response.data;
-};
+export async function getStreetViewImages(
+    query: StreetViewQuery = {}
+): Promise<StreetViewListResponse> {
+    const params = buildQueryParams(query);
+
+    return apiClient.request<StreetViewListResponse>(
+        `/api/streetview/images${params}`
+    );
+}
 
 /**
  * GET /api/streetview/nearby
- *
- * Lấy ảnh panorama xung quanh toạ độ (bán kính mét).
+ * Tìm ảnh Street View gần một tọa độ.
  */
-export const getNearbyStreetViewImages = async (
-  params: StreetViewNearbyParams
-): Promise<StreetViewNearbyResponse> => {
-  const response = await api.get<StreetViewNearbyResponse>(
-    "/api/streetview/nearby",
-    {
-      params: {
-        lng: params.lng,
-        lat: params.lat,
-        radius: params.radius,
-        exclude_id: params.exclude_id,
-        limit: params.limit,
-      },
-    }
-  );
-  return response.data;
-};
+export async function getNearbyStreetView(
+    query: StreetViewQuery
+): Promise<StreetViewNearbyResponse> {
+    const params = buildQueryParams(query);
+
+    return apiClient.request<StreetViewNearbyResponse>(
+        `/api/streetview/nearby${params}`
+    );
+}
 
 /**
- * GET /api/streetview/image/{image_id}
+ * GET /api/streetview/image/{id}
+ * Lấy thông tin một ảnh Street View.
  */
-export const getStreetViewImage = async (
-  imageId: number
-): Promise<StreetViewImage> => {
-  const response = await api.get<StreetViewImage>(
-    `/api/streetview/image/${imageId}`
-  );
-  return response.data;
-};
+export async function getStreetViewImage(
+    id: number | string
+): Promise<StreetViewImage> {
+    return apiClient.request<StreetViewImage>(
+        `/api/streetview/image/${normalizeId(id)}`
+    );
+}
 
-// =========================
-// API — ghi
-// =========================
+/* -------------------------------------------------------------------------- */
+/* Update APIs                                                                */
+/* -------------------------------------------------------------------------- */
 
 /**
- * PUT /api/streetview/image/{image_id}
+ * PUT /api/streetview/image/{id}
+ * Cập nhật thông tin ảnh Street View.
  *
- * Yêu cầu X-API-Key. `apiKey` (nếu truyền) override VITE_WRITE_API_KEY.
+ * Không gửi next_ids hoặc link_positions vì backend
+ * không hỗ trợ các trường này.
  */
-export const updateStreetViewImage = async (
-  imageId: number,
-  data: StreetViewUpdate,
-  apiKey?: string
-): Promise<StreetViewImage> => {
-  const response = await api.put<StreetViewImage>(
-    `/api/streetview/image/${imageId}`,
-    data,
-    {
-      headers: apiKey ? { "X-API-Key": apiKey } : writeHeaders,
-    }
-  );
-  return response.data;
-};
+export async function updateStreetViewImage(
+    id: number | string,
+    data: StreetViewUpdate,
+    apiKey?: string
+): Promise<StreetViewImage> {
+    return apiClient.request<StreetViewImage>(
+        `/api/streetview/image/${normalizeId(id)}`,
+        {
+            method: "PUT",
+            headers: getWriteHeaders(apiKey),
+            body: JSON.stringify(data),
+        }
+    );
+}
 
 /**
  * PATCH /api/streetview/batch-update
- *
- * Yêu cầu X-API-Key.
+ * Cập nhật nhiều ảnh Street View.
  */
-export const batchUpdateStreetView = async (
-  data: BatchUpdateInput,
-  apiKey?: string
-): Promise<BatchUpdateResponse> => {
-  const response = await api.patch<BatchUpdateResponse>(
-    "/api/streetview/batch-update",
-    data,
-    {
-      headers: apiKey ? { "X-API-Key": apiKey } : writeHeaders,
-    }
-  );
-  return response.data;
-};
-
-/**
- * DELETE /api/streetview/image/{image_id}
- *
- * Yêu cầu X-API-Key. Backend trả 204 No Content.
- */
-export const deleteStreetViewImage = async (
-  imageId: number,
-  apiKey?: string
-): Promise<void> => {
-  await api.delete(`/api/streetview/image/${imageId}`, {
-    headers: apiKey ? { "X-API-Key": apiKey } : writeHeaders,
-  });
-};
-
-// =========================
-// API — upload
-// =========================
-
-export interface StreetViewUploadResponse extends StreetViewImage {
-  size_bytes: number;
-}
-
-export interface StreetViewUploadParams {
-  /** File từ <input type="file"> hoặc Blob bất kỳ. */
-  file: File | Blob;
-  lng: number;
-  lat: number;
-  /** 0 ≤ heading < 360 (mặc định 0). */
-  heading?: number;
-  /** -90 ≤ pitch ≤ 90 (mặc định 0). */
-  pitch?: number;
-  /** Chỉ stem (không cần extension); backend sẽ lấy ext từ file gốc. */
-  filename?: string;
-  /** Thư mục con dưới PANORAMAS_DIR, vd. "2025/01" (mặc định rỗng). */
-  subdir?: string;
-  /** ISO 8601. Mặc định = now() trên server. */
-  captured_at?: string;
-}
-
-export interface StreetViewUploadOptions {
-  /** Override X-API-Key cho riêng request này (fallback: VITE_WRITE_API_KEY). */
-  apiKey?: string;
-  /** Callback tiến trình upload. */
-  onUploadProgress?: (p: { loaded: number; total?: number; percent: number }) => void;
-  /** AbortSignal để huỷ upload. */
-  signal?: AbortSignal;
-}
-
-export interface StreetViewBatchUploadResult {
-  successful: StreetViewUploadResponse[];
-  failed: Array<{ item: StreetViewUploadParams; error: unknown }>;
+export async function batchUpdateStreetViewImages(
+    updates: StreetViewBatchUpdateItem[],
+    apiKey?: string
+): Promise<unknown> {
+    return apiClient.request<unknown>(
+        "/api/streetview/batch-update",
+        {
+            method: "PATCH",
+            headers: getWriteHeaders(apiKey),
+            body: JSON.stringify(updates),
+        }
+    );
 }
 
 /**
- * Tên file gửi kèm part `file`. Backend chỉ đọc extension từ đây
- * để validate định dạng — nếu `file` là Blob (không có .name),
- * ta tự đoán ext từ `filename` hoặc mặc định .jpg.
+ * DELETE /api/streetview/image/{id}
+ * Xóa ảnh Street View.
  */
-const _resolveUploadName = (file: File | Blob, filename?: string): string => {
-  const fname = (file as File).name;
-  if (fname && /\.[A-Za-z0-9]+$/.test(fname)) return fname;
-  if (filename) return filename.includes(".") ? filename : `${filename}.jpg`;
-  return "panorama.jpg";
-};
+export async function deleteStreetViewImage(
+    id: number | string,
+    apiKey?: string
+): Promise<void> {
+    return apiClient.request<void>(
+        `/api/streetview/image/${normalizeId(id)}`,
+        {
+            method: "DELETE",
+            headers: getWriteHeaders(apiKey),
+        }
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Upload                                                                     */
+/* -------------------------------------------------------------------------- */
 
 /**
  * POST /api/streetview/upload
+ * Upload một ảnh panorama Street View.
  *
- * Upload 1 ảnh panorama (multipart/form-data).
- * Backend validate extension + size (≤ 50 MB), ghi atomic vào
- * PANORAMAS_DIR và trả về object chi tiết kèm `size_bytes`.
- *
- * Yêu cầu X-API-Key.
+ * Các field multipart:
+ * file, lng, lat, heading, pitch, filename, subdir, captured_at.
  */
-export const uploadStreetViewImage = async (
-  params: StreetViewUploadParams,
-  options?: StreetViewUploadOptions
-): Promise<StreetViewUploadResponse> => {
-  const fd = new FormData();
+export async function uploadStreetViewImage(
+    file: File,
+    data: StreetViewUploadData,
+    apiKey?: string
+): Promise<StreetViewUploadResponse> {
+    const formData = new FormData();
 
-  fd.append("file", params.file, _resolveUploadName(params.file, params.filename));
-  fd.append("lng", String(params.lng));
-  fd.append("lat", String(params.lat));
-  fd.append("heading", String(params.heading ?? 0));
-  fd.append("pitch", String(params.pitch ?? 0));
+    formData.append("file", file);
+    formData.append("lng", String(data.lng));
+    formData.append("lat", String(data.lat));
 
-  if (params.filename) fd.append("filename", params.filename);
-  if (params.subdir) fd.append("subdir", params.subdir);
-  if (params.captured_at) fd.append("captured_at", params.captured_at);
-
-  const response = await api.post<StreetViewUploadResponse>(
-    "/api/streetview/upload",
-    fd,
-    {
-      headers: {
-        ...writeHeaders,
-        ...(options?.apiKey ? { "X-API-Key": options.apiKey } : {}),
-        // KHÔNG set Content-Type — axios/FormData tự sinh boundary
-      },
-      signal: options?.signal,
-      onUploadProgress: options?.onUploadProgress
-        ? (e) => {
-            const total = e.total ?? 0;
-            options.onUploadProgress!({
-              loaded: e.loaded,
-              total: e.total,
-              percent: total > 0 ? Math.round((e.loaded * 100) / total) : 0,
-            });
-          }
-        : undefined,
+    if (data.heading !== undefined) {
+        formData.append("heading", String(data.heading));
     }
-  );
 
-  return response.data;
-};
+    if (data.pitch !== undefined) {
+        formData.append("pitch", String(data.pitch));
+    }
+
+    if (data.filename) {
+        formData.append("filename", data.filename);
+    }
+
+    if (data.subdir) {
+        formData.append("subdir", data.subdir);
+    }
+
+    if (data.captured_at) {
+        formData.append("captured_at", data.captured_at);
+    }
+
+    return apiClient.request<StreetViewUploadResponse>(
+        "/api/streetview/upload",
+        {
+            method: "POST",
+            headers: getWriteHeaders(apiKey),
+            body: formData,
+        }
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Batch upload                                                               */
+/* -------------------------------------------------------------------------- */
+
+export interface StreetViewBatchUploadItem {
+    file: File;
+    data: StreetViewUploadData;
+}
+
+export interface StreetViewBatchUploadResult {
+    index: number;
+    success: boolean;
+    data?: StreetViewUploadResponse;
+    error?: string;
+}
+
+export interface StreetViewBatchUploadOptions {
+    concurrency?: number;
+    apiKey?: string;
+    signal?: AbortSignal;
+}
 
 /**
- * Upload nhiều ảnh song song (mặc định 3 luồng).
- * Lỗi của item này không ảnh hưởng item khác.
+ * Upload nhiều ảnh với giới hạn số request đồng thời.
+ *
+ * Mỗi ảnh được upload độc lập.
+ * Một ảnh lỗi không làm dừng các ảnh còn lại.
  */
-export const uploadStreetViewImages = async (
-  items: StreetViewUploadParams[],
-  options?: {
-    apiKey?: string;
-    concurrency?: number;
-    signal?: AbortSignal;
-    onProgress?: (
-      done: number,
-      total: number,
-      last: StreetViewUploadResponse | null
-    ) => void;
-  }
-): Promise<StreetViewBatchUploadResult> => {
-  const concurrency = Math.max(1, options?.concurrency ?? 3);
-  const result: StreetViewBatchUploadResult = { successful: [], failed: [] };
-  let cursor = 0;
-  let done = 0;
+export async function uploadStreetViewBatch(
+    files: StreetViewBatchUploadItem[],
+    options: StreetViewBatchUploadOptions = {}
+): Promise<StreetViewBatchUploadResult[]> {
+    const concurrency = Math.max(
+        1,
+        Math.min(options.concurrency ?? 3, files.length || 1)
+    );
 
-  const worker = async () => {
-    while (true) {
-      const idx = cursor++;
-      if (idx >= items.length) return;
-      if (options?.signal?.aborted) {
-        throw new DOMException("Aborted", "AbortError");
-      }
-      try {
-        const res = await uploadStreetViewImage(items[idx], {
-          apiKey: options?.apiKey,
-          signal: options?.signal,
-        });
-        result.successful.push(res);
-        done += 1;
-        options?.onProgress?.(done, items.length, res);
-      } catch (err) {
-        const name = (err as { name?: string })?.name;
-        if (name === "CanceledError" || name === "AbortError") {
-          throw err;
+    const results: StreetViewBatchUploadResult[] = new Array(files.length);
+
+    let nextIndex = 0;
+
+    async function worker(): Promise<void> {
+        while (true) {
+            if (options.signal?.aborted) {
+                return;
+            }
+
+            const index = nextIndex++;
+
+            if (index >= files.length) {
+                return;
+            }
+
+            const item = files[index];
+
+            try {
+                const formData = new FormData();
+
+                formData.append("file", item.file);
+                formData.append("lng", String(item.data.lng));
+                formData.append("lat", String(item.data.lat));
+
+                if (item.data.heading !== undefined) {
+                    formData.append(
+                        "heading",
+                        String(item.data.heading)
+                    );
+                }
+
+                if (item.data.pitch !== undefined) {
+                    formData.append(
+                        "pitch",
+                        String(item.data.pitch)
+                    );
+                }
+
+                if (item.data.filename) {
+                    formData.append("filename", item.data.filename);
+                }
+
+                if (item.data.subdir) {
+                    formData.append("subdir", item.data.subdir);
+                }
+
+                if (item.data.captured_at) {
+                    formData.append(
+                        "captured_at",
+                        item.data.captured_at
+                    );
+                }
+
+                const response =
+                    await apiClient.request<StreetViewUploadResponse>(
+                        "/api/streetview/upload",
+                        {
+                            method: "POST",
+                            headers: getWriteHeaders(options.apiKey),
+                            body: formData,
+                            signal: options.signal,
+                        }
+                    );
+
+                results[index] = {
+                    index,
+                    success: true,
+                    data: response,
+                };
+            } catch (error) {
+                results[index] = {
+                    index,
+                    success: false,
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : "Upload thất bại",
+                };
+            }
         }
-        result.failed.push({ item: items[idx], error: err });
-        done += 1;
-        options?.onProgress?.(done, items.length, null);
-      }
     }
-  };
 
-  await Promise.all(Array.from({ length: concurrency }, worker));
-  return result;
-};
+    await Promise.all(
+        Array.from(
+            { length: concurrency },
+            () => worker()
+        )
+    );
+
+    // Đánh dấu những file chưa được xử lý do AbortSignal.
+    for (let index = 0; index < files.length; index++) {
+        if (!results[index]) {
+            results[index] = {
+                index,
+                success: false,
+                error: "Upload đã bị hủy",
+            };
+        }
+    }
+
+    return results;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Compatibility aliases                                                     */
+/* -------------------------------------------------------------------------- */
+
+export const fetchStreetViewPoints = getStreetViewPoints;
+export const fetchStreetViewImages = getStreetViewImages;
+export const fetchNearbyStreetView = getNearbyStreetView;
+export const fetchStreetViewImage = getStreetViewImage;
+
+export const updateStreetviewImage = updateStreetViewImage;
+export const batchUpdateStreetviewImages = batchUpdateStreetViewImages;
+export const deleteStreetviewImage = deleteStreetViewImage;
+export const uploadStreetviewImage = uploadStreetViewImage;

@@ -12,8 +12,7 @@ function layerIdsFor(key: LayerKey): string[] {
     const extra = EXTRA_LAYERS.find((d) => d.key === key);
     if (extra) return [extra.layerId];
 
-    if (key === "roads") return [ROADS_LAYER_ID];
-    if (key === "roadNames") return [ROADS_LABEL_LAYER_ID];
+    if (key === "roads") return [ROADS_LAYER_ID, ROADS_LABEL_LAYER_ID];
     if (key === "streetview") return [SV_LAYER_ID];
 
     return [];
@@ -26,7 +25,9 @@ export function applyLayerVisibility(
     (Object.keys(layers) as LayerKey[]).forEach((key) => {
         const visibility = layers[key] ? "visible" : "none";
         layerIdsFor(key).forEach((id) => {
-            if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visibility);
+            if (map.getLayer(id)) {
+                map.setLayoutProperty(id, "visibility", visibility);
+            }
         });
     });
 }

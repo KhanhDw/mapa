@@ -1,7 +1,4 @@
-// spec §4.6: /tiles/{schema}.{table}/{z}/{x}/{y}.pbf
-// Backend pg_tileserv emit layer name có schema prefix → dùng "public.vietnam_roads"
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { TILE_BASE } from "../../../../config";
 import {
     ROADS_LABEL_LAYER_ID,
     ROADS_LAYER_ID,
@@ -9,12 +6,14 @@ import {
 } from "../constants";
 
 export function addRoadsLayer(map: MapLibreMap): void {
+    const TILE_BASE = `${window.location.origin}/api/mvt`;
+
     if (!map.getSource(ROADS_SOURCE_ID)) {
         map.addSource(ROADS_SOURCE_ID, {
             type: "vector",
-            tiles: [`${TILE_BASE}/public.vietnam_roads/{z}/{x}/{y}.pbf`],
+            tiles: [`${TILE_BASE}/roads/{z}/{x}/{y}.pbf`],
             minzoom: 0,
-            maxzoom: 14,
+            maxzoom: 18,
         });
     }
 
@@ -23,8 +22,8 @@ export function addRoadsLayer(map: MapLibreMap): void {
             id: ROADS_LAYER_ID,
             type: "line",
             source: ROADS_SOURCE_ID,
-            "source-layer": "public.vietnam_roads",
-            minzoom: 14,
+            "source-layer": "roads",
+            minzoom: 4,
             layout: { "line-join": "round", "line-cap": "round" },
             paint: {
                 "line-color": [
@@ -35,15 +34,10 @@ export function addRoadsLayer(map: MapLibreMap): void {
                     "secondary", "#ffe066",
                     "tertiary", "#fff2b3",
                     "residential", "#ffffff",
-                    "service", "#cccccc",
-                    "unclassified", "#e5e5e5",
                     "#ffffff",
                 ],
-                "line-width": ["interpolate", ["linear"], ["zoom"], 14, 5, 18, 9],
-                "line-opacity": [
-                    "interpolate", ["linear"], ["zoom"],
-                    3, 0.95, 6, 0.75, 10, 0.45, 14, 0.35, 18, 0.2,
-                ],
+                "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.5, 16, 5],
+                "line-opacity": 0.85,
             },
         });
     }
@@ -53,12 +47,12 @@ export function addRoadsLayer(map: MapLibreMap): void {
             id: ROADS_LABEL_LAYER_ID,
             type: "symbol",
             source: ROADS_SOURCE_ID,
-            "source-layer": "public.vietnam_roads",
+            "source-layer": "roads",
             minzoom: 15,
             layout: {
-                "text-field": ["coalesce", ["get", "name"], ["get", "ref"], ""],
+                "text-field": ["coalesce", ["get", "name"], ""],
                 "text-font": ["Noto Sans Regular"],
-                "text-size": ["interpolate", ["linear"], ["zoom"], 15, 11, 20, 16],
+                "text-size": ["interpolate", ["linear"], ["zoom"], 15, 11, 20, 15],
                 "symbol-placement": "line",
                 "text-rotation-alignment": "map",
                 "text-pitch-alignment": "viewport",

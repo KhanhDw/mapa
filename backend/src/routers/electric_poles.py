@@ -1,4 +1,4 @@
-# backend\src\routers\electric_poles.py
+
 from typing import Literal
 
 import asyncpg
@@ -8,7 +8,10 @@ from pydantic import BaseModel, Field, field_validator
 from ..db import get_pool
 from .contribute import require_write_key
 
+
 router = APIRouter(prefix="/api/electric-poles", tags=["electric-poles"])
+
+BIGINT_MAX = 9_223_372_036_854_775_807
 
 _POLE_SELECT = """
     SELECT id, pole_code, route, status, detail,
@@ -73,18 +76,27 @@ async def list_electric_poles(
             )
         else:
             rows = await conn.fetch(_POLE_SELECT + " ORDER BY id")
-    return {"items": [_serialize_pole(row) for row in rows], "total": len(rows)}
+
+    return {
+        "items": [_serialize_pole(row) for row in rows],
+        "total": len(rows),
+    }
 
 
 @router.get("/{pole_id}")
 async def get_electric_pole(
-    pole_id: int = Path(ge=1),
+    pole_id: int = Path(ge=1, le=BIGINT_MAX),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(_POLE_SELECT + " WHERE id = $1", pole_id)
+        row = await conn.fetchrow(
+            _POLE_SELECT + " WHERE id = $1",
+            pole_id,
+        )
+
     if row is None:
         raise HTTPException(404, "Không tìm thấy trụ điện")
+
     return _serialize_pole(row)
 
 
@@ -118,6 +130,7 @@ async def create_electric_pole(
             )
     except asyncpg.UniqueViolationError:
         raise HTTPException(409, "Mã trụ điện đã tồn tại")
+
     return _serialize_pole(row)
 
 
@@ -127,7 +140,7 @@ async def create_electric_pole(
 )
 async def update_electric_pole(
     body: ElectricPoleInput,
-    pole_id: int = Path(ge=1),
+    pole_id: int = Path(ge=1, le=BIGINT_MAX),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     try:
@@ -156,8 +169,10 @@ async def update_electric_pole(
             )
     except asyncpg.UniqueViolationError:
         raise HTTPException(409, "Mã trụ điện đã tồn tại")
+
     if row is None:
         raise HTTPException(404, "Không tìm thấy trụ điện")
+
     return _serialize_pole(row)
 
 
@@ -167,14 +182,20 @@ async def update_electric_pole(
     dependencies=[Depends(require_write_key)],
 )
 async def delete_electric_pole(
-    pole_id: int = Path(ge=1),
+    pole_id: int = Path(ge=1, le=BIGINT_MAX),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
         deleted_id = await conn.fetchval(
-            "DELETE FROM user_data.electric_poles WHERE id = $1 RETURNING id",
+            """
+            DELETE FROM user_data.electric_poles
+            WHERE id = $1
+            RETURNING id
+            """,
             pole_id,
         )
+
     if deleted_id is None:
         raise HTTPException(404, "Không tìm thấy trụ điện")
+
     return Response(status_code=204)
