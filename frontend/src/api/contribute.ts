@@ -1,193 +1,190 @@
 
-import axios from "axios";
+import { apiClient } from "./http/ApiClient";
 
-/**
- * Backend: backend/src/routers/contribute.py
- * Router prefix: /api
- *
- * POST /user-pois
- * GET  /user-pois/{poi_id}
- * POST /user-pois/{poi_id}/photos
- * POST /user-panoramas
- */
-
-// ==================== TYPES ====================
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 export interface UserPoiRequest {
-  lng: number;
-  lat: number;
-  name: string;
-  category?: string;
-  address?: string | null;
-  phone?: string | null;
-  description?: string | null;
+    name: string;
+    category?: string;
+    description?: string;
+    address?: string;
+    lng: number;
+    lat: number;
+    [key: string]: unknown;
 }
 
 export interface UserPoiResponse {
-  id: number;
-  source: "user";
-  lng: number;
-  lat: number;
-  name: string;
-  category: string;
-  address: string | null;
-  phone: string | null;
-  description: string | null;
-  created_at: string;
-  photos: UserPoiPhoto[];
+    id: number;
+    name?: string;
+    category?: string;
+    description?: string;
+    address?: string;
+    lng?: number;
+    lat?: number;
+    [key: string]: unknown;
 }
 
 export interface UserPoiPhoto {
-  id: number;
-  url: string | null;
-  thumb_url: string | null;
-  created_at: string;
+    id: number;
+    poi_id?: number;
+    file_path?: string;
+    url?: string;
+    filename?: string;
+    created_at?: string;
+    [key: string]: unknown;
 }
 
-export interface UploadPoiPhotoResponse {
-  id: number;
-  url: string | null;
-  thumb_url: string | null;
-  width: number;
-  height: number;
-  created_at: string;
+export interface UploadPhotoResponse {
+    id?: number;
+    poi_id?: number;
+    file_path?: string;
+    url?: string;
+    filename?: string;
+    [key: string]: unknown;
 }
 
-export interface UploadUserPanoramaRequest {
-  lng: number;
-  lat: number;
-  heading?: number;
-  pitch?: number;
-  file: File;
+export interface UploadPanoramaResponse {
+    id?: number;
+    file_path?: string;
+    url?: string;
+    filename?: string;
+    [key: string]: unknown;
 }
 
-export interface UploadUserPanoramaResponse {
-  id: number;
-  file_path: string;
-  image_url: string | null;
-  lng: number;
-  lat: number;
-  heading: number;
-  pitch: number;
-  width: number;
-  height: number;
-  created_at: string;
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function getWriteHeaders(apiKey?: string): HeadersInit {
+    const key = apiKey || import.meta.env.VITE_WRITE_API_KEY;
+
+    return key
+        ? { "X-API-Key": key }
+        : {};
 }
 
-// ==================== AXIOS INSTANCE ====================
+function normalizeId(id: number | string): string {
+    return encodeURIComponent(String(id));
+}
 
-const contributeApi = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "",
-  headers: {
-    Accept: "application/json",
-  },
-});
-
-// Gắn API Key cho các endpoint yêu cầu xác thực
-const getWriteHeaders = () => ({
-  "X-API-Key": import.meta.env.VITE_WRITE_API_KEY || "",
-});
-
-// ==================== API FUNCTIONS ====================
+/* -------------------------------------------------------------------------- */
+/* User POI                                                                   */
+/* -------------------------------------------------------------------------- */
 
 /**
  * POST /api/user-pois
- * Tạo địa điểm người dùng
- * Yêu cầu X-API-Key
+ * Tạo POI người dùng.
  */
-export const createUserPoi = async (
-  body: UserPoiRequest
-): Promise<UserPoiResponse> => {
-  const response = await contributeApi.post<UserPoiResponse>(
-    "/api/user-pois",
-    body,
-    {
-      headers: getWriteHeaders(),
-    }
-  );
-
-  return response.data;
-};
+export async function createUserPoi(
+    data: UserPoiRequest,
+    apiKey?: string
+): Promise<UserPoiResponse> {
+    return apiClient.request<UserPoiResponse>(
+        "/api/user-pois",
+        {
+            method: "POST",
+            headers: getWriteHeaders(apiKey),
+            body: JSON.stringify(data),
+        }
+    );
+}
 
 /**
- * GET /api/user-pois/{poi_id}
- * Lấy thông tin chi tiết địa điểm và danh sách ảnh
- * Không yêu cầu X-API-Key
+ * GET /api/user-pois/{id}
+ * Lấy chi tiết POI người dùng.
  */
-export const getUserPoi = async (
-  poiId: number
-): Promise<UserPoiResponse> => {
-  const response = await contributeApi.get<UserPoiResponse>(
-    `/api/user-pois/${poiId}`
-  );
+export async function getUserPoi(
+    id: number | string
+): Promise<UserPoiResponse> {
+    return apiClient.request<UserPoiResponse>(
+        `/api/user-pois/${normalizeId(id)}`
+    );
+}
 
-  return response.data;
-};
+/* -------------------------------------------------------------------------- */
+/* POI Photos                                                                 */
+/* -------------------------------------------------------------------------- */
 
 /**
- * POST /api/user-pois/{poi_id}/photos
- * Upload ảnh cho địa điểm
- * Yêu cầu X-API-Key
+ * POST /api/user-pois/{id}/photos
+ * Upload ảnh cho POI.
  *
- * Multipart field: file
+ * Không tự đặt Content-Type vì trình duyệt cần tự tạo
+ * multipart/form-data boundary.
  */
-export const uploadUserPoiPhoto = async (
-  poiId: number,
-  file: File
-): Promise<UploadPoiPhotoResponse> => {
-  const formData = new FormData();
-  formData.append("file", file);
+export async function uploadUserPoiPhoto(
+    poiId: number | string,
+    file: File,
+    apiKey?: string
+): Promise<UploadPhotoResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
 
-  const response = await contributeApi.post<UploadPoiPhotoResponse>(
-    `/api/user-pois/${poiId}/photos`,
-    formData,
-    {
-      headers: {
-        ...getWriteHeaders(),
-      },
-    }
-  );
+    return apiClient.request<UploadPhotoResponse>(
+        `/api/user-pois/${normalizeId(poiId)}/photos`,
+        {
+            method: "POST",
+            headers: getWriteHeaders(apiKey),
+            body: formData,
+        }
+    );
+}
 
-  return response.data;
-};
+/* -------------------------------------------------------------------------- */
+/* Panorama                                                                   */
+/* -------------------------------------------------------------------------- */
 
 /**
  * POST /api/user-panoramas
- * Upload ảnh panorama 360°
- * Yêu cầu X-API-Key
- *
- * Multipart fields:
- * lng, lat, heading, pitch, file
+ * Upload panorama 360 độ.
  */
-export const uploadUserPanorama = async (
-  data: UploadUserPanoramaRequest
-): Promise<UploadUserPanoramaResponse> => {
-  const formData = new FormData();
+export async function uploadUserPanorama(
+    file: File,
+    data: {
+        lng: number;
+        lat: number;
+        heading?: number;
+        pitch?: number;
+        filename?: string;
+        subdir?: string;
+        captured_at?: string;
+    },
+    apiKey?: string
+): Promise<UploadPanoramaResponse> {
+    const formData = new FormData();
 
-  formData.append("lng", String(data.lng));
-  formData.append("lat", String(data.lat));
-  formData.append("heading", String(data.heading ?? 0));
-  formData.append("pitch", String(data.pitch ?? 0));
-  formData.append("file", data.file);
+    formData.append("file", file);
+    formData.append("lng", String(data.lng));
+    formData.append("lat", String(data.lat));
 
-  const response = await contributeApi.post<UploadUserPanoramaResponse>(
-    "/api/user-panoramas",
-    formData,
-    {
-      headers: {
-        ...getWriteHeaders(),
-      },
+    if (data.heading !== undefined) {
+        formData.append("heading", String(data.heading));
     }
-  );
 
-  return response.data;
-};
+    if (data.pitch !== undefined) {
+        formData.append("pitch", String(data.pitch));
+    }
 
-// ==================== EXPORT ====================
+    if (data.filename) {
+        formData.append("filename", data.filename);
+    }
 
-export default {
-  createUserPoi,
-  getUserPoi,
-  uploadUserPoiPhoto,
-  uploadUserPanorama,
-};
+    if (data.subdir) {
+        formData.append("subdir", data.subdir);
+    }
+
+    if (data.captured_at) {
+        formData.append("captured_at", data.captured_at);
+    }
+
+    return apiClient.request<UploadPanoramaResponse>(
+        "/api/user-panoramas",
+        {
+            method: "POST",
+            headers: getWriteHeaders(apiKey),
+            body: formData,
+        }
+    );
+}

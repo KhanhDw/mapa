@@ -1,115 +1,176 @@
 // api/repositories/PoiRepository.ts
 
-import type { PoiItem, PoiListResponse } from "../../components/layout/panels/PoiManagementPanel/types/poi";
+import type { PoiItem } from "../../components/layout/panels/PoiManagementPanel/types/poi";
 import { apiClient } from "../http/ApiClient";
 
-const USER_BASE = "/api/user-pois";
-const SYSTEM_BASE = "/api/system-pois";
 
-interface PoiQuery {
+
+
+
+
+/**
+ * POI được lấy từ backend.
+ *
+ * source là thuộc tính FE tự bổ sung để phân biệt dữ liệu,
+ * không gửi thuộc tính này lên backend.
+ */
+export type PoiSource = "user" | "system";
+
+export type PoiWithSource = PoiItem & {
+    source: PoiSource;
+};
+
+export interface PoiListResponse<T> {
+    items: T[];
+    total: number;
+}
+
+export interface UserPoiQuery {
     search?: string;
     category?: string;
     limit?: number;
     offset?: number;
 }
 
-export class PoiRepository {
-    private static instance: PoiRepository;
+export interface SystemPoiQuery {
+    search?: string;
+    fclass?: string;
+    category?: string;
+    has_name?: boolean;
+    limit?: number;
+    offset?: number;
+}
 
-    private constructor() {}
+export interface UpdateUserPoiInput {
+    name?: string;
+    category?: string;
+    description?: string;
+    lng?: number;
+    lat?: number;
+    address?: string;
+}
 
-    public static getInstance(): PoiRepository {
-        if (!PoiRepository.instance) {
-            PoiRepository.instance = new PoiRepository();
+function buildQueryParams(
+    query: Record<string, string | number | boolean | undefined>
+): string {
+    const params = new URLSearchParams();
+
+    Object.entries(query).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === "") {
+            return;
         }
 
-        return PoiRepository.instance;
-    }
+        params.set(key, String(value));
+    });
 
-    private buildQuery(params: PoiQuery): string {
-        const query = new URLSearchParams();
+    const result = params.toString();
+    return result ? `?${result}` : "";
+}
 
-        if (params.search) query.set("search", params.search);
-        if (params.category) query.set("category", params.category);
+/**
+ * Lấy danh sách POI do người dùng tạo.
+ * GET /api/user-pois
+ */
+export async function fetchUserPois(
+    query: UserPoiQuery = {}
+): Promise<PoiListResponse<PoiWithSource>> {
+    const params = buildQueryParams({
+        search: query.search,
+        category: query.category,
+        limit: query.limit,
+        offset: query.offset,
+    });
 
-        if (params.limit != null) {
-            query.set("limit", String(params.limit));
-        }
-
-        if (params.offset != null) {
-            query.set("offset", String(params.offset));
-        }
-
-        return query.toString();
-    }
-
-    public async getUserPois(
-        params: PoiQuery
-    ): Promise<PoiListResponse> {
-        const query = this.buildQuery(params);
-
-        const result = await apiClient.request<PoiListResponse>(
-            `${USER_BASE}?${query}`
-        );
-
-        return {
-            ...result,
-            items: result.items.map(item => ({
-                ...item,
-                source: "user",
-            })),
-        };
-    }
-
-    public async getSystemPois(
-        params: PoiQuery
-    ): Promise<PoiListResponse> {
-        const query = this.buildQuery(params);
-
-        const result = await apiClient.request<PoiListResponse>(
-            `${SYSTEM_BASE}?${query}`
-        );
-
-        return {
-            ...result,
-            items: result.items.map(item => ({
-                ...item,
-                source: "system",
-            })),
-        };
-    }
-
-    public async update(
-    id: number | string,
-    input: Partial<PoiItem>
-): Promise<PoiItem> {
-    const result = await apiClient.request<PoiItem>(
-        `${USER_BASE}/${encodeURIComponent(String(id))}`,
-        {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(input),
-        }
-    );
+    const response = await apiClient.request<
+        PoiListResponse<PoiItem>
+    >(`/api/user-pois${params}`);
 
     return {
-        ...result,
-        source: "user",
+        ...response,
+        items: (response.items ?? []).map((item) => ({
+            ...item,
+            source: "user" as const,
+        })),
     };
 }
 
-public async delete(
-    id: number | string
-): Promise<void> {
-    await apiClient.request<void>(
-        `${USER_BASE}/${encodeURIComponent(String(id))}`,
+/**
+ * Lấy danh sách POI hệ thống.
+ * GET /api/system-pois
+ */
+export async function fetchSystemPois(
+    query: SystemPoiQuery = {}
+): Promise<PoiListResponse<PoiWithSource>> {
+    const params = buildQueryParams({
+        search: query.search,
+        fclass: query.fclass,
+        category: query.category,
+        has_name: query.has_name,
+        limit: query.limit,
+        offset: query.offset,
+    });
+
+    const response = await apiClient.request<
+        PoiListResponse<PoiItem>
+    >(`/api/system-pois${params}`);
+
+    return {
+        ...response,
+        items: (response.items ?? []).map((item) => ({
+            ...item,
+            source: "system" as const,
+        })),
+    };
+}
+
+/**
+ * Cập nhật POI do người dùng tạo.
+ * PUT /api/user-pois/{id}
+ *
+ * API này yêu cầu X-API-Key.
+ */
+export async function updateUserPoi(
+    id: number | string,
+    data: UpdateUserPoiInput,
+    apiKey?: string
+): Promise<PoiItem> {
+    const headers: HeadersInit = {};
+
+    if (apiKey) {
+        headers["X-API-Key"] = apiKey;
+    }
+
+    return apiClient.request<PoiItem>(
+        `/api/user-pois/${encodeURIComponent(String(id))}`,
         {
-            method: "DELETE",
+            method: "PUT",
+            headers,
+            body: JSON.stringify(data),
         }
     );
 }
-}
 
-export const poiRepository = PoiRepository.getInstance();
+/**
+ * Xóa POI do người dùng tạo.
+ * DELETE /api/user-pois/{id}
+ *
+ * API này yêu cầu X-API-Key.
+ */
+export async function deleteUserPoi(
+    id: number | string,
+    apiKey?: string
+): Promise<void> {
+    const headers: HeadersInit = {};
+
+    if (apiKey) {
+        headers["X-API-Key"] = apiKey;
+    }
+
+    await apiClient.request<void>(
+        `/api/user-pois/${encodeURIComponent(String(id))}`,
+        {
+            method: "DELETE",
+            headers,
+        }
+    );
+}

@@ -1,122 +1,191 @@
 
-import axios from "axios";
+import { apiClient } from "./http/ApiClient";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-const WRITE_API_KEY = import.meta.env.VITE_WRITE_API_KEY || "";
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-const writeHeaders = {
-  "X-API-Key": WRITE_API_KEY,
-};
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 export type ElectricPoleStatus = "good" | "warning" | "error";
 
 export interface ElectricPole {
-  id: number;
-  pole_code: string;
-  route: string;
-  status: ElectricPoleStatus;
-  detail: string | null;
-  lng: number;
-  lat: number;
-  created_at: string;
-  updated_at: string;
+    id: number;
+    pole_code: string;
+    route?: string | null;
+    status: ElectricPoleStatus;
+    lng: number;
+    lat: number;
+    detail?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
 }
 
 export interface ElectricPoleInput {
-  pole_code: string;
-  route: string;
-  status?: ElectricPoleStatus;
-  lng: number;
-  lat: number;
-  detail?: string | null;
+    pole_code: string;
+    route?: string | null;
+    status: ElectricPoleStatus;
+    lng: number;
+    lat: number;
+    detail?: string | null;
 }
 
 export interface ElectricPoleListResponse {
-  items: ElectricPole[];
-  total: number;
+    items: ElectricPole[];
+    total: number;
 }
+
+export interface ElectricPoleQuery {
+    search?: string;
+    status?: ElectricPoleStatus;
+    route?: string;
+    limit?: number;
+    offset?: number;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function buildQueryParams(
+    query: Record<string, string | number | undefined>
+): string {
+    const params = new URLSearchParams();
+
+    Object.entries(query).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === "") {
+            return;
+        }
+
+        params.set(key, String(value));
+    });
+
+    const result = params.toString();
+    return result ? `?${result}` : "";
+}
+
+function getWriteHeaders(apiKey?: string): HeadersInit {
+    const key = apiKey || import.meta.env.VITE_WRITE_API_KEY;
+
+    return key
+        ? { "X-API-Key": key }
+        : {};
+}
+
+function normalizeId(id: number | string): string {
+    return encodeURIComponent(String(id));
+}
+
+/* -------------------------------------------------------------------------- */
+/* List                                                                       */
+/* -------------------------------------------------------------------------- */
 
 /**
  * GET /api/electric-poles
- * search: tìm theo pole_code hoặc route.
+ * Lấy danh sách trụ điện.
  */
-export const getElectricPoles = async (
-  search?: string
-): Promise<ElectricPoleListResponse> => {
-  const response = await api.get<ElectricPoleListResponse>(
-    "/api/electric-poles",
-    {
-      params: search?.trim() ? { search: search.trim() } : undefined,
-    }
-  );
+export async function getElectricPoles(
+    query: ElectricPoleQuery = {}
+): Promise<ElectricPoleListResponse> {
+    const params = buildQueryParams({
+        search: query.search,
+        status: query.status,
+        route: query.route,
+        limit: query.limit,
+        offset: query.offset,
+    });
 
-  return response.data;
-};
+    return apiClient.request<ElectricPoleListResponse>(
+        `/api/electric-poles${params}`
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Detail                                                                     */
+/* -------------------------------------------------------------------------- */
 
 /**
- * GET /api/electric-poles/{pole_id}
+ * GET /api/electric-poles/{id}
+ * Lấy chi tiết trụ điện.
  */
-export const getElectricPole = async (
-  poleId: number
-): Promise<ElectricPole> => {
-  const response = await api.get<ElectricPole>(
-    `/api/electric-poles/${poleId}`
-  );
+export async function getElectricPole(
+    id: number | string
+): Promise<ElectricPole> {
+    return apiClient.request<ElectricPole>(
+        `/api/electric-poles/${normalizeId(id)}`
+    );
+}
 
-  return response.data;
-};
+/* -------------------------------------------------------------------------- */
+/* Create                                                                     */
+/* -------------------------------------------------------------------------- */
 
 /**
  * POST /api/electric-poles
- * Requires X-API-Key.
- * Backend returns HTTP 201.
+ * Tạo trụ điện mới.
  */
-export const createElectricPole = async (
-  data: ElectricPoleInput
-): Promise<ElectricPole> => {
-  const response = await api.post<ElectricPole>(
-    "/api/electric-poles",
-    data,
-    {
-      headers: writeHeaders,
-    }
-  );
+export async function createElectricPole(
+    data: ElectricPoleInput,
+    apiKey?: string
+): Promise<ElectricPole> {
+    return apiClient.request<ElectricPole>(
+        "/api/electric-poles",
+        {
+            method: "POST",
+            headers: getWriteHeaders(apiKey),
+            body: JSON.stringify(data),
+        }
+    );
+}
 
-  return response.data;
-};
+/* -------------------------------------------------------------------------- */
+/* Update                                                                     */
+/* -------------------------------------------------------------------------- */
 
 /**
- * PUT /api/electric-poles/{pole_id}
- * Requires X-API-Key.
+ * PUT /api/electric-poles/{id}
+ * Cập nhật trụ điện.
  */
-export const updateElectricPole = async (
-  poleId: number,
-  data: ElectricPoleInput
-): Promise<ElectricPole> => {
-  const response = await api.put<ElectricPole>(
-    `/api/electric-poles/${poleId}`,
-    data,
-    {
-      headers: writeHeaders,
-    }
-  );
+export async function updateElectricPole(
+    id: number | string,
+    data: ElectricPoleInput,
+    apiKey?: string
+): Promise<ElectricPole> {
+    return apiClient.request<ElectricPole>(
+        `/api/electric-poles/${normalizeId(id)}`,
+        {
+            method: "PUT",
+            headers: getWriteHeaders(apiKey),
+            body: JSON.stringify(data),
+        }
+    );
+}
 
-  return response.data;
-};
+/* -------------------------------------------------------------------------- */
+/* Delete                                                                     */
+/* -------------------------------------------------------------------------- */
 
 /**
- * DELETE /api/electric-poles/{pole_id}
- * Requires X-API-Key.
- * Backend returns HTTP 204 with no response body.
+ * DELETE /api/electric-poles/{id}
+ * Xóa trụ điện.
+ *
+ * Backend có thể trả HTTP 204.
  */
-export const deleteElectricPole = async (
-  poleId: number
-): Promise<void> => {
-  await api.delete(`/api/electric-poles/${poleId}`, {
-    headers: writeHeaders,
-  });
-};
+export async function deleteElectricPole(
+    id: number | string,
+    apiKey?: string
+): Promise<void> {
+    return apiClient.request<void>(
+        `/api/electric-poles/${normalizeId(id)}`,
+        {
+            method: "DELETE",
+            headers: getWriteHeaders(apiKey),
+        }
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Compatibility aliases                                                     */
+/* -------------------------------------------------------------------------- */
+
+export const fetchElectricPoles = getElectricPoles;
+export const fetchElectricPole = getElectricPole;
+export const removeElectricPole = deleteElectricPole;

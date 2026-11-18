@@ -1,171 +1,235 @@
 
-import axios from "axios";
+import { apiClient } from "./http/ApiClient";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-const WRITE_API_KEY = import.meta.env.VITE_WRITE_API_KEY || "";
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-const writeHeaders = {
-  "X-API-Key": WRITE_API_KEY,
-};
-
-// =========================
-// Types
-// =========================
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 export interface UserPoiManagement {
-  id: number;
-  source: "user";
-  name: string;
-  category: string;
-  address: string | null;
-  phone: string | null;
-  description: string | null;
-  lng: number;
-  lat: number;
-  created_at: string;
-  photo_count: number;
-  thumb_url: string | null;
+    id: number;
+    name: string;
+    category?: string | null;
+    description?: string | null;
+    address?: string | null;
+    lng: number;
+    lat: number;
+    created_at?: string | null;
+    updated_at?: string | null;
+    photos?: UserPoiPhoto[];
+    [key: string]: unknown;
+}
+
+export interface UserPoiPhoto {
+    id: number;
+    poi_id?: number;
+    file_path?: string;
+    url?: string;
+    filename?: string;
+    created_at?: string;
+    [key: string]: unknown;
 }
 
 export interface UserPoiListResponse {
-  items: UserPoiManagement[];
-  total: number;
+    items: UserPoiManagement[];
+    total: number;
 }
 
 export interface UpdateUserPoiRequest {
-  name: string;
-  category: string;
-  address?: string | null;
-  phone?: string | null;
-  description?: string | null;
-  lng: number;
-  lat: number;
+    name?: string;
+    category?: string;
+    description?: string;
+    address?: string;
+    lng?: number;
+    lat?: number;
 }
 
 export interface UpdateUserPoiResponse {
-  id: number;
-  source: "user";
-  name: string;
-  category: string;
-  address: string | null;
-  phone: string | null;
-  description: string | null;
-  lng: number;
-  lat: number;
-  created_at: string;
+    poi?: UserPoiManagement;
+    [key: string]: unknown;
 }
 
 export interface SystemPoi {
-  id: string;
-  source: "osm";
-  name: string | null;
-  category: string | null;
-  fclass: string | null;
-  has_name: boolean;
-  lng: number;
-  lat: number;
+    id: number | string;
+    name?: string | null;
+    category?: string | null;
+    fclass?: string | null;
+    description?: string | null;
+    address?: string | null;
+    lng?: number;
+    lat?: number;
+    [key: string]: unknown;
 }
 
 export interface SystemPoiListResponse {
-  items: SystemPoi[];
-  total: number;
+    items: SystemPoi[];
+    total: number;
 }
 
-// =========================
-// User POIs
-// =========================
+export interface UserPoiQuery {
+    search?: string;
+    category?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface SystemPoiQuery {
+    search?: string;
+    fclass?: string;
+    category?: string;
+    has_name?: boolean;
+    limit?: number;
+    offset?: number;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                    */
+/* -------------------------------------------------------------------------- */
+
+function buildQueryParams(
+    query: Record<string, string | number | boolean | undefined>
+): string {
+    const params = new URLSearchParams();
+
+    for (const [key, value] of Object.entries(query)) {
+        if (value === undefined || value === null || value === "") {
+            continue;
+        }
+
+        params.set(key, String(value));
+    }
+
+    const result = params.toString();
+    return result ? `?${result}` : "";
+}
+
+function getWriteHeaders(apiKey?: string): HeadersInit {
+    const headers: Record<string, string> = {};
+
+    const key = apiKey || import.meta.env.VITE_WRITE_API_KEY;
+
+    if (key) {
+        headers["X-API-Key"] = key;
+    }
+
+    return headers;
+}
+
+function normalizeId(id: number | string): string {
+    return encodeURIComponent(String(id));
+}
+
+/* -------------------------------------------------------------------------- */
+/* User POIs                                                                  */
+/* -------------------------------------------------------------------------- */
 
 /**
  * GET /api/user-pois
- * Không yêu cầu X-API-Key.
+ * Lấy danh sách POI do người dùng tạo.
  */
-export const getUserPois = async (params?: {
-  search?: string;
-  category?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<UserPoiListResponse> => {
-  const response = await api.get<UserPoiListResponse>(
-    "/api/user-pois",
-    { params }
-  );
+export async function getUserPois(
+    query: UserPoiQuery = {}
+): Promise<UserPoiListResponse> {
+    const params = buildQueryParams({
+        search: query.search,
+        category: query.category,
+        limit: query.limit,
+        offset: query.offset,
+    });
 
-  return response.data;
-};
+    return apiClient.request<UserPoiListResponse>(
+        `/api/user-pois${params}`
+    );
+}
 
 /**
- * PUT /api/user-pois/{poi_id}
- * Requires X-API-Key.
+ * PUT /api/user-pois/{id}
+ * Cập nhật POI người dùng.
  */
-export const updateUserPoi = async (
-  poiId: number,
-  data: UpdateUserPoiRequest
-): Promise<UpdateUserPoiResponse> => {
-  const response = await api.put<UpdateUserPoiResponse>(
-    `/api/user-pois/${poiId}`,
-    data,
-    {
-      headers: writeHeaders,
-    }
-  );
-
-  return response.data;
-};
+export async function updateUserPoi(
+    id: number | string,
+    data: UpdateUserPoiRequest,
+    apiKey?: string
+): Promise<UserPoiManagement> {
+    return apiClient.request<UserPoiManagement>(
+        `/api/user-pois/${normalizeId(id)}`,
+        {
+            method: "PUT",
+            headers: getWriteHeaders(apiKey),
+            body: JSON.stringify(data),
+        }
+    );
+}
 
 /**
- * DELETE /api/user-pois/{poi_id}
- * Requires X-API-Key.
- * Backend returns HTTP 204 with no response body.
+ * DELETE /api/user-pois/{id}
+ * Xóa POI người dùng.
  */
-export const deleteUserPoi = async (
-  poiId: number
-): Promise<void> => {
-  await api.delete(`/api/user-pois/${poiId}`, {
-    headers: writeHeaders,
-  });
-};
+export async function deleteUserPoi(
+    id: number | string,
+    apiKey?: string
+): Promise<void> {
+    return apiClient.request<void>(
+        `/api/user-pois/${normalizeId(id)}`,
+        {
+            method: "DELETE",
+            headers: getWriteHeaders(apiKey),
+        }
+    );
+}
 
 /**
- * DELETE /api/user-pois/{poi_id}/photos/{photo_id}
- * Requires X-API-Key.
- * Backend returns HTTP 204 with no response body.
+ * DELETE /api/user-pois/{id}/photos/{photo_id}
+ * Xóa ảnh của POI người dùng.
  */
-export const deleteUserPoiPhoto = async (
-  poiId: number,
-  photoId: number
-): Promise<void> => {
-  await api.delete(
-    `/api/user-pois/${poiId}/photos/${photoId}`,
-    {
-      headers: writeHeaders,
-    }
-  );
-};
+export async function deleteUserPoiPhoto(
+    poiId: number | string,
+    photoId: number | string,
+    apiKey?: string
+): Promise<void> {
+    return apiClient.request<void>(
+        `/api/user-pois/${normalizeId(poiId)}/photos/${normalizeId(photoId)}`,
+        {
+            method: "DELETE",
+            headers: getWriteHeaders(apiKey),
+        }
+    );
+}
 
-// =========================
-// System POIs (read-only)
-// =========================
+/* -------------------------------------------------------------------------- */
+/* System POIs                                                                */
+/* -------------------------------------------------------------------------- */
 
 /**
  * GET /api/system-pois
- * Không yêu cầu X-API-Key.
+ * Lấy danh sách POI hệ thống.
+ * Đây là API chỉ đọc, không cần API key.
  */
-export const getSystemPois = async (params?: {
-  search?: string;
-  fclass?: string;
-  category?: string;
-  has_name?: boolean;
-  limit?: number;
-  offset?: number;
-}): Promise<SystemPoiListResponse> => {
-  const response = await api.get<SystemPoiListResponse>(
-    "/api/system-pois",
-    { params }
-  );
+export async function getSystemPois(
+    query: SystemPoiQuery = {}
+): Promise<SystemPoiListResponse> {
+    const params = buildQueryParams({
+        search: query.search,
+        fclass: query.fclass,
+        category: query.category,
+        has_name: query.has_name,
+        limit: query.limit,
+        offset: query.offset,
+    });
 
-  return response.data;
-};
+    return apiClient.request<SystemPoiListResponse>(
+        `/api/system-pois${params}`
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Compatibility aliases                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Các alias giúp những component đang sử dụng tên hàm fetch
+ * có thể tiếp tục gọi API.
+ */
+export const fetchUserPois = getUserPois;
+export const fetchSystemPois = getSystemPois;
+export const removeUserPoi = deleteUserPoi;
+export const removeUserPoiPhoto = deleteUserPoiPhoto;

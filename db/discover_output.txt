@@ -43,7 +43,7 @@ Expanded display is used automatically.
  public    | geometry_columns         |       -1 | 0 bytes    | v
  public    | pois                     |       -1 | 24 kB      | r
  public    | spatial_ref_sys          |     8500 | 7144 kB    | r
- public    | streetview_images        |       -1 | 24 kB      | r
+ public    | streetview_images        |       -1 | 40 kB      | r
  public    | vietnam_roads            |       -1 | 40 kB      | r
  tiger     | addr                     |       -1 | 24 kB      | r
  tiger     | addrfeat                 |       -1 | 48 kB      | r

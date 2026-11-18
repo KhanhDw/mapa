@@ -1,105 +1,101 @@
 
-import axios from "axios";
+import { apiClient } from "./http/ApiClient";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-// =========================
-// Types
-// =========================
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 export type SearchSource = "admin" | "osm" | "user";
 
-export interface PlaceSearchResult {
-  id: string;
-  name: string;
-  kind: "admin" | "place";
-  category: string | null;
-  address: string | null;
-  lat: number;
-  lng: number;
-  source: SearchSource;
+export type SearchKind = "admin" | "place" | "road";
+
+export interface SearchGeometry {
+    type: "Point" | "LineString" | "MultiLineString" | string;
+    coordinates: number[] | number[][] | number[][][];
 }
 
-export type RoadGeometry =
-  | {
-      type: "LineString";
-      coordinates: number[][];
-    }
-  | {
-      type: "MultiLineString";
-      coordinates: number[][][];
-    };
-
-export type RoadBbox = [
-  west: number,
-  south: number,
-  east: number,
-  north: number
-];
-
-export interface RoadSearchResult {
-  id: string;
-  name: string;
-  kind: "road";
-  category: string | null;
-  address: null;
-  lat: number;
-  lng: number;
-  source: "osm";
-  geometry: RoadGeometry;
-  bbox: RoadBbox;
+export interface SearchBbox {
+    min_lng: number;
+    min_lat: number;
+    max_lng: number;
+    max_lat: number;
 }
 
-export type SearchResult =
-  | PlaceSearchResult
-  | RoadSearchResult;
+export interface SearchResult {
+    id: number | string;
+    kind: SearchKind;
+    source: SearchSource;
+
+    name?: string | null;
+    display_name?: string | null;
+    category?: string | null;
+    description?: string | null;
+    address?: string | null;
+
+    lng?: number;
+    lat?: number;
+
+    geometry?: SearchGeometry | null;
+    bbox?: SearchBbox | [number, number, number, number] | null;
+
+    [key: string]: unknown;
+}
 
 export interface SearchResponse {
-  results: SearchResult[];
+    items: SearchResult[];
+    total: number;
 }
 
 export interface SearchParams {
-  q: string;
+    q: string;
 }
 
-// =========================
-// API
-// =========================
+/* -------------------------------------------------------------------------- */
+/* API                                                                        */
+/* -------------------------------------------------------------------------- */
 
 /**
- * GET /api/search
+ * GET /api/search?q=...
  *
- * Tìm kiếm hợp nhất:
- * - Đơn vị hành chính (xã/phường/đặc khu)
- * - POI hệ thống (OSM)
- * - POI do người dùng đóng góp
- * - Đường giao thông
- *
- * Query:
- * - q: 2–100 ký tự
- *
- * Response:
- * - results: danh sách kết quả tìm kiếm
- *
- * Giới hạn backend:
- * - Tối đa 12 kết quả địa điểm
- * - Tối đa 8 kết quả đường
+ * Tìm kiếm:
+ * - Địa giới hành chính (admin)
+ * - POI hệ thống (osm)
+ * - POI người dùng (user)
+ * - Đường giao thông (road)
  */
-export const searchMap = async (
-  q: string
-): Promise<SearchResponse> => {
-  const response = await api.get<SearchResponse>(
-    "/api/search",
-    {
-      params: {
-        q,
-      },
-    }
-  );
+export async function searchPlaces(
+    params: SearchParams
+): Promise<SearchResponse> {
+    const q = params.q.trim();
 
-  return response.data;
-};
+    if (!q) {
+        return {
+            items: [],
+            total: 0,
+        };
+    }
+
+    const query = new URLSearchParams({
+        q,
+    });
+
+    return apiClient.request<SearchResponse>(
+        `/api/search?${query.toString()}`
+    );
+}
+
+/**
+ * Hàm tiện ích cho component truyền trực tiếp chuỗi tìm kiếm.
+ */
+export async function search(
+    q: string
+): Promise<SearchResponse> {
+    return searchPlaces({ q });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Compatibility aliases                                                     */
+/* -------------------------------------------------------------------------- */
+
+export const fetchSearchResults = searchPlaces;
+export const searchMap = search;

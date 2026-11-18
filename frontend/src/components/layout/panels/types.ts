@@ -1,19 +1,9 @@
 export type LayerKey =
     // Ảnh 360
     | "streetview"
-    // Giao thông
+    // Giao thông & Hạ tầng
     | "roads"
-    | "roadNames"
-    | "roadsMajor"
-    | "roadsMinor"
-    | "roadsLocal"
-    | "railways"
-    // Tự nhiên
-    | "water"
-    | "waterways"
-    | "landuse"
-    | "natural"
-    | "protected"
+    | "electric_poles"
     // Xây dựng
     | "buildings"
     // Hành chính
@@ -28,18 +18,9 @@ export type LayerVisibility = Record<LayerKey, boolean>;
 export const DEFAULT_LAYERS: LayerVisibility = {
     streetview: true,
     roads: true,
-    roadNames: true,
-    roadsMajor: false,
-    roadsMinor: false,
-    roadsLocal: false,
-    railways: false,
-    water: false,
-    waterways: false,
-    landuse: false,
-    natural: false,
-    protected: false,
+    electric_poles: true,
     buildings: false,
-    admin: false,
+    admin: true,
     places: false,
     pois: true,
     userPois: true,

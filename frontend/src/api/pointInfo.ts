@@ -1,120 +1,128 @@
 
-import axios from "axios";
+import { apiClient } from "./http/ApiClient";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-});
-
-// =========================
-// Types
-// =========================
+/* -------------------------------------------------------------------------- */
+/* Types                                                                      */
+/* -------------------------------------------------------------------------- */
 
 export interface PointInfoWard {
-  ma: string | null;
-  tenhc: string | null;
-  loai: string | null;
-  full_name: string | null;
-  matinh: string | null;
-  tentinh: string | null;
-  matinhxa: string | null;
-  dansonguoi: number | null;
-  trungtamhc: string | null;
-  dientichkm2: number | null;
-  truocsapnhap: string | null;
+    id?: number | string;
+    name?: string;
+    code?: string;
+    province?: string;
+    district?: string;
+    [key: string]: unknown;
 }
 
 export interface PointInfoRoad {
-  id: number;
-  name: string | null;
-  fclass: string | null;
-  distance_m: number;
+    id?: number | string;
+    name?: string;
+    highway?: string;
+    distance_m?: number;
+    [key: string]: unknown;
 }
 
 export interface PointInfoStreetview {
-  id: number;
-  file_path: string;
-  heading: number;
-  pitch: number;
-  distance_m: number;
+    id?: number | string;
+    file_path?: string;
+    image_url?: string;
+    url?: string;
+    heading?: number;
+    pitch?: number;
+    distance_m?: number;
+    captured_at?: string;
+    created_at?: string;
+    [key: string]: unknown;
 }
 
 export interface PointInfoPoi {
-  source: "osm" | "user";
-  id: string;
-  name: string | null;
-  category: string | null;
-  fclass: string | null;
-  photo_count: number;
-  lng: number;
-  lat: number;
-  distance_m: number;
-  streetview_id: number | null;
-  streetview_distance_m: number | null;
+    id: number | string;
+    name?: string;
+    category?: string;
+    description?: string;
+    address?: string;
+    lng?: number;
+    lat?: number;
+    distance_m?: number;
+    source?: "user" | "system";
+    [key: string]: unknown;
 }
 
-export type NearbyPoleStatus = "good" | "warning" | "error";
-
 export interface PointInfoNearbyPole {
-  id: number;
-  pole_code: string;
-  route: string;
-  status: NearbyPoleStatus;
-  detail: string | null;
-  lng: number;
-  lat: number;
-  distance_m: number;
+    id: number | string;
+    pole_code?: string;
+    route?: string;
+    status?: "good" | "warning" | "error";
+    detail?: string;
+    lng?: number;
+    lat?: number;
+    distance_m?: number;
+    [key: string]: unknown;
 }
 
 export interface PointInfoResponse {
-  ward: PointInfoWard | null;
-  road: PointInfoRoad | null;
-  streetview: PointInfoStreetview | null;
-  address: string | null;
-  pois: PointInfoPoi[];
-  nearby_poles: PointInfoNearbyPole[];
+    ward?: PointInfoWard | null;
+    road?: PointInfoRoad | null;
+    streetview?: PointInfoStreetview | null;
+    address?: string | null;
+    pois?: PointInfoPoi[];
+    nearby_poles?: PointInfoNearbyPole[];
 }
 
 export interface PointInfoParams {
-  lng: number;
-  lat: number;
-  radius_m?: number;
-  poi_limit?: number;
-  pole_radius_m?: number;
-  pole_limit?: number;
+    lng: number;
+    lat: number;
+    radius_m?: number;
+    poi_limit?: number;
+    pole_radius_m?: number;
+    pole_limit?: number;
 }
 
-// =========================
-// API
-// =========================
+/* -------------------------------------------------------------------------- */
+/* API                                                                        */
+/* -------------------------------------------------------------------------- */
 
 /**
  * GET /api/point-info
  *
  * Lấy thông tin tại một tọa độ:
- * - Đơn vị hành chính gần/bao chứa điểm
+ * - Xã/phường
  * - Đường gần nhất
- * - Street View gần nhất
+ * - Streetview gần nhất
  * - POI xung quanh
- * - Trụ điện xung quanh
+ * - Trụ điện gần đó
  */
-export const getPointInfo = async (
-  params: PointInfoParams
-): Promise<PointInfoResponse> => {
-  const response = await api.get<PointInfoResponse>(
-    "/api/point-info",
-    {
-      params: {
-        lng: params.lng,
-        lat: params.lat,
-        radius_m: params.radius_m,
-        poi_limit: params.poi_limit,
-        pole_radius_m: params.pole_radius_m,
-        pole_limit: params.pole_limit,
-      },
-    }
-  );
+export async function getPointInfo(
+    params: PointInfoParams
+): Promise<PointInfoResponse> {
+    const query = new URLSearchParams();
 
-  return response.data;
-};
+    query.set("lng", String(params.lng));
+    query.set("lat", String(params.lat));
+
+    if (params.radius_m !== undefined) {
+        query.set("radius_m", String(params.radius_m));
+    }
+
+    if (params.poi_limit !== undefined) {
+        query.set("poi_limit", String(params.poi_limit));
+    }
+
+    if (params.pole_radius_m !== undefined) {
+        query.set("pole_radius_m", String(params.pole_radius_m));
+    }
+
+    if (params.pole_limit !== undefined) {
+        query.set("pole_limit", String(params.pole_limit));
+    }
+
+    return apiClient.request<PointInfoResponse>(
+        `/api/point-info?${query.toString()}`
+    );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Compatibility aliases                                                     */
+/* -------------------------------------------------------------------------- */
+
+export const fetchPointInfo = getPointInfo;
