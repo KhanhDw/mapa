@@ -46,9 +46,9 @@ function Show-CapturedOutput {
 }
 
 # ---------------------------------------------------------------------------
-# [1/5] Docker status
+# [1/6] Docker status
 # ---------------------------------------------------------------------------
-Write-Host "[1/5] Checking Docker status..." -ForegroundColor Cyan
+Write-Host "[1/6] Checking Docker status..." -ForegroundColor Cyan
 
 $docker = Invoke-DockerQuiet info
 
@@ -84,9 +84,9 @@ Write-Host ""
 Write-Host "[+] Docker is ready!" -ForegroundColor Green
 
 # ---------------------------------------------------------------------------
-# [2/5] Start containers
+# [2/6] Start containers
 # ---------------------------------------------------------------------------
-Write-Host "[2/5] Starting containers..." -ForegroundColor Cyan
+Write-Host "[2/6] Starting containers..." -ForegroundColor Cyan
 
 $compose = Invoke-DockerQuiet compose up -d
 
@@ -116,9 +116,9 @@ while ($true) {
 }
 
 # ---------------------------------------------------------------------------
-# [3/5] Database initialization
+# [3/6] Database initialization
 # ---------------------------------------------------------------------------
-Write-Host "[3/5] Checking database initialization..." -ForegroundColor Cyan
+Write-Host "[3/6] Checking database initialization..." -ForegroundColor Cyan
 
 $initScript = "./db/migrations/init_db.sql"
 
@@ -157,9 +157,9 @@ if ([string]::IsNullOrWhiteSpace($tableCheck)) {
 }
 
 # ---------------------------------------------------------------------------
-# [4/5] Vietnam wards GeoJSON
+# [4/6] Vietnam wards GeoJSON
 # ---------------------------------------------------------------------------
-Write-Host "[4/5] Checking Vietnam wards GeoJSON data..." -ForegroundColor Cyan
+Write-Host "[4/6] Checking Vietnam wards GeoJSON data..." -ForegroundColor Cyan
 
 Set-Location "backend"
 
@@ -210,10 +210,86 @@ if ($wardCount -eq "-1" -or $wardCount -eq "0") {
     Write-Host "[+] Vietnam wards data already exists ($wardCount records). Skipping import." -ForegroundColor Green
 }
 
+
 # ---------------------------------------------------------------------------
-# [5/5] Start FastAPI Backend
+# [5/6] Vietnam roads GeoJSON
+# ---------------------------------------------------------------------------
+Write-Host "[5/6] Checking Vietnam roads GeoJSON data..." -ForegroundColor Cyan
+$env:DATABASE_URL = "postgresql://postgres:doi_mat_khau_manh@localhost:5432/webmap_db"
+$roadsScript = "import_roads.py"
+$roadsFile = "data\vietnam_roads.geojson"
+
+# Kiểm tra file GeoJSON
+if (-not (Test-Path $roadsFile)) {
+    Write-Host "[X] Vietnam roads GeoJSON not found: $roadsFile" -ForegroundColor Red
+    exit 1
+}
+
+# Kiểm tra script import
+if (-not (Test-Path $roadsScript)) {
+    Write-Host "[X] import_roads.py not found!" -ForegroundColor Red
+    exit 1
+}
+
+# Kiểm tra bảng và số lượng dữ liệu
+$roadsCountResult = Invoke-DockerQuiet exec -i postgis-webmap psql `
+    -X -U postgres -d webmap_db -tA `
+    -c "SELECT CASE WHEN to_regclass('public.vietnam_roads') IS NULL THEN -1 ELSE (SELECT COUNT(*) FROM public.vietnam_roads) END;"
+
+if ($roadsCountResult.ExitCode -ne 0) {
+    Show-CapturedOutput $roadsCountResult
+    Write-Host "[X] Cannot check Vietnam roads table!" -ForegroundColor Red
+    exit 1
+}
+
+$roadsCountText = ConvertTo-TrimmedString $roadsCountResult.Output
+
+if ($roadsCountText -eq "-1") {
+    Write-Host "[X] Table public.vietnam_roads does not exist!" -ForegroundColor Red
+    exit 1
+}
+
+$roadsCount = [long]$roadsCountText
+
+if ($roadsCount -eq 0) {
+
+    Write-Host "[!] Vietnam roads data missing. Importing GeoJSON..." -ForegroundColor Yellow
+
+    # Kiểm tra biến môi trường mật khẩu PostgreSQL
+    # Kiểm tra DATABASE_URL
+if ([string]::IsNullOrWhiteSpace($env:DATABASE_URL)) {
+    Write-Host "[X] DATABASE_URL environment variable is missing!" -ForegroundColor Red
+    exit 1
+}
+
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    try {
+        $importOutput = & python -X utf8 $roadsScript 2>&1
+        $importExit = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $prevEAP
+    }
+
+    if ($importExit -ne 0) {
+        Show-CapturedOutput ([pscustomobject]@{ Output = $importOutput })
+        Write-Host "[X] Vietnam roads import failed!" -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "[+] Vietnam roads imported successfully!" -ForegroundColor Green
+
+} else {
+
+    Write-Host "[+] Vietnam roads data already exists ($roadsCount records). Skipping import." -ForegroundColor Green
+
+}
+
+# ---------------------------------------------------------------------------
+# [6/6] Start FastAPI Backend
 # KHÔNG capture output — để log Uvicorn hiển thị bình thường
 # ---------------------------------------------------------------------------
-Write-Host "[5/5] Starting FastAPI Backend..." -ForegroundColor Cyan
+Write-Host "[6/6] Starting FastAPI Backend..." -ForegroundColor Cyan
 
 python -m uvicorn src.main:app --reload --host 127.0.0.1 --port 8000
