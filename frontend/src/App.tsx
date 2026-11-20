@@ -12,7 +12,8 @@ import { createDefaultLayerVisibility } from "./components/maps/EsriSatelliteMap
 
 import type { ElectricPole } from "./api/electricPoles";
 import type { StreetViewImage } from "./api/streetview";
-import type { PoiItem } from "./api/pois";
+import type { PoiWithSource  } from "./api/pois";
+import type { SearchResult } from "./api/search";
 
 import { useStreetViewPoints } from "./components/maps/EsriSatelliteMap/hooks/useStreetViewPoints";
 import { useClickMarker } from "./components/maps/EsriSatelliteMap/hooks/useClickMarker";
@@ -29,7 +30,7 @@ import { MapContainerView } from "./components/layout/MapContainerView";
 import "./App.css";
 
 const SHOW_SWITCHER = import.meta.env.VITE_SHOW_MAP_SWITCHER === "true";
-
+type NavigablePoi = PoiWithSource | SearchResult;
 const isManagementPanel = (panel: PanelType | null) =>
   panel === "poleManagement" ||
   panel === "streetviewManagement" ||
@@ -78,10 +79,10 @@ export default function App() {
     requestId: number;
   } | null>(null);
 
-  const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
-    poi: PoiItem;
-    requestId: number;
-  } | null>(null);
+const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
+  poi: NavigablePoi;
+  requestId: number;
+} | null>(null);
 
   // Custom Hooks
   const { electricPoles, refreshPoles } = useElectricPoles();
@@ -150,15 +151,33 @@ export default function App() {
   }, [mapInstance, poleNavigationRequest]);
 
   useEffect(() => {
-    if (!mapInstance || !streetViewNavigationRequest) return;
-    const { image } = streetViewNavigationRequest;
-    mapInstance.flyTo({
-      center: [image.lng, image.lat],
-      zoom: 17,
-      duration: 800,
-    });
-    setSvModal({ open: true, startId: image.id });
-  }, [mapInstance, streetViewNavigationRequest]);
+  if (!mapInstance || !streetViewNavigationRequest) return;
+
+  const { image } = streetViewNavigationRequest;
+
+  if (
+    typeof image.lng !== "number" ||
+    !Number.isFinite(image.lng) ||
+    typeof image.lat !== "number" ||
+    !Number.isFinite(image.lat)
+  ) {
+    return;
+  }
+
+  const startId = Number(image.id);
+
+  if (!Number.isInteger(startId)) {
+    return;
+  }
+
+  mapInstance.flyTo({
+    center: [image.lng, image.lat],
+    zoom: 17,
+    duration: 800,
+  });
+
+  setSvModal({ open: true, startId });
+}, [mapInstance, streetViewNavigationRequest]);
 
   useEffect(() => {
     if (!mapInstance || !poiNavigationRequest) return;
@@ -214,12 +233,12 @@ export default function App() {
     }));
   }, []);
 
-  const handleGoToPoi = useCallback((poi: PoiItem) => {
-    setPoiNavigationRequest((current) => ({
-      poi,
-      requestId: (current?.requestId ?? 0) + 1,
-    }));
-  }, []);
+  const handleGoToPoi = useCallback((poi: NavigablePoi) => {
+  setPoiNavigationRequest((current) => ({
+    poi,
+    requestId: (current?.requestId ?? 0) + 1,
+  }));
+}, []);
 
   const handleStartPoleLocationRecording = useCallback(
     (onLocationRecorded: (location: { lng: number; lat: number }) => void) => {

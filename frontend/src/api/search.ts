@@ -14,12 +14,7 @@ export interface SearchGeometry {
     coordinates: number[] | number[][] | number[][][];
 }
 
-export interface SearchBbox {
-    min_lng: number;
-    min_lat: number;
-    max_lng: number;
-    max_lat: number;
-}
+
 
 export interface SearchResult {
     id: number | string;
@@ -32,18 +27,17 @@ export interface SearchResult {
     description?: string | null;
     address?: string | null;
 
-    lng?: number;
-    lat?: number;
+    lng: number;
+    lat: number;
 
     geometry?: SearchGeometry | null;
-    bbox?: SearchBbox | [number, number, number, number] | null;
+    bbox?: [number, number, number, number] | null;
 
     [key: string]: unknown;
 }
 
 export interface SearchResponse {
-    items: SearchResult[];
-    total: number;
+     results: SearchResult[];
 }
 
 export interface SearchParams {
@@ -70,8 +64,7 @@ export async function searchPlaces(
 
     if (!q) {
         return {
-            items: [],
-            total: 0,
+            results: [],
         };
     }
 

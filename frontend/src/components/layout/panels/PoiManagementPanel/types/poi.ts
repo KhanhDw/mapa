@@ -1,5 +1,3 @@
-// types/poi.ts
-
 export interface PoiItem {
     id: number | string;
     name: string | null;

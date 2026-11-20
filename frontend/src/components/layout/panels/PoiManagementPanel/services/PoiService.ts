@@ -1,14 +1,15 @@
-// services/PoiService.ts
+import type {
+    SystemPoiQuery,
+    UpdateUserPoiInput,
+    UserPoiQuery,
+} from "../../../../../api/pois";
 
-import type { PoiItem } from "../../../../../api/pois";
-import { poiRepository } from "../../../../../api/repositories/PoiRepository";
-
-interface PoiQuery {
-    search?: string;
-    category?: string;
-    limit?: number;
-    offset?: number;
-}
+import {
+    deleteUserPoi,
+    fetchSystemPois,
+    fetchUserPois,
+    updateUserPoi,
+} from "../../../../../api/pois";
 
 export class PoiService {
     private static instance: PoiService;
@@ -23,23 +24,23 @@ export class PoiService {
         return PoiService.instance;
     }
 
-    public getUserPois(params: PoiQuery) {
-        return poiRepository.getUserPois(params);
+    public getUserPois(params: UserPoiQuery) {
+        return fetchUserPois(params);
     }
 
-    public getSystemPois(params: PoiQuery) {
-        return poiRepository.getSystemPois(params);
+    public getSystemPois(params: SystemPoiQuery) {
+        return fetchSystemPois(params);
     }
 
     public updatePoi(
         id: number | string,
-        input: Partial<PoiItem>
+        input: UpdateUserPoiInput
     ) {
-        return poiRepository.update(id, input);
+        return updateUserPoi(id, input);
     }
 
     public deletePoi(id: number | string) {
-        return poiRepository.delete(id);
+        return deleteUserPoi(id);
     }
 }
 

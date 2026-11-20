@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 
 import { poiService } from "./services/PoiService";
 
-import type { PoiItem } from "../../../../api/pois";
+import type { PoiWithSource } from "../../../../api/pois";
 import "./PoiManagementPanel.css";
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
     isRecordingLocation: boolean;
     onStartLocationRecording: (cb: (loc: { lng: number; lat: number }) => void) => void;
     onStopLocationRecording: () => void;
-    onGoToPoi: (poi: PoiItem) => void;
+    onGoToPoi: (poi: PoiWithSource) => void;
 }
 
 type SourceTab = "user" | "system";
@@ -48,7 +48,7 @@ export function PoiManagementPanel({
     onGoToPoi,
 }: Props) {
     const [tab, setTab] = useState<SourceTab>("user");
-    const [pois, setPois] = useState<PoiItem[]>([]);
+    const [pois, setPois] = useState<PoiWithSource[]>([]);
     const [total, setTotal] = useState(0);
 
     const [loading, setLoading] = useState(true);
@@ -61,8 +61,8 @@ export function PoiManagementPanel({
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
     const [mode, setMode] = useState<Mode>("list");
-    const [selected, setSelected] = useState<PoiItem | null>(null);
-    const [editing, setEditing] = useState<PoiItem | null>(null);
+    const [selected, setSelected] = useState<PoiWithSource | null>(null);
+    const [editing, setEditing] = useState<PoiWithSource | null>(null);
     const [confirmDeleteId, setConfirmDeleteId] =
         useState<number | string | null>(null);
     const [draft, setDraft] = useState<PoiDraft>(EMPTY_DRAFT);
@@ -177,7 +177,7 @@ export function PoiManagementPanel({
         setError(null);
     };
 
-    const beginEdit = (item: PoiItem) => {
+    const beginEdit = (item: PoiWithSource) => {
         stopLocationRecording();
         setSelected(null);
         setMode("list");
@@ -195,7 +195,7 @@ export function PoiManagementPanel({
         setError(null);
     };
 
-    const openDetail = (item: PoiItem) => {
+    const openDetail = (item: PoiWithSource) => {
         stopLocationRecording();
         setEditing(null);
         setSelected(item);
@@ -283,7 +283,7 @@ export function PoiManagementPanel({
     }
 };
 
-    const handleDelete = async (item: PoiItem) => {
+    const handleDelete = async (item: PoiWithSource) => {
     if (busy) return;
 
     setBusy(true);

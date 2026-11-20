@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SearchResult } from "../../api/search";
 import { searchMap } from "../../api/search";
@@ -51,7 +50,10 @@ export function useMapSearch(activePanel: string | null) {
     useEffect(() => {
         if (activePanel !== "search") {
             searchRequestId.current++;
+
             setSearchLoading(false);
+            setSearchError(null);
+            setSearchResults([]);
         }
     }, [activePanel]);
 

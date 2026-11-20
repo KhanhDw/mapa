@@ -18,16 +18,42 @@ CREATE TABLE IF NOT EXISTS public.vietnam_roads (
 CREATE INDEX IF NOT EXISTS idx_vietnam_roads_geom ON public.vietnam_roads USING gist (geom);
 CREATE INDEX IF NOT EXISTS idx_search_roads_name_trgm ON public.vietnam_roads USING gin (name gin_trgm_ops);
 
+CREATE TABLE public.streetview_links (
+    source_id integer NOT NULL,
+    target_id integer NOT NULL,
+
+    PRIMARY KEY(source_id, target_id),
+
+    CONSTRAINT fk_source
+        FOREIGN KEY(source_id)
+        REFERENCES public.streetview_images(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_target
+        FOREIGN KEY(target_id)
+        REFERENCES public.streetview_images(id)
+        ON DELETE CASCADE
+);
+
 -- 2. Bảng Ảnh Panorama / Street View
 CREATE TABLE IF NOT EXISTS public.streetview_images (
     id SERIAL PRIMARY KEY,
+
     file_path TEXT NOT NULL,
+
     heading DOUBLE PRECISION DEFAULT 0,
     pitch DOUBLE PRECISION DEFAULT 0,
+
+    -- Liên kết tới các panorama tiếp theo
+    next_ids INTEGER[] NOT NULL DEFAULT '{}',
+
     geom GEOMETRY(Point, 4326) NOT NULL,
+
     created_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_streetview_geom ON public.streetview_images USING gist (geom);
+
+CREATE INDEX IF NOT EXISTS idx_streetview_next_ids ON public.streetview_images USING gin (next_ids);
 
 -- 3. Bảng Quản lý Trụ điện (Core feature)
 CREATE TABLE IF NOT EXISTS user_data.electric_poles (

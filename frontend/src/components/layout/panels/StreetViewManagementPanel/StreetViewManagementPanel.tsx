@@ -36,7 +36,7 @@ const COMPASS = [
   "Tây Bắc",
 ];
 
-function headingLabel(h: number | null): string {
+function headingLabel(h: number | null | undefined): string {
   if (h == null) return "Chưa có hướng";
 
   return `${Math.round(h)}° · ${COMPASS[
@@ -44,7 +44,7 @@ function headingLabel(h: number | null): string {
   ]}`;
 }
 
-function formatDate(iso: string | null): string {
+function formatDate(iso: string | null | undefined ): string {
   if (!iso) return "Không rõ";
 
   const d = new Date(iso);
@@ -574,7 +574,7 @@ function ImageCard({
         className="sv-card__main"
         onClick={onOpen}
       >
-        <Thumb src={img.image_url} />
+        <Thumb src={img.image_url ?? img.url ?? null} />
 
         <div className="sv-card__body">
           <div className="sv-card__top">
@@ -590,7 +590,9 @@ function ImageCard({
           </span>
 
           <span className="sv-card__meta sv-card__meta--mono">
-            {img.lat.toFixed(5)}, {img.lng.toFixed(5)}
+            {img.lat != null && img.lng != null
+  ? `${img.lat.toFixed(5)}, ${img.lng.toFixed(5)}`
+  : "Chưa có tọa độ"}
           </span>
         </div>
       </button>
@@ -657,14 +659,11 @@ function ImageDetailView({
   confirmDelete,
   busy,
   error,
-  apiKey,
   onGoToImage,
   onEdit,
   onRequestDelete,
   onConfirmDelete,
   onCancelDelete,
-  onRefreshImage,
-  onReloadList,
 }: {
   image: StreetViewImage;
   confirmDelete: boolean;
@@ -679,15 +678,12 @@ function ImageDetailView({
   onRefreshImage: (image: StreetViewImage) => void;
   onReloadList: () => void;
 }) {
-  const d = useStreetViewDetail(image, apiKey, {
-    onRefreshImage,
-    onReloadList,
-  });
+  const d = useStreetViewDetail(image);
 
   return (
     <div className="coord-sidebar__scroll sv-dashboard__scroll">
       <div className="sv-detail-preview">
-        <Thumb src={image.image_url} />
+        <Thumb src={image.url} />
       </div>
 
       {/* INFORMATION */}
@@ -745,12 +741,22 @@ function ImageDetailView({
         <div className="sv-coords">
           <div>
             <small>LAT</small>
-            <code>{image.lat.toFixed(6)}</code>
+            <code>
+  {image.lat != null
+    ? image.lat.toFixed(6)
+    : "N/A"}
+</code>
+
           </div>
 
           <div>
             <small>LNG</small>
-            <code>{image.lng.toFixed(6)}</code>
+           
+            <code>
+  {image.lng != null
+    ? image.lng.toFixed(6)
+    : "N/A"}
+</code>
           </div>
         </div>
 
