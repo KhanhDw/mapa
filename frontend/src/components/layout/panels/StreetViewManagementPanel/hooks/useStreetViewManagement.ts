@@ -7,9 +7,8 @@ import type {
 } from "../../../../../api/streetview";
 
 import {
-  DEFAULT_API_KEY,
   deleteStreetViewImage,
-  getNearbyStreetViewImages,
+  getNearbyStreetView,
   getStreetViewImages,
   updateStreetViewImage,
 } from "../../../../../api/streetview";
@@ -18,12 +17,6 @@ import {
 // FEATURE FLAGS
 // ======================================================
 
-/**
- * Backend hiện chưa hỗ trợ next_ids.
- * Chỉ bật true khi backend đã có cột next_ids
- * và handler UPDATE tương ứng.
- */
-const LINK_SUPPORTED = false;
 
 // ======================================================
 // TYPES & CONSTANTS
@@ -84,31 +77,32 @@ export const errMsg = (e: unknown): string => {
 /**
  * ISO datetime -> datetime-local input.
  */
-export function toLocalInput(iso: string | null): string {
+export function toLocalInput(
+  iso: string | null | undefined,
+): string {
   if (!iso) return "";
 
   const d = new Date(iso);
 
   if (Number.isNaN(d.getTime())) return "";
 
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours(),
-  )}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+    d.getDate(),
+  )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-
 /**
  * StreetViewImage -> ImageDraft.
  */
 export function toDraft(img: StreetViewImage): ImageDraft {
   return {
     heading: img.heading == null ? "" : String(img.heading),
-
-    lng: String(img.lng),
-    lat: String(img.lat),
-
+    lng: img.lng == null ? "" : String(img.lng),
+    lat: img.lat == null ? "" : String(img.lat),
     captured_at: toLocalInput(img.captured_at),
   };
 }
+
+
 
 /**
  * Kiểm tra tọa độ hợp lệ.
@@ -173,7 +167,7 @@ export function useStreetViewManagement({
   // API KEY
   // ====================================================
 
-  const [apiKey, setApiKey] = useState(DEFAULT_API_KEY);
+const [apiKey, setApiKey] = useState("");
   const [apiKeyError, setApiKeyError] = useState(false);
 
   // ====================================================
@@ -184,7 +178,9 @@ export function useStreetViewManagement({
 
   const [selected, setSelected] = useState<StreetViewImage | null>(null);
 
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<
+  number | string | null
+>(null);
 
   // ====================================================
   // EDIT
@@ -293,34 +289,24 @@ export function useStreetViewManagement({
   // ====================================================
 
   const stats = useMemo(() => {
-    const linked = LINK_SUPPORTED
-      ? images.filter((item) => (item.next_ids?.length ?? 0) > 0).length
-      : 0;
+  return {
+    total,
+    linked: 0,
+    isolated: images.length,
+  };
+}, [images.length, total]);
 
-    return {
-      total,
-      linked,
-      isolated: images.length - linked,
-    };
-  }, [images, total]);
+const visibleImages = useMemo(() => {
+  if (filter === "linked") {
+    return [];
+  }
 
-  const visibleImages = useMemo(() => {
-    return images.filter((item) => {
-      if (!LINK_SUPPORTED) {
-        return filter !== "linked";
-      }
+  return images;
+}, [images, filter]);
 
-      const count = item.next_ids?.length ?? 0;
+const hasMore = images.length < total;
 
-      if (filter === "all") return true;
-
-      if (filter === "linked") return count > 0;
-
-      return count === 0;
-    });
-  }, [images, filter]);
-
-  const hasMore = images.length < total;
+ 
 
   const hasEditLocation = Boolean(draft.lng.trim() && draft.lat.trim());
 
@@ -516,18 +502,20 @@ export function useStreetViewManagement({
         return;
       }
 
-      let heading: number | null = null;
+     let heading: number | undefined;
 
-      if (draft.heading.trim()) {
-        const raw = Number(draft.heading.trim().replace(",", "."));
+if (draft.heading.trim()) {
+  const raw = Number(
+    draft.heading.trim().replace(",", "."),
+  );
 
-        if (!Number.isFinite(raw) || raw < 0 || raw > 360) {
-          setError("Hướng phải trong khoảng 0–360°");
-          return;
-        }
+  if (!Number.isFinite(raw) || raw < 0 || raw > 360) {
+    setError("Hướng phải trong khoảng 0–360°");
+    return;
+  }
 
-        heading = raw % 360;
-      }
+  heading = raw % 360;
+}
 
       let captured_at: string | null = null;
 
@@ -543,11 +531,14 @@ export function useStreetViewManagement({
       }
 
       const updateData: StreetViewUpdate = {
-        heading,
-        lng,
-        lat,
-        captured_at,
-      };
+  lng,
+  lat,
+  captured_at,
+};
+
+if (heading !== undefined) {
+  updateData.heading = heading;
+}
 
       setBusy(true);
       setError(null);
@@ -710,20 +701,12 @@ export interface UseStreetViewDetailOptions {
 
 export function useStreetViewDetail(
   image: StreetViewImage,
-  apiKey: string,
-  { onRefreshImage, onReloadList }: UseStreetViewDetailOptions,
 ) {
   // ====================================================
   // STATE
   // ====================================================
 
   const [copyState, setCopyState] = useState<"idle" | "ok" | "fail">("idle");
-
-  const [targetIdInput, setTargetIdInput] = useState("");
-
-  const [linkBusy, setLinkBusy] = useState(false);
-
-  const [linkError, setLinkError] = useState<string | null>(null);
 
   const [nearby, setNearby] = useState<StreetViewImage[]>([]);
 
@@ -746,38 +729,47 @@ export function useStreetViewDetail(
   // ====================================================
 
   useEffect(() => {
-    let active = true;
+  let active = true;
 
-    setLoadingNearby(true);
+  if (image.lng == null || image.lat == null) {
     setNearby([]);
-
-    getNearbyStreetViewImages({
-      lng: image.lng,
-      lat: image.lat,
-      radius: 60,
-      exclude_id: image.id,
-      limit: 20,
-    })
-      .then((res) => {
-        if (active) {
-          setNearby(res.items);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setNearby([]);
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoadingNearby(false);
-        }
-      });
+    setLoadingNearby(false);
 
     return () => {
       active = false;
     };
-  }, [image.id, image.lng, image.lat]);
+  }
+
+  setLoadingNearby(true);
+  setNearby([]);
+
+  getNearbyStreetView({
+    lng: image.lng,
+    lat: image.lat,
+    radius: 60,
+    exclude_id: image.id,
+    limit: 20,
+  })
+    .then((res) => {
+      if (active) {
+        setNearby(res.items);
+      }
+    })
+    .catch(() => {
+      if (active) {
+        setNearby([]);
+      }
+    })
+    .finally(() => {
+      if (active) {
+        setLoadingNearby(false);
+      }
+    });
+
+  return () => {
+    active = false;
+  };
+}, [image.id, image.lng, image.lat]);
 
   // ====================================================
   // COPY COORDINATES
@@ -799,144 +791,18 @@ export function useStreetViewDetail(
     }, 2000);
   }, [image.lat, image.lng]);
 
-  // ====================================================
-  // ADD LINK
-  // ====================================================
 
-  const addLinkWithId = useCallback(
-    async (nid: number) => {
-      if (!LINK_SUPPORTED) {
-        setLinkError("Tính năng liên kết chưa được backend hỗ trợ.");
-        return;
-      }
 
-      if (!Number.isInteger(nid) || nid <= 0) {
-        setLinkError("Vui lòng nhập ID ảnh hợp lệ");
-        return;
-      }
 
-      if (nid === image.id) {
-        setLinkError("Không thể tự liên kết với chính nó");
-        return;
-      }
-
-      if ((image.next_ids ?? []).includes(nid)) {
-        setLinkError("Ảnh này đã được liên kết từ trước");
-        return;
-      }
-
-      if (!apiKey.trim()) {
-        setLinkError("Vui lòng nhập API key");
-        return;
-      }
-
-      setLinkBusy(true);
-      setLinkError(null);
-
-      try {
-        const updated = await updateStreetViewImage(
-          image.id,
-          {
-            next_ids: [...(image.next_ids ?? []), nid],
-          },
-          apiKey.trim(),
-        );
-
-        setTargetIdInput("");
-
-        onRefreshImage(updated);
-        onReloadList();
-      } catch (err) {
-        setLinkError(errMsg(err));
-      } finally {
-        setLinkBusy(false);
-      }
-    },
-    [image.id, image.next_ids, apiKey, onRefreshImage, onReloadList],
-  );
-
-  // ====================================================
-  // SUBMIT ADD LINK
-  // ====================================================
-
-  const handleAddLink = useCallback(
-    (e: FormEvent) => {
-      e.preventDefault();
-
-      const id = Number(targetIdInput.trim());
-
-      void addLinkWithId(id);
-    },
-    [targetIdInput, addLinkWithId],
-  );
-
-  // ====================================================
-  // REMOVE LINK
-  // ====================================================
-
-  const handleRemoveLink = useCallback(
-    async (idToRemove: number) => {
-      if (!LINK_SUPPORTED) {
-        setLinkError("Tính năng liên kết chưa được backend hỗ trợ.");
-        return;
-      }
-
-      if (!apiKey.trim()) {
-        setLinkError("Vui lòng nhập API key");
-        return;
-      }
-
-      setLinkBusy(true);
-      setLinkError(null);
-
-      try {
-        const updated = await updateStreetViewImage(
-          image.id,
-          {
-            next_ids: (image.next_ids ?? []).filter((id) => id !== idToRemove),
-          },
-          apiKey.trim(),
-        );
-
-        onRefreshImage(updated);
-        onReloadList();
-      } catch (err) {
-        setLinkError(errMsg(err));
-      } finally {
-        setLinkBusy(false);
-      }
-    },
-    [image.id, image.next_ids, apiKey, onRefreshImage, onReloadList],
-  );
-
-  // ====================================================
-  // COMPUTED
-  // ====================================================
-
-  const unlinkedNearby = useMemo(() => {
-    return nearby.filter((item) => !(image.next_ids ?? []).includes(item.id));
-  }, [nearby, image.next_ids]);
 
   // ====================================================
   // RETURN
   // ====================================================
 
   return {
-    copyState,
-
-    targetIdInput,
-    setTargetIdInput,
-
-    linkBusy,
-    linkError,
-
-    nearby,
-    loadingNearby,
-    unlinkedNearby,
-
-    handleCopy,
-    handleAddLink,
-    handleRemoveLink,
-    addLinkWithId,
-  };
+  copyState,
+  nearby,
+  loadingNearby,
+  handleCopy,
+};
 }

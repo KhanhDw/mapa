@@ -2,12 +2,7 @@
 
 import type { PoiItem } from "../../components/layout/panels/PoiManagementPanel/types/poi";
 import { apiClient } from "../http/ApiClient";
-
-
-
-
-
-
+export type { PoiItem };
 /**
  * POI được lấy từ backend.
  *

@@ -6,10 +6,11 @@ import {
 
 import { electricPoleStore } from "../stores/ElectricPoleStore";
 
+
 import type {
     ElectricPoleInput,
+    ElectricPoleQuery,
 } from "../../../../../api/electricPoles";
-
 export function useElectricPoles() {
     // Subscribe Singleton Store
     const state = useSyncExternalStore(
@@ -20,11 +21,11 @@ export function useElectricPoles() {
 
     // Tải danh sách trụ điện
     const refresh = useCallback(
-        (search?: string) => {
-            return electricPoleStore.load(search);
-        },
-        []
-    );
+    (query?: ElectricPoleQuery) => {
+        return electricPoleStore.load(query);
+    },
+    []
+);
 
     // Lấy chi tiết trụ điện
     const getById = useCallback(

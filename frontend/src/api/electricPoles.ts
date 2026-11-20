@@ -63,7 +63,7 @@ function buildQueryParams(
 }
 
 function getWriteHeaders(apiKey?: string): HeadersInit {
-    const key = apiKey || import.meta.env.VITE_WRITE_API_KEY;
+    const key = apiKey;
 
     return key
         ? { "X-API-Key": key }

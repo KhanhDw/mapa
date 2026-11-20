@@ -178,12 +178,19 @@ export function useStreetViewCreate({
 
     try {
       const created = await uploadStreetViewImage(
-        { lng, lat, heading: heading ?? undefined, file: panoDraft.file },
-        {
-          apiKey: apiKey.trim(),
-          onUploadProgress: ({ percent }) => setUploadProgress(percent),
-        },
-      );
+  panoDraft.file,
+  {
+    lng,
+    lat,
+    heading: heading ?? undefined,
+  },
+  {
+    apiKey: apiKey.trim(),
+    onUploadProgress: ({ percent }) => {
+      setUploadProgress(percent);
+    },
+  },
+);
 
       stopLocationRecording();
       resetDraft();

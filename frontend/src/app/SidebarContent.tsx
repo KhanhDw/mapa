@@ -14,7 +14,6 @@ import {
 import type {
     LayerVisibility,
     LayerKey,
-    SearchResult,
     PoiInfo,
 } from "../components/layout/panels";
 
@@ -22,9 +21,11 @@ import type { PanelType } from "../components/layout/Activitybar/ActivityBar";
 
 import type { ElectricPole } from "../api/electricPoles";
 import type { StreetViewImage } from "../api/streetview";
-import type { PoiItem } from "../api/pois";
+import type { PoiWithSource } from "../api/pois";
+import type { SearchResult } from "../api/search";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import type { ClickInfo } from "../components/layout/panels/generalPanel/generalPanel";
+type NavigablePoi = PoiWithSource | SearchResult;
 
 interface SidebarContentProps {
     activePanel: PanelType | null;
@@ -47,7 +48,7 @@ interface SidebarContentProps {
     onStopLocationRecording: () => void;
     onGoToPole: (pole: ElectricPole) => void;
     onGoToImage: (img: StreetViewImage) => void;
-    onGoToPoi: (poi: PoiItem) => void;
+    onGoToPoi: (poi: NavigablePoi) => void;
     setStreetViewVersion: React.Dispatch<React.SetStateAction<number>>;
     setPoisVersion: React.Dispatch<React.SetStateAction<number>>;
     electricPoles: ElectricPole[];
@@ -108,7 +109,6 @@ export function SidebarContent({
     handlePoiStreetView,
 }: SidebarContentProps) {
     if (!activePanel) return null;
-
     return (
         <>
             {activePanel === "layers" && (

@@ -18,11 +18,13 @@ export interface StreetViewImage {
     id: number | string;
     file_path?: string | null;
     filename?: string | null;
+    image_url?: string | null;
     url?: string | null;
     lng?: number;
     lat?: number;
     heading?: number | null;
     pitch?: number | null;
+    distance_meters?: number | null;
     captured_at?: string | null;
     created_at?: string | null;
     [key: string]: unknown;
@@ -44,6 +46,8 @@ export interface StreetViewNearbyResponse {
 }
 
 export interface StreetViewUpdate {
+    lng?: number;
+    lat?: number;
     heading?: number;
     pitch?: number;
     captured_at?: string | null;
@@ -82,6 +86,20 @@ export interface StreetViewUploadResponse {
     [key: string]: unknown;
 }
 
+export interface UploadProgressEvent {
+  percent: number;
+  loaded: number;
+  total: number;
+}
+
+export interface StreetViewUploadOptions {
+  apiKey?: string;
+  signal?: AbortSignal;
+  onUploadProgress?: (
+    progress: UploadProgressEvent
+  ) => void;
+}
+
 export type StreetViewQueryValue = string | number | boolean | undefined;
 
 export type StreetViewQuery = Record<string, StreetViewQueryValue>;
@@ -106,7 +124,7 @@ function buildQueryParams(query: StreetViewQuery = {}): string {
 }
 
 function getWriteHeaders(apiKey?: string): HeadersInit {
-    const key = apiKey || import.meta.env.VITE_WRITE_API_KEY;
+    const key = apiKey ;
 
     return key
         ? { "X-API-Key": key }
@@ -250,7 +268,7 @@ export async function deleteStreetViewImage(
 export async function uploadStreetViewImage(
     file: File,
     data: StreetViewUploadData,
-    apiKey?: string
+    options: StreetViewUploadOptions = {},
 ): Promise<StreetViewUploadResponse> {
     const formData = new FormData();
 
@@ -282,8 +300,9 @@ export async function uploadStreetViewImage(
         "/api/streetview/upload",
         {
             method: "POST",
-            headers: getWriteHeaders(apiKey),
+            headers: getWriteHeaders(options.apiKey),
             body: formData,
+            signal: options.signal,
         }
     );
 }

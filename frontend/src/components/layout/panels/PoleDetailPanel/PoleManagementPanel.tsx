@@ -48,12 +48,28 @@ const STATUS_LABELS: Record<ElectricPoleStatus, string> = {
 function toDraft(pole: ElectricPole): PoleDraft {
   return {
     pole_code: pole.pole_code,
-    route: pole.route,
+    route: pole.route ?? "",
     status: pole.status,
     lng: String(pole.lng),
     lat: String(pole.lat),
     detail: pole.detail ?? "",
   };
+}
+
+function formatDate(
+  value: string | null | undefined
+): string {
+  if (!value) {
+    return "Chưa cập nhật";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Chưa cập nhật";
+  }
+
+  return date.toLocaleString("vi-VN");
 }
 
 export function PoleManagementPanel({
@@ -117,7 +133,9 @@ export function PoleManagementPanel({
       return (
         !query ||
         pole.pole_code.toLocaleLowerCase().includes(query) ||
-        pole.route.toLocaleLowerCase().includes(query)
+        (pole.route ?? "")
+          .toLocaleLowerCase()
+          .includes(query)
       );
     });
   }, [poles, search, statusFilter]);
@@ -980,13 +998,13 @@ function PoleDetailView({
         <div className="pole-dashboard__detail-row">
           <span className="pole-dashboard__detail-label">Tạo lúc</span>
           <span className="pole-dashboard__detail-value">
-            {new Date(pole.created_at).toLocaleString("vi-VN")}
+            {formatDate(pole.created_at)}
           </span>
         </div>
         <div className="pole-dashboard__detail-row">
           <span className="pole-dashboard__detail-label">Cập nhật</span>
           <span className="pole-dashboard__detail-value">
-            {new Date(pole.updated_at).toLocaleString("vi-VN")}
+            {formatDate(pole.updated_at)}
           </span>
         </div>
       </div>

@@ -94,7 +94,13 @@ function InfoRow({
     );
 }
 
-function formatDate(value: string | Date) {
+function formatDate(
+    value: string | Date | null | undefined
+) {
+    if (!value) {
+        return "Chưa cập nhật";
+    }
+
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
