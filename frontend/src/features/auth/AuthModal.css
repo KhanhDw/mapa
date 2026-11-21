@@ -1,0 +1,103 @@
+
+.auth-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.58);
+    backdrop-filter: blur(3px);
+}
+
+.auth-modal {
+    position: relative;
+    width: min(920px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow: auto;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+}
+
+.auth-modal__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e5dfd7;
+    border-radius: 50%;
+    background: #fff;
+    color: #1f1b16;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.auth-modal__close:hover {
+    background: #f5f5f4;
+}
+
+.auth-modal .auth-wrapper {
+    width: 100%;
+    min-height: 0;
+    height: min(720px, calc(100vh - 48px));
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.auth-modal .illustration-side {
+    min-width: 0;
+}
+
+.auth-modal .form-side {
+    min-width: 0;
+    overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+    .auth-modal {
+        width: min(480px, 100%);
+    }
+
+    .auth-modal .auth-wrapper {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: min(620px, calc(100vh - 48px));
+    }
+
+    .auth-modal .illustration-side {
+        display: none;
+    }
+
+    .auth-modal .form-side {
+        min-height: min(620px, calc(100vh - 48px));
+        padding: 56px 24px 32px;
+    }
+}
+
+@media (max-width: 520px) {
+    .auth-modal-overlay {
+        padding: 10px;
+    }
+
+    .auth-modal {
+        max-height: calc(100vh - 20px);
+    }
+
+    .auth-modal .auth-wrapper {
+        min-height: calc(100vh - 20px);
+    }
+
+    .auth-modal .form-side {
+        min-height: calc(100vh - 20px);
+        padding: 56px 20px 28px;
+    }
+}

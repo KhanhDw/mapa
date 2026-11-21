@@ -1,13 +1,16 @@
+
 import { API_BASE } from '../../../core/config';
 import type { User } from '../types';
 
 export interface LoginPayload {
+    /** Username hoặc email */
     email: string;
     password: string;
     rememberMe: boolean;
 }
 
 export interface RegisterPayload {
+    username: string;
     fullName: string;
     email: string;
     password: string;
@@ -17,43 +20,95 @@ export interface RegisterPayload {
 export interface AuthResult {
     user: User;
     token: string;
-    /** số giây token còn hiệu lực */
+    /** Số giây token còn hiệu lực */
     expiresIn: number;
+}
+
+interface LoginResponse {
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    user: {
+        id: number;
+        username: string;
+        email: string;
+        display_name: string | null;
+        role: string;
+        is_active: boolean;
+        created_at: string;
+    };
+}
+
+interface RegisterResponse {
+    id: number;
+    username: string;
+    email: string;
+    display_name: string | null;
+    role: string;
+    is_active: boolean;
+    created_at: string;
 }
 
 export async function login(payload: LoginPayload): Promise<AuthResult> {
     const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-    identifier: payload.email,
-    password: payload.password,
-}),
-    });
-    if (!res.ok) throw new Error((await readError(res)) ?? 'Đăng nhập thất bại.');
-    return normalize(await res.json(), payload.rememberMe);
-}
-
-export async function register(payload: RegisterPayload): Promise<AuthResult> {
-    const res = await fetch(`${API_BASE}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            full_name: payload.fullName,
-            email: payload.email,
+            identifier: payload.email.trim(),
             password: payload.password,
         }),
     });
-    if (!res.ok) throw new Error((await readError(res)) ?? 'Đăng ký thất bại.');
-    return normalize(await res.json(), true);
+
+    if (!res.ok) {
+        throw new Error(
+            (await readError(res)) ?? 'Đăng nhập thất bại.',
+        );
+    }
+
+    const data = (await res.json()) as LoginResponse;
+
+    return normalizeLogin(data);
+}
+
+export async function register(
+    payload: RegisterPayload,
+): Promise<AuthResult> {
+    const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: payload.username.trim(),
+            email: payload.email.trim(),
+            password: payload.password,
+            display_name: payload.fullName.trim() || null,
+        }),
+    });
+
+    if (!res.ok) {
+        throw new Error(
+            (await readError(res)) ?? 'Đăng ký thất bại.',
+        );
+    }
+
+    // Backend trả UserOut, không trả JWT.
+    // Parse response để xác nhận contract đăng ký.
+    await res.json() as RegisterResponse;
+
+    // Đăng ký thành công: đăng nhập ngay bằng username vừa tạo.
+    return login({
+        email: payload.username.trim(),
+        password: payload.password,
+        rememberMe: true,
+    });
 }
 
 export async function logout(): Promise<void> {
-    try {
-        await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' });
-    } catch {
-        /* không quan trọng – client vẫn xoá session */
-    }
+    // Backend hiện chưa khai báo endpoint /logout.
+    // Session được xóa ở AuthContext bằng writePersistedAuth(null).
 }
 
 async function readError(res: Response): Promise<string | null> {
@@ -65,18 +120,32 @@ async function readError(res: Response): Promise<string | null> {
     }
 }
 
-function normalize(raw: Record<string, unknown>, rememberMe: boolean): AuthResult {
-    const u = (raw.user ?? raw) as Record<string, unknown>;
+function normalizeLogin(raw: LoginResponse): AuthResult {
+    if (!raw.access_token) {
+        throw new Error('Server không trả về access_token.');
+    }
+
+    if (
+        typeof raw.expires_in !== 'number' ||
+        !Number.isFinite(raw.expires_in) ||
+        raw.expires_in <= 0
+    ) {
+        throw new Error('Thời hạn access_token không hợp lệ.');
+    }
+
+    if (!raw.user || raw.user.id == null) {
+        throw new Error('Server không trả về thông tin người dùng hợp lệ.');
+    }
+
     const user: User = {
-        id: String(u.id ?? ''),
-        email: String(u.email ?? ''),
-        fullName: String(u.full_name ?? u.fullName ?? ''),
-        avatarUrl: (u.avatar_url ?? u.avatarUrl ?? undefined) as string | undefined,
+        id: String(raw.user.id),
+        email: raw.user.email,
+        fullName: raw.user.display_name ?? raw.user.username,
     };
-    const token = (raw.access_token ?? raw.token ?? '') as string;
-    if (!token) throw new Error('Server không trả về token.');
-    const expiresIn =
-        (raw.expires_in as number) ??
-        (rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 12);
-    return { user, token, expiresIn };
+
+    return {
+        user,
+        token: raw.access_token,
+        expiresIn: raw.expires_in,
+    };
 }

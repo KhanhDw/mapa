@@ -10,7 +10,7 @@ import {
 
 import type { ElectricPole } from "./features/electric-poles/api/electricPoles";
 import type { StreetViewImage } from "./features/streetview/api/streetview";
-import type { PoiWithSource  } from "./features/poi/api/pois";
+import type { PoiWithSource } from "./features/poi/api/pois";
 
 import { type PoiInfo } from "./features/map/components/MapPointInfoPanel/generalPanel";
 import { StreetViewModal } from "./components/streetview/StreetViewModal/StreetViewModal";
@@ -19,8 +19,7 @@ import { API_BASE } from "./core/config";
 import { useElectricPoles } from "./app/hooks/useElectricPoles";
 import { SidebarContent } from "./app/SidebarContent";
 import { MapContainerView } from "./components/layout/MapContainerView";
-
-
+import { useAuth } from "./features/auth/useAuth";
 import { type LayerVisibility, type LayerKey } from "./features/map/types/types";
 
 import { createDefaultLayerVisibility } from "./features/map/components/EsriSatelliteMap/layers/registry";
@@ -32,17 +31,31 @@ import { useClickMarker } from "./features/map/components/EsriSatelliteMap/hooks
 import { useClickPointInfo } from "./features/map/components/EsriSatelliteMap/hooks/useClickPointInfo";
 
 import { useMapSearch } from "./features/search/hooks/useMapSearch";
-
 import "./styles/App.css";
+import { AuthGate } from "./features/auth/AuthGate";
+import "./features/auth/AuthModal.css";
 
 const SHOW_SWITCHER = import.meta.env.VITE_SHOW_MAP_SWITCHER === "true";
 type NavigablePoi = PoiWithSource | SearchResult;
+
 const isManagementPanel = (panel: PanelType | null) =>
   panel === "poleManagement" ||
   panel === "streetviewManagement" ||
   panel === "poiManagement";
 
+// ✅ Fix bước 2: helper phân quyền dùng chung
+const requiresAuthentication = (panel: PanelType | null) =>
+  panel === "electric" ||
+  panel === "poleManagement" ||
+  panel === "streetviewManagement" ||
+  panel === "poiManagement" ||
+  panel === "contribute" ||
+  panel === "settings";
+
 export default function App() {
+  const { user, token } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const isAuthenticated = user !== null && token !== null;
   const [mapType, setMapType] = useState<MapType>("esri");
   const [activePanel, setActivePanel] = useState<PanelType | null>(null);
   const [mapKey, setMapKey] = useState(0);
@@ -85,10 +98,10 @@ export default function App() {
     requestId: number;
   } | null>(null);
 
-const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
-  poi: NavigablePoi;
-  requestId: number;
-} | null>(null);
+  const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
+    poi: NavigablePoi;
+    requestId: number;
+  } | null>(null);
 
   // Custom Hooks
   const { electricPoles, refreshPoles } = useElectricPoles();
@@ -99,7 +112,7 @@ const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
 
   const { clickInfo, clear: clearClick } = useClickMarker(
     mapInstance,
-    !isRecordingPoleLocation
+    !isRecordingPoleLocation,
   );
 
   const {
@@ -119,10 +132,11 @@ const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
     if (prevClickKeyRef.current === newKey) return;
     prevClickKeyRef.current = newKey;
 
+    if (isAuthModalOpen) return;
     if (isRecordingPoleLocation) return;
     if (activePanel === "contribute") return;
     setActivePanel("info");
-  }, [clickInfo, isRecordingPoleLocation, activePanel]);
+  }, [clickInfo, isRecordingPoleLocation, activePanel, isAuthModalOpen]);
 
   const clearClickRef = useRef(clearClick);
   useEffect(() => {
@@ -157,33 +171,33 @@ const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
   }, [mapInstance, poleNavigationRequest]);
 
   useEffect(() => {
-  if (!mapInstance || !streetViewNavigationRequest) return;
+    if (!mapInstance || !streetViewNavigationRequest) return;
 
-  const { image } = streetViewNavigationRequest;
+    const { image } = streetViewNavigationRequest;
 
-  if (
-    typeof image.lng !== "number" ||
-    !Number.isFinite(image.lng) ||
-    typeof image.lat !== "number" ||
-    !Number.isFinite(image.lat)
-  ) {
-    return;
-  }
+    if (
+      typeof image.lng !== "number" ||
+      !Number.isFinite(image.lng) ||
+      typeof image.lat !== "number" ||
+      !Number.isFinite(image.lat)
+    ) {
+      return;
+    }
 
-  const startId = Number(image.id);
+    const startId = Number(image.id);
 
-  if (!Number.isInteger(startId)) {
-    return;
-  }
+    if (!Number.isInteger(startId)) {
+      return;
+    }
 
-  mapInstance.flyTo({
-    center: [image.lng, image.lat],
-    zoom: 17,
-    duration: 800,
-  });
+    mapInstance.flyTo({
+      center: [image.lng, image.lat],
+      zoom: 17,
+      duration: 800,
+    });
 
-  setSvModal({ open: true, startId });
-}, [mapInstance, streetViewNavigationRequest]);
+    setSvModal({ open: true, startId });
+  }, [mapInstance, streetViewNavigationRequest]);
 
   useEffect(() => {
     if (!mapInstance || !poiNavigationRequest) return;
@@ -196,25 +210,52 @@ const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
   }, [mapInstance, poiNavigationRequest]);
 
   const handlePanelToggle = (panel: PanelType) => {
+    if (isAuthModalOpen) return;
+    // ✅ Fix bước 2: dùng helper
+    if (requiresAuthentication(panel) && !isAuthenticated) {
+      return;
+    }
+
     const next = activePanel === panel ? null : panel;
+
     if (activePanel === "electric" || panel === "electric") {
       setSelectedPoleId(null);
     }
+
     if (isManagementPanel(panel) || isManagementPanel(activePanel)) {
       poleLocationRecordedHandler.current = null;
       setIsRecordingPoleLocation(false);
     }
+
     setActivePanel(next);
   };
 
-  const handleElectricPoleSelect = useCallback((pole: ElectricPole) => {
-    setSelectedPoleId(pole.id);
-    setActivePanel("electric");
-    setPoleNavigationRequest((current) => ({
-      pole,
-      requestId: (current?.requestId ?? 0) + 1,
-    }));
-  }, []);
+  // ✅ Fix bước 2: effect đăng xuất đóng tất cả panel được bảo vệ
+  useEffect(() => {
+    if (isAuthenticated || !requiresAuthentication(activePanel)) {
+      return;
+    }
+
+    setActivePanel(null);
+    setSelectedPoleId(null);
+    poleLocationRecordedHandler.current = null;
+    setIsRecordingPoleLocation(false);
+  }, [isAuthenticated, activePanel]);
+
+  // ✅ Fix bước 2: chặn mở panel "electric" khi chưa đăng nhập
+  const handleElectricPoleSelect = useCallback(
+    (pole: ElectricPole) => {
+      if (!isAuthenticated) return;
+
+      setSelectedPoleId(pole.id);
+      setActivePanel("electric");
+      setPoleNavigationRequest((current) => ({
+        pole,
+        requestId: (current?.requestId ?? 0) + 1,
+      }));
+    },
+    [isAuthenticated],
+  );
 
   const handlePoleLocationRecorded = useCallback(
     (location: { lng: number; lat: number }) => {
@@ -240,11 +281,11 @@ const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
   }, []);
 
   const handleGoToPoi = useCallback((poi: NavigablePoi) => {
-  setPoiNavigationRequest((current) => ({
-    poi,
-    requestId: (current?.requestId ?? 0) + 1,
-  }));
-}, []);
+    setPoiNavigationRequest((current) => ({
+      poi,
+      requestId: (current?.requestId ?? 0) + 1,
+    }));
+  }, []);
 
   const handleStartPoleLocationRecording = useCallback(
     (onLocationRecorded: (location: { lng: number; lat: number }) => void) => {
@@ -380,13 +421,79 @@ const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
   const activePoi = selectedPoi?.clickKey === clickKey ? selectedPoi.poi : null;
   const showLocationSidebar = activePanel === "info";
 
+  const handleLoginClick = useCallback(() => {
+    handlePanelClose();
+    setIsAuthModalOpen(true);
+  }, [handlePanelClose]);
+
+  const handleAuthModalClose = useCallback(() => {
+    setIsAuthModalOpen(false);
+  }, []);
+
+  // Tự đóng modal sau khi đăng nhập hoặc đăng ký thành công.
+  useEffect(() => {
+    if (isAuthenticated) {
+      setIsAuthModalOpen(false);
+    }
+  }, [isAuthenticated]);
+
+  // Đóng modal bằng phím Escape.
+  useEffect(() => {
+    if (!isAuthModalOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        handleAuthModalClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAuthModalOpen, handleAuthModalClose]);
+
   return (
     <div className="app-layout">
       {/* PANEL 1: ACTIVITY BAR */}
       <ActivityBar
         activePanel={activePanel}
+        isAuthenticated={isAuthenticated}
         onPanelToggle={handlePanelToggle}
+        onLoginClick={handleLoginClick}
       />
+
+      {isAuthModalOpen &&
+        createPortal(
+          <div
+            className="auth-modal-overlay"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                handleAuthModalClose();
+              }
+            }}
+          >
+            <section
+              className="auth-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Đăng nhập hoặc đăng ký"
+            >
+              <button
+                type="button"
+                className="auth-modal__close"
+                onClick={handleAuthModalClose}
+                aria-label="Đóng cửa sổ đăng nhập"
+              >
+                ×
+              </button>
+
+              <AuthGate />
+            </section>
+          </div>,
+          document.body,
+        )}
 
       {/* PANEL 2: SIDEBAR */}
       {isSidebarOpen && (
@@ -396,6 +503,7 @@ const [poiNavigationRequest, setPoiNavigationRequest] = useState<{
           <SidebarContent
             activePanel={activePanel}
             mapType={mapType}
+            isAuthenticated={isAuthenticated}
             setMapType={setMapType}
             showMapSwitcher={SHOW_SWITCHER}
             layers={layers}

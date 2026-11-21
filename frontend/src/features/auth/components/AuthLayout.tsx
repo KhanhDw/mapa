@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
-import './AuthPages.css';
+import './AuthLayout.css';
 
 interface AuthLayoutProps {
     children: ReactNode;
+    appName?: string;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Shared icons / atoms                                                       */
+/* Biểu tượng dùng chung                                                      */
 /* -------------------------------------------------------------------------- */
 
 const BrandMark = () => (
@@ -17,19 +18,35 @@ const BrandMark = () => (
     </svg>
 );
 
-
-
 export const EyeOpen = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+        width="19"
+        height="19"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+    >
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
         <circle cx="12" cy="12" r="3" />
     </svg>
 );
 
 export const EyeClosed = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+        width="19"
+        height="19"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+    >
         <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
         <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
         <line x1="1" y1="1" x2="23" y2="23" />
@@ -39,16 +56,20 @@ export const EyeClosed = () => (
 interface PasswordToggleProps {
     visible: boolean;
     onToggle: () => void;
-    /** Mô tả ngữ cảnh, ví dụ "password" / "confirm password" */
+    /** Nhãn trường mật khẩu bằng tiếng Việt, ví dụ: "mật khẩu", "xác nhận mật khẩu" */
     fieldLabel?: string;
 }
 
-export const PasswordToggle = ({ visible, onToggle, fieldLabel = 'password' }: PasswordToggleProps) => (
+export const PasswordToggle = ({
+    visible,
+    onToggle,
+    fieldLabel = 'mật khẩu',
+}: PasswordToggleProps) => (
     <button
         type="button"
         className="password-toggle"
         onClick={onToggle}
-        aria-label={visible ? `Hide ${fieldLabel}` : `Show ${fieldLabel}`}
+        aria-label={visible ? `Ẩn ${fieldLabel}` : `Hiện ${fieldLabel}`}
         aria-pressed={visible}
     >
         {visible ? <EyeClosed /> : <EyeOpen />}
@@ -56,7 +77,7 @@ export const PasswordToggle = ({ visible, onToggle, fieldLabel = 'password' }: P
 );
 
 /* -------------------------------------------------------------------------- */
-/* Decorative pieces                                                          */
+/* Thành phần trang trí                                                       */
 /* -------------------------------------------------------------------------- */
 
 const KawaiiFace = () => (
@@ -82,18 +103,18 @@ const CHARACTER_VARIANTS = [
 ] as const;
 
 /* -------------------------------------------------------------------------- */
-/* Layout                                                                     */
+/* Khung bố cục xác thực                                                       */
 /* -------------------------------------------------------------------------- */
 
-export const AuthLayout = ({ children }: AuthLayoutProps) => (
+export const AuthLayout = ({ children, appName = 'Hệ thống nội bộ' }: AuthLayoutProps) => (
     <div className="auth-wrapper">
-        <section className="illustration-side" aria-label="Brand illustration">
+        <section className="illustration-side" aria-label="Minh họa hệ thống nội bộ">
             <a href="#home" className="brand-logo">
                 <span className="brand-icon"><BrandMark /></span>
-                <span className="brand-name">Forma</span>
+                <span className="brand-name">{appName}</span>
+                <span className="brand-badge">Nội bộ</span>
             </a>
 
-            {/* Twinkling ambient particles (decorative) */}
             {[1, 2, 3, 4].map((n) => (
                 <span key={n} className={`sparkle sparkle-${n}`} aria-hidden="true" />
             ))}
@@ -105,6 +126,10 @@ export const AuthLayout = ({ children }: AuthLayoutProps) => (
                     </div>
                 ))}
             </div>
+
+            <p className="illustration-caption">
+                Cổng làm việc và quản lý nghiệp vụ nội bộ
+            </p>
         </section>
 
         <main className="form-side">

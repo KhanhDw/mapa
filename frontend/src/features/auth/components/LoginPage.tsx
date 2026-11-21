@@ -19,12 +19,9 @@ interface LoginPageProps {
     onSubmit?: (values: LoginFormValues) => void | Promise<void>;
     onSwitchToRegister?: () => void;
     onForgotPassword?: () => void;
-    onGoogleSignIn?: () => void;
     submitting?: boolean;
     serverError?: string | null;
 }
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginPage({
     onSubmit,
@@ -33,7 +30,11 @@ export function LoginPage({
     submitting = false,
     serverError = null,
 }: LoginPageProps) {
-    const [form, setForm] = useState<LoginFormValues>({ email: '', password: '', rememberMe: false });
+    const [form, setForm] = useState<LoginFormValues>({
+        email: '',
+        password: '',
+        rememberMe: false,
+    });
     const [errors, setErrors] = useState<LoginFormErrors>({});
     const [showPassword, setShowPassword] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,9 +55,15 @@ export function LoginPage({
 
     const validate = (): boolean => {
         const next: LoginFormErrors = {};
-        if (!form.email.trim()) next.email = 'Email address is required.';
-        else if (!EMAIL_RE.test(form.email)) next.email = 'Please enter a valid email address.';
-        if (!form.password) next.password = 'Password is required.';
+
+        if (!form.email.trim()) {
+            next.email = 'Vui lòng nhập tên đăng nhập hoặc email.';
+        }
+
+        if (!form.password) {
+            next.password = 'Vui lòng nhập mật khẩu.';
+        }
+
         setErrors(next);
         return Object.keys(next).length === 0;
     };
@@ -68,7 +75,7 @@ export function LoginPage({
         try {
             await onSubmit?.(form);
         } catch {
-            /* AuthContext đã set serverError, không cần log lại */
+            /* Lỗi từ hệ thống được xử lý ở tầng AuthContext */
         } finally {
             setIsSubmitting(false);
         }
@@ -77,9 +84,9 @@ export function LoginPage({
     return (
         <AuthLayout>
             <header className="form-header">
-                <h1 className="form-title">Welcome back!</h1>
+                <h1 className="form-title">Đăng nhập</h1>
                 <p className="form-subtitle">
-                    Please enter your details to sign in to your workspace.
+                    Nhập thông tin tài khoản nội bộ để truy cập hệ thống.
                 </p>
             </header>
 
@@ -88,23 +95,28 @@ export function LoginPage({
             )}
 
             <form className="auth-form" onSubmit={handleSubmit} noValidate>
-                {/* Email */}
+                {/* Tên đăng nhập hoặc Email */}
                 <div className="input-group">
-                    <label htmlFor="email" className="input-label">Email address</label>
+                    <label htmlFor="email" className="input-label">
+                        Tên đăng nhập hoặc email
+                    </label>
+
                     <div className="input-wrapper">
                         <input
                             id="email"
                             name="email"
-                            type="email"
+                            type="text"
                             className={`auth-input ${errors.email ? 'input-error' : ''}`}
-                            placeholder="you@company.com"
+                            placeholder="nhap.ten.dang.nhap hoặc email@noibo.vn"
                             value={form.email}
                             onChange={handleChange}
-                            autoComplete="email"
+                            autoComplete="username"
+                            disabled={busy}
                             aria-invalid={Boolean(errors.email)}
                             aria-describedby={errors.email ? 'email-error' : undefined}
                         />
                     </div>
+
                     {errors.email && (
                         <span id="email-error" className="error-text" role="alert">
                             {errors.email}
@@ -112,17 +124,20 @@ export function LoginPage({
                     )}
                 </div>
 
-                {/* Password */}
+                {/* Mật khẩu */}
                 <div className="input-group">
                     <div className="input-label-row">
-                        <label htmlFor="password" className="input-label">Password</label>
-                        <button
-                            type="button"
-                            className="forgot-link"
-                            onClick={onForgotPassword}
-                        >
-                            Forgot password?
-                        </button>
+                        <label htmlFor="password" className="input-label">Mật khẩu</label>
+                        {onForgotPassword && (
+                            <button
+                                type="button"
+                                className="forgot-link"
+                                onClick={onForgotPassword}
+                                disabled={busy}
+                            >
+                                Quên mật khẩu?
+                            </button>
+                        )}
                     </div>
                     <div className="input-wrapper">
                         <input
@@ -130,14 +145,19 @@ export function LoginPage({
                             name="password"
                             type={showPassword ? 'text' : 'password'}
                             className={`auth-input has-icon ${errors.password ? 'input-error' : ''}`}
-                            placeholder="••••••••"
+                            placeholder="Nhập mật khẩu"
                             value={form.password}
                             onChange={handleChange}
                             autoComplete="current-password"
+                            disabled={busy}
                             aria-invalid={Boolean(errors.password)}
                             aria-describedby={errors.password ? 'password-error' : undefined}
                         />
-                        <PasswordToggle visible={showPassword} onToggle={() => setShowPassword((v) => !v)} />
+                        <PasswordToggle
+                            visible={showPassword}
+                            onToggle={() => setShowPassword((v) => !v)}
+                            fieldLabel="mật khẩu"
+                        />
                     </div>
                     {errors.password && (
                         <span id="password-error" className="error-text" role="alert">
@@ -146,7 +166,7 @@ export function LoginPage({
                     )}
                 </div>
 
-                {/* Remember me */}
+                {/* Ghi nhớ đăng nhập */}
                 <div className="remember-row">
                     <input
                         id="remember"
@@ -155,24 +175,29 @@ export function LoginPage({
                         className="remember-checkbox"
                         checked={form.rememberMe}
                         onChange={handleChange}
+                        disabled={busy}
                     />
-                    <label htmlFor="remember" className="remember-label">Remember for 30 days</label>
+                    <label htmlFor="remember" className="remember-label">
+                        Duy trì đăng nhập trong 30 ngày
+                    </label>
                 </div>
 
-                {/* Actions */}
+                {/* Nút gửi */}
                 <div className="button-group">
                     <button type="submit" className="btn-primary" disabled={busy}>
-                        {isSubmitting ? 'Signing in…' : 'Sign in'}
+                        {isSubmitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
                     </button>
                 </div>
             </form>
 
-            <footer className="form-footer">
-                Don&apos;t have an account?{' '}
-                <button type="button" className="switch-link" onClick={onSwitchToRegister}>
-                    Sign up
-                </button>
-            </footer>
+            {onSwitchToRegister && (
+                <footer className="form-footer">
+                    Chưa có tài khoản nội bộ?{' '}
+                    <button type="button" className="switch-link" onClick={onSwitchToRegister}>
+                        Đăng ký tài khoản
+                    </button>
+                </footer>
+            )}
         </AuthLayout>
     );
 }

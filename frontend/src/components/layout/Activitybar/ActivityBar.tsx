@@ -9,8 +9,9 @@ import {
     Globe2,
     MapPinned,
     CirclePlus,
-    Settings,
+    LogIn,
 } from "lucide-react";
+import { UserMenu } from "../../../features/auth/components/UserMenu";
 
 export type PanelType =
     | "info"
@@ -27,7 +28,9 @@ export type MapType = "esri" | "selfhost" | "osm" | "test";
 
 interface Props {
     activePanel: PanelType | null;
+    isAuthenticated: boolean;
     onPanelToggle: (panel: PanelType) => void;
+    onLoginClick: () => void;
 }
 
 function ActivityButton({
@@ -63,14 +66,13 @@ const iconProps = {
 
 export function ActivityBar({
     activePanel,
+    isAuthenticated,
     onPanelToggle,
+    onLoginClick,
 }: Props) {
     return (
         <nav className="activity-bar" aria-label="Thanh công cụ">
-
-            {/* PHẦN TRÊN */}
             <div className="activity-bar__top">
-
                 <div
                     className="activity-bar__brand"
                     role="img"
@@ -84,11 +86,10 @@ export function ActivityBar({
                     />
                 </div>
 
-                {/* Bản đồ & tìm kiếm */}
                 <div
                     className="activity-bar__group"
                     role="group"
-                    aria-label="Bản đồ & tìm kiếm"
+                    aria-label="Bản đồ và tìm kiếm"
                 >
                     <ActivityButton
                         active={activePanel === "info"}
@@ -115,83 +116,101 @@ export function ActivityBar({
                     </ActivityButton>
                 </div>
 
-                <div className="activity-bar__divider" />
+                {isAuthenticated && (
+                    <>
+                        <div className="activity-bar__divider" />
 
-                {/* Điện lực */}
-                <div
-                    className="activity-bar__group"
-                    role="group"
-                    aria-label="Điện lực"
-                >
-                    <ActivityButton
-                        active={activePanel === "electric"}
-                        onClick={() => onPanelToggle("electric")}
-                        label="Thông tin trụ điện"
-                    >
-                        <Zap {...iconProps} />
-                    </ActivityButton>
+                        <div
+                            className="activity-bar__group"
+                            role="group"
+                            aria-label="Điện lực"
+                        >
+                            <ActivityButton
+                                active={activePanel === "electric"}
+                                onClick={() => onPanelToggle("electric")}
+                                label="Thông tin trụ điện"
+                            >
+                                <Zap {...iconProps} />
+                            </ActivityButton>
 
-                    <ActivityButton
-                        active={activePanel === "poleManagement"}
-                        onClick={() => onPanelToggle("poleManagement")}
-                        label="Quản lý trụ điện"
-                    >
-                        <Cable {...iconProps} />
-                    </ActivityButton>
-                </div>
+                            <ActivityButton
+                                active={activePanel === "poleManagement"}
+                                onClick={() => onPanelToggle("poleManagement")}
+                                label="Quản lý trụ điện"
+                            >
+                                <Cable {...iconProps} />
+                            </ActivityButton>
+                        </div>
 
-                <div className="activity-bar__divider" />
+                        <div className="activity-bar__divider" />
 
-                {/* Quản lý hệ thống */}
-                <div
-                    className="activity-bar__group"
-                    role="group"
-                    aria-label="Quản lý hệ thống"
-                >
-                    <ActivityButton
-                        active={activePanel === "streetviewManagement"}
-                        onClick={() => onPanelToggle("streetviewManagement")}
-                        label="Quản lý ảnh Street View"
-                    >
-                        <Globe2 {...iconProps} />
-                    </ActivityButton>
+                        <div
+                            className="activity-bar__group"
+                            role="group"
+                            aria-label="Quản lý hệ thống"
+                        >
+                            <ActivityButton
+                                active={activePanel === "streetviewManagement"}
+                                onClick={() => onPanelToggle("streetviewManagement")}
+                                label="Quản lý ảnh Street View"
+                            >
+                                <Globe2 {...iconProps} />
+                            </ActivityButton>
 
-                    <ActivityButton
-                        active={activePanel === "poiManagement"}
-                        onClick={() => onPanelToggle("poiManagement")}
-                        label="Quản lý địa điểm (POI)"
-                    >
-                        <MapPinned {...iconProps} />
-                    </ActivityButton>
-                </div>
+                            <ActivityButton
+                                active={activePanel === "poiManagement"}
+                                onClick={() => onPanelToggle("poiManagement")}
+                                label="Quản lý địa điểm (POI)"
+                            >
+                                <MapPinned {...iconProps} />
+                            </ActivityButton>
+                        </div>
+                    </>
+                )}
             </div>
 
-            {/* PHẦN DƯỚI */}
             <div className="activity-bar__bottom">
+                {isAuthenticated ? (
+                    <>
+                        <div className="activity-bar__divider" />
 
-                <div className="activity-bar__divider" />
+                        <div
+                            className="activity-bar__group"
+                            role="group"
+                            aria-label="Đóng góp"
+                        >
+                            <ActivityButton
+                                active={activePanel === "contribute"}
+                                onClick={() => onPanelToggle("contribute")}
+                                label="Đóng góp địa điểm"
+                            >
+                                <CirclePlus {...iconProps} />
+                            </ActivityButton>
+                        </div>
 
-                <div
-                    className="activity-bar__group"
-                    role="group"
-                    aria-label="Khác"
-                >
-                    <ActivityButton
-                        active={activePanel === "contribute"}
-                        onClick={() => onPanelToggle("contribute")}
-                        label="Đóng góp địa điểm"
-                    >
-                        <CirclePlus {...iconProps} />
-                    </ActivityButton>
+                        <UserMenu
+                            onSettingsClick={() => onPanelToggle("settings")}
+                        />
+                    </>
+                ) : (
+                    <>
+                        <div className="activity-bar__divider" />
 
-                    <ActivityButton
-                        active={activePanel === "settings"}
-                        onClick={() => onPanelToggle("settings")}
-                        label="Cài đặt"
-                    >
-                        <Settings {...iconProps} />
-                    </ActivityButton>
-                </div>
+                        <div
+                            className="activity-bar__group"
+                            role="group"
+                            aria-label="Tài khoản"
+                        >
+                            <ActivityButton
+                                active={false}
+                                onClick={onLoginClick}
+                                label="Đăng nhập"
+                            >
+                                <LogIn {...iconProps} />
+                            </ActivityButton>
+                        </div>
+                    </>
+                )}
             </div>
         </nav>
     );

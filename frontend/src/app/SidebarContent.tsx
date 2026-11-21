@@ -17,7 +17,10 @@ import type {
     PoiInfo,
 } from "../components/layout/panels";
 
-import type { PanelType } from "../components/layout/Activitybar/ActivityBar";
+import type {
+    PanelType,
+    MapType,
+} from "../components/layout/Activitybar/ActivityBar";
 
 import type { ElectricPole } from "../features/electric-poles/api/electricPoles";
 import type { StreetViewImage } from "../features/streetview/api/streetview";
@@ -28,9 +31,10 @@ import type { ClickInfo } from "../features/map/components/MapPointInfoPanel/gen
 type NavigablePoi = PoiWithSource | SearchResult;
 
 interface SidebarContentProps {
+    isAuthenticated: boolean;
     activePanel: PanelType | null;
-    mapType: string;
-    setMapType: (type: any) => void;
+    mapType: MapType;
+    setMapType: (type: MapType) => void;
     showMapSwitcher: boolean;
     layers: LayerVisibility;
     toggleLayer: (key: LayerKey) => void;
@@ -70,6 +74,7 @@ interface SidebarContentProps {
 
 export function SidebarContent({
     activePanel,
+    isAuthenticated,
     mapType,
     setMapType,
     showMapSwitcher,
@@ -109,6 +114,18 @@ export function SidebarContent({
     handlePoiStreetView,
 }: SidebarContentProps) {
     if (!activePanel) return null;
+
+    const requiresAuthentication =
+        activePanel === "electric" ||
+        activePanel === "poleManagement" ||
+        activePanel === "streetviewManagement" ||
+        activePanel === "poiManagement" ||
+        activePanel === "contribute" ||
+        activePanel === "settings";
+
+    if (requiresAuthentication && !isAuthenticated) {
+        return null;
+    }
     return (
         <>
             {activePanel === "layers" && (
@@ -118,7 +135,7 @@ export function SidebarContent({
             {activePanel === "settings" && (
                 <SettingsPanel
                     onClose={onClose}
-                    mapType={mapType as any}
+                    mapType={mapType}
                     onMapTypeChange={setMapType}
                     showMapSwitcher={showMapSwitcher}
                 />
