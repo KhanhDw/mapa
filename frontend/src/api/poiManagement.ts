@@ -1,3 +1,4 @@
+// frontend\src\api\poiManagement.ts
 
 import { apiClient } from "./http/ApiClient";
 
@@ -102,17 +103,7 @@ function buildQueryParams(
     return result ? `?${result}` : "";
 }
 
-function getWriteHeaders(apiKey?: string): HeadersInit {
-    const headers: Record<string, string> = {};
 
-    const key = apiKey;
-
-    if (key) {
-        headers["X-API-Key"] = key;
-    }
-
-    return headers;
-}
 
 function normalizeId(id: number | string): string {
     return encodeURIComponent(String(id));
@@ -147,14 +138,12 @@ export async function getUserPois(
  */
 export async function updateUserPoi(
     id: number | string,
-    data: UpdateUserPoiRequest,
-    apiKey?: string
+    data: UpdateUserPoiRequest
 ): Promise<UserPoiManagement> {
     return apiClient.request<UserPoiManagement>(
         `/api/user-pois/${normalizeId(id)}`,
         {
             method: "PUT",
-            headers: getWriteHeaders(apiKey),
             body: JSON.stringify(data),
         }
     );
@@ -165,14 +154,12 @@ export async function updateUserPoi(
  * Xóa POI người dùng.
  */
 export async function deleteUserPoi(
-    id: number | string,
-    apiKey?: string
+    id: number | string
 ): Promise<void> {
     return apiClient.request<void>(
         `/api/user-pois/${normalizeId(id)}`,
         {
             method: "DELETE",
-            headers: getWriteHeaders(apiKey),
         }
     );
 }
@@ -183,14 +170,12 @@ export async function deleteUserPoi(
  */
 export async function deleteUserPoiPhoto(
     poiId: number | string,
-    photoId: number | string,
-    apiKey?: string
+    photoId: number | string
 ): Promise<void> {
     return apiClient.request<void>(
         `/api/user-pois/${normalizeId(poiId)}/photos/${normalizeId(photoId)}`,
         {
             method: "DELETE",
-            headers: getWriteHeaders(apiKey),
         }
     );
 }

@@ -10,10 +10,12 @@ import type {
     LayerVisibility,
 } from "../../../layout/panels/types";
 import {
+    ICON_MATCH,
+    POI_ICON_PREFIX,
     USER_ICON_MATCH,
     USER_PIN_PREFIX,
     registerPoiIcons,
-    registerUserPoiIcons
+    registerUserPoiIcons,
 } from "../utils/createPoiIcon";
 
 export type LayerCategory =
@@ -116,55 +118,79 @@ export function extraTileUrl(def: ExtraLayerDef, bust = false): string {
 }
 
 export const EXTRA_LAYERS: ExtraLayerDef[] = [
+        // ========== POI HỆ THỐNG (OSM) ==========
+    {
+        key: "pois",
+        sourceId: "src-pois",
+        layerId: "lay-pois",
+        schemaTable: "pois",
+        sourceLayer: "pois",
+        beforeAdd: registerPoiIcons,
+        spec: (src, id) => ({
+            id,
+            type: "symbol",
+            source: src,
+            "source-layer": "pois",
+            minzoom: 10,
+            layout: {
+                "icon-image": matchExpr(
+                    "fclass",
+                    ICON_MATCH,
+                    POI_ICON_PREFIX + "default"
+                ),
+                "icon-anchor": "center",
+                "icon-size": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    10, 0.65,
+                    15, 0.85,
+                    19, 1.05,
+                ],
+                "icon-allow-overlap": true,
+                "text-field": ["coalesce", ["get", "name"], ""],
+                "text-font": ["Noto Sans Regular"],
+                "text-size": 11,
+                "text-anchor": "top",
+                "text-offset": [0, 0.6],
+            },
+            paint: {
+                "text-color": "#1e3a8a",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 2,
+            },
+        }),
+    },
     // ========== HÀNH CHÍNH (WARDS) ==========
     {
-        key: "admin",
-        sourceId: "src-admin-wards",
-        layerId: "lay-admin-wards",
-        schemaTable: "wards",
-        sourceLayer: "wards",
-        spec: (src, id) => ({
-            id,
-            type: "fill",
-            source: src,
-            "source-layer": "wards",
-            minzoom: 5,
-            paint: {
-                "fill-color": "#d9e5ef",
-                "fill-opacity": 0.35,
-                "fill-outline-color": "#526779",
-            },
-        }),
-    },
+    key: "admin",
+    sourceId: "src-admin-wards",
+    layerId: "lay-admin-wards",
+    schemaTable: "wards",
+    sourceLayer: "wards",
+    spec: (src, id) => ({
+        id,
+        type: "line",
+        source: src,
+        "source-layer": "wards",
+        minzoom: 5,
+        paint: {
+            "line-color": "#FFD700",
+            "line-width": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                5, 1.5,
+                10, 2.5,
+                15, 3.5,
+            ],
+            "line-dasharray": [3, 2],
+            "line-opacity": 0.95,
+        },
+    }),
+},
 
-    // ========== GIAO THÔNG (ROADS) ==========
-    {
-        key: "roads",
-        sourceId: "src-roads",
-        layerId: "lay-roads",
-        schemaTable: "roads",
-        sourceLayer: "roads",
-        spec: (src, id) => ({
-            id,
-            type: "line",
-            source: src,
-            "source-layer": "roads",
-            minzoom: 4,
-            layout: { "line-join": "round", "line-cap": "round" },
-            paint: {
-                "line-color": [
-                    "match", ["get", "fclass"],
-                    "motorway", "#ff5500",
-                    "trunk", "#ff8800",
-                    "primary", "#ffcc00",
-                    "secondary", "#ffe066",
-                    "#ffffff",
-                ],
-                "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.8, 14, 2, 18, 5],
-                "line-opacity": 0.85,
-            },
-        }),
-    },
+   
 
     // ========== CỘT ĐIỆN (ELECTRIC POLES) ==========
     {

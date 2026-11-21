@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .db import _close_pool, _init_pool, get_pool
 from .routers import (
+    auth,
     contribute,
     contribute_public,
     electric_poles,
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     # Routers đã tự khai báo prefix /api
+    app.include_router(auth.router)
     app.include_router(streetview.router)
     app.include_router(point_info.router)
     app.include_router(search.router)

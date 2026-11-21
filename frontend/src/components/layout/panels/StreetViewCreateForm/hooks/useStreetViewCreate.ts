@@ -17,8 +17,6 @@ interface Location {
 }
 
 interface UseStreetViewCreateProps {
-  apiKey: string;
-  setApiKeyError: (value: boolean) => void;
   isRecordingLocation: boolean;
   onStartLocationRecording: (callback: (location: Location) => void) => void;
   onStopLocationRecording: () => void;
@@ -54,8 +52,6 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 export function useStreetViewCreate({
-  apiKey,
-  setApiKeyError,
   isRecordingLocation,
   onStartLocationRecording,
   onStopLocationRecording,
@@ -129,12 +125,7 @@ export function useStreetViewCreate({
   const createPanorama = useCallback(async () => {
     if (busy) return;
 
-    if (!apiKey.trim()) {
-      setApiKeyError(true);
-      setError("Vui lòng nhập API key để tải lên ảnh mới");
-      return;
-    }
-    setApiKeyError(false);
+
 
     if (!panoDraft.file) {
       setError("Vui lòng chọn tệp ảnh 360° panorama");
@@ -178,19 +169,18 @@ export function useStreetViewCreate({
 
     try {
       const created = await uploadStreetViewImage(
-  panoDraft.file,
-  {
-    lng,
-    lat,
-    heading: heading ?? undefined,
-  },
-  {
-    apiKey: apiKey.trim(),
-    onUploadProgress: ({ percent }) => {
-      setUploadProgress(percent);
-    },
-  },
-);
+        panoDraft.file,
+        {
+          lng,
+          lat,
+          heading: heading ?? undefined,
+        },
+        {
+          onUploadProgress: ({ percent }) => {
+            setUploadProgress(percent);
+          },
+        },
+      );
 
       stopLocationRecording();
       resetDraft();
@@ -203,9 +193,7 @@ export function useStreetViewCreate({
     }
   }, [
     busy,
-    apiKey,
     panoDraft,
-    setApiKeyError,
     stopLocationRecording,
     resetDraft,
     onSuccess,
@@ -215,8 +203,8 @@ export function useStreetViewCreate({
 
   const panoLocationLabel = hasPanoLocation
     ? `Đã chọn: ${Number(panoDraft.lat).toFixed(5)}, ${Number(
-        panoDraft.lng,
-      ).toFixed(5)}`
+      panoDraft.lng,
+    ).toFixed(5)}`
     : "Bấm để kích hoạt chấm vị trí trên bản đồ";
 
   return {

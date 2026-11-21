@@ -1,5 +1,4 @@
-
-"""Public Contribute endpoints — FE dùng, KHÔNG cần X-API-Key.
+"""Contribute endpoints — các thao tác ghi dữ liệu yêu cầu JWT Bearer.
 
 Đồng bộ schema DB v2:
 - user_data.poi_photos không có cột width, height
@@ -23,6 +22,7 @@ from fastapi import (
 
 from ..config import settings
 from ..db import get_pool
+from .auth import get_current_user
 from .contribute import (
     BIGINT_MAX,
     UserPoiIn,
@@ -47,20 +47,22 @@ router = APIRouter(
 @router.post("/poi", status_code=201)
 async def create_poi(
     body: UserPoiIn,
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     row = await pool.fetchrow(
         """
         INSERT INTO user_data.pois
-            (name, category, address, phone, description, geom)
+            (user_id, name, category, address, phone, description, geom)
         VALUES
-            ($1, $2, $3, $4, $5,
+            ($1, $2, $3, $4, $5, $6,
              ST_SetSRID(
-                 ST_MakePoint($6::float8, $7::float8),
+                 ST_MakePoint($7::float8, $8::float8),
                  4326
              ))
         RETURNING id, created_at
         """,
+        current_user["id"],
         body.name,
         body.category,
         body.address,
@@ -83,44 +85,50 @@ async def create_poi(
 
 @router.post("/photos/{poi_id}", status_code=201)
 async def upload_photo(
-    poi_id: int = PathParam(
-        ge=1,
-        le=BIGINT_MAX,
-    ),
+    poi_id: int = PathParam(ge=1, le=BIGINT_MAX),
     file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
-    # Kiểm tra POI tồn tại.
-    poi_exists = await pool.fetchval(
-        """
-        SELECT 1
-        FROM user_data.pois
-        WHERE id = $1
-        """,
-        poi_id,
-    )
+    # Khóa POI và xác minh quyền trước khi xử lý upload.
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            poi = await conn.fetchrow(
+                """
+                SELECT user_id
+                FROM user_data.pois
+                WHERE id = $1
+                FOR UPDATE
+                """,
+                poi_id,
+            )
 
-    if not poi_exists:
-        raise HTTPException(
-            404,
-            "Không tìm thấy địa điểm",
-        )
+            if poi is None:
+                raise HTTPException(404, "Không tìm thấy địa điểm")
 
-    # Giới hạn số ảnh mỗi POI.
-    photo_count = await pool.fetchval(
-        """
-        SELECT count(*)
-        FROM user_data.poi_photos
-        WHERE poi_id = $1
-        """,
-        poi_id,
-    )
+            is_owner = poi["user_id"] == current_user["id"]
+            is_admin = current_user["role"] == "admin"
 
-    if photo_count >= settings.MAX_PHOTOS_PER_POI:
-        raise HTTPException(
-            409,
-            f"Mỗi địa điểm tối đa {settings.MAX_PHOTOS_PER_POI} ảnh",
-        )
+            if not is_owner and not is_admin:
+                raise HTTPException(
+                    403,
+                    "Bạn không có quyền thêm ảnh cho địa điểm này",
+                )
+
+            photo_count = await conn.fetchval(
+                """
+                SELECT count(*)
+                FROM user_data.poi_photos
+                WHERE poi_id = $1
+                """,
+                poi_id,
+            )
+
+            if photo_count >= settings.MAX_PHOTOS_PER_POI:
+                raise HTTPException(
+                    409,
+                    f"Mỗi địa điểm tối đa {settings.MAX_PHOTOS_PER_POI} ảnh",
+                )
 
     # Đọc file có giới hạn dung lượng.
     data = await _read_limited(file)
@@ -131,12 +139,8 @@ async def upload_photo(
             data,
             "photo",
         )
-
     except ValueError as exc:
-        raise HTTPException(
-            400,
-            str(exc),
-        ) from exc
+        raise HTTPException(400, str(exc)) from exc
 
     name = uuid.uuid4().hex
 
@@ -144,46 +148,74 @@ async def upload_photo(
     rel_thumb = f"{poi_id}/{name}_t.jpg"
 
     base = settings.USER_MEDIA_DIR
-
     main_path = base / rel_main
     thumb_path = base / rel_thumb
 
-    # Chỉ thêm thumbnail khi dữ liệu tồn tại.
-    files_to_write: dict = {
-        main_path: main_bytes,
-    }
+    files_to_write: dict = {main_path: main_bytes}
 
     if thumb_bytes is not None:
         files_to_write[thumb_path] = thumb_bytes
 
     try:
-        # Ghi file.
-        await asyncio.to_thread(
-            _write_files,
-            files_to_write,
-        )
+        await asyncio.to_thread(_write_files, files_to_write)
 
-        # Ghi database.
-        row = await pool.fetchrow(
-            """
-            INSERT INTO user_data.poi_photos
-                (poi_id, file_path, thumb_path)
-            VALUES
-                ($1, $2, $3)
-            RETURNING id, created_at
-            """,
-            poi_id,
-            rel_main,
-            rel_thumb,
-        )
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                # Kiểm tra lại quyền trong transaction ghi DB.
+                poi = await conn.fetchrow(
+                    """
+                    SELECT user_id
+                    FROM user_data.pois
+                    WHERE id = $1
+                    FOR UPDATE
+                    """,
+                    poi_id,
+                )
+
+                if poi is None:
+                    raise HTTPException(404, "Không tìm thấy địa điểm")
+
+                is_owner = poi["user_id"] == current_user["id"]
+                is_admin = current_user["role"] == "admin"
+
+                if not is_owner and not is_admin:
+                    raise HTTPException(
+                        403,
+                        "Bạn không có quyền thêm ảnh cho địa điểm này",
+                    )
+
+                photo_count = await conn.fetchval(
+                    """
+                    SELECT count(*)
+                    FROM user_data.poi_photos
+                    WHERE poi_id = $1
+                    """,
+                    poi_id,
+                )
+
+                if photo_count >= settings.MAX_PHOTOS_PER_POI:
+                    raise HTTPException(
+                        409,
+                        f"Mỗi địa điểm tối đa {settings.MAX_PHOTOS_PER_POI} ảnh",
+                    )
+
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO user_data.poi_photos
+                        (poi_id, file_path, thumb_path)
+                    VALUES ($1, $2, $3)
+                    RETURNING id, created_at
+                    """,
+                    poi_id,
+                    rel_main,
+                    rel_thumb,
+                )
 
     except Exception:
-        # Dọn file nếu ghi file hoặc database thất bại.
         await asyncio.to_thread(
             _remove_files,
             [main_path, thumb_path],
         )
-
         raise
 
     return {
@@ -205,6 +237,7 @@ async def upload_panorama(
     heading: float = Form(0.0, ge=0, lt=360),
     pitch: float = Form(0.0, ge=-90, le=90),
     file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     # Đọc file có giới hạn dung lượng.
@@ -240,15 +273,16 @@ async def upload_panorama(
         row = await pool.fetchrow(
             """
             INSERT INTO public.streetview_images
-                (file_path, heading, pitch, geom)
+                (user_id, file_path, heading, pitch, geom)
             VALUES
-                ($1, $2, $3,
+                ($1, $2, $3, $4,
                  ST_SetSRID(
-                     ST_MakePoint($4::float8, $5::float8),
+                     ST_MakePoint($5::float8, $6::float8),
                      4326
                  ))
             RETURNING id, created_at
             """,
+            current_user["id"],
             filename,
             heading,
             pitch,

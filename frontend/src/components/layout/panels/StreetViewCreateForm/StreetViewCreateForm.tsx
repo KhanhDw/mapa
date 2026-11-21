@@ -2,10 +2,6 @@
 import { useStreetViewCreate } from "./hooks/useStreetViewCreate";
 
 interface CreateFormProps {
-  apiKey: string;
-  setApiKey: (key: string) => void;
-  apiKeyError: boolean;
-  setApiKeyError: (value: boolean) => void;
   isRecordingLocation: boolean;
   onStartLocationRecording: (
     callback: (loc: { lng: number; lat: number }) => void
@@ -16,10 +12,6 @@ interface CreateFormProps {
 }
 
 export function StreetViewCreateForm({
-  apiKey,
-  setApiKey,
-  apiKeyError,
-  setApiKeyError,
   isRecordingLocation,
   onStartLocationRecording,
   onStopLocationRecording,
@@ -37,8 +29,6 @@ export function StreetViewCreateForm({
     createPanorama,
     toggleLocationRecording,
   } = useStreetViewCreate({
-    apiKey,
-    setApiKeyError,
     isRecordingLocation,
     onStartLocationRecording,
     onStopLocationRecording,
@@ -55,21 +45,6 @@ export function StreetViewCreateForm({
       <h3 className="sv-form__title">
         Ảnh 360° Street View mới
       </h3>
-
-      <label className="sv-field">
-        <span>API key (bảo mật)</span>
-        <input
-          type="password"
-          className={apiKeyError ? "sv-input-error" : ""}
-          value={apiKey}
-          onChange={(e) => {
-            setApiKey(e.target.value);
-            if (apiKeyError) setApiKeyError(false);
-          }}
-          placeholder="Nhập X-API-Key"
-          autoComplete="off"
-        />
-      </label>
 
       <button
         type="button"
@@ -188,20 +163,28 @@ export function StreetViewCreateForm({
   );
 }
 
-// Giữ nguyên MapPinIcon và AlertIcon hiện tại.
-
-
 const svg = (size = 18) => ({
-    width: size,
-    height: size,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  "aria-hidden": true,
 });
 
-const MapPinIcon = ({ size = 18 }: { size?: number }) => <svg {...svg(size)}><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>;
-const AlertIcon = () => <svg {...svg(16)}><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>;
+const MapPinIcon = ({ size = 18 }: { size?: number }) => (
+  <svg {...svg(size)}>
+    <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+const AlertIcon = () => (
+  <svg {...svg(16)}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 8v4M12 16h.01" />
+  </svg>
+);

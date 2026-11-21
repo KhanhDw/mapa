@@ -6,7 +6,7 @@ Thêm config mới = thêm 1 field vào class Settings.
 Không cần sửa os.getenv ở bất kỳ chỗ nào khác.
 
 Các alias module-level ở cuối file giữ để tương thích
-ngược với code cũ (import trực tiếp WRITE_API_KEY, PANORAMAS_DIR...).
+ngược với code cũ.
 """
 
 from pathlib import Path
@@ -26,6 +26,14 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    # Authentication
+    JWT_SECRET_KEY: str = ""
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # Admin bootstrap
+    ADMIN_BOOTSTRAP_ENABLED: bool = False
+
     # ---- Database ----
     DATABASE_URL: str = Field(
         default="",
@@ -34,11 +42,7 @@ class Settings(BaseSettings):
     DB_POOL_MIN: int = Field(default=2, ge=1)
     DB_POOL_MAX: int = Field(default=10, ge=1)
 
-    # Timeout mặc định cho truy vấn database (giây)
     DB_COMMAND_TIMEOUT: int = Field(default=15, ge=1)
-
-    # Timeout riêng cho truy vấn tile (giây)
-    # Code thực thi truy vấn tile cần chủ động sử dụng cấu hình này.
     DB_TILE_COMMAND_TIMEOUT: int = Field(default=30, ge=1)
 
     # ---- Đường dẫn media ----
@@ -46,8 +50,6 @@ class Settings(BaseSettings):
     USER_MEDIA_DIR: Path = BACKEND_DIR / "data" / "user_media"
 
     # ---- CORS ----
-    # "*" cho dev; prod đặt dạng:
-    # ALLOWED_ORIGINS=https://a.com,https://b.com
     ALLOWED_ORIGINS: str = "*"
 
     # ---- Proxy tới tile servers nội bộ ----
@@ -65,21 +67,10 @@ class Settings(BaseSettings):
     MAX_BBOX_AREA_DEG2: float = Field(default=1.0, gt=0)
 
     # ---- Public endpoints ----
-    # Số request tối đa trong một cửa sổ thời gian.
-    # Đây là cấu hình; cần middleware hoặc dependency rate limit
-    # sử dụng các giá trị này để thực sự giới hạn request.
     PUBLIC_RATE_LIMIT_REQUESTS: int = Field(default=30, ge=1)
     PUBLIC_RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
-
-    # Giới hạn số bản ghi tối đa được tạo qua public endpoints.
-    # Cần kiểm tra giới hạn này trong logic xử lý endpoint.
     PUBLIC_MAX_RECORDS: int = Field(default=1000, ge=1)
-
-    # Giới hạn số bản ghi tối đa trong một request public.
     PUBLIC_MAX_RECORDS_PER_REQUEST: int = Field(default=20, ge=1)
-
-    # ---- Bảo mật ----
-    WRITE_API_KEY: str | None = None
 
     # ---- Runtime ----
     ENV: str = "dev"  # dev | prod
@@ -120,8 +111,13 @@ class Settings(BaseSettings):
 
         errors = []
 
-        if not self.WRITE_API_KEY or not self.WRITE_API_KEY.strip():
-            errors.append("WRITE_API_KEY chưa được cấu hình")
+        if not self.JWT_SECRET_KEY or len(self.JWT_SECRET_KEY) < 32:
+            errors.append(
+                "JWT_SECRET_KEY phải có ít nhất 32 ký tự"
+            )
+
+        if self.JWT_ALGORITHM != "HS256":
+            errors.append("JWT_ALGORITHM không được hỗ trợ")
 
         if not self.DATABASE_URL or not self.DATABASE_URL.strip():
             errors.append("DATABASE_URL chưa được cấu hình")
@@ -160,13 +156,9 @@ settings.ensure_dirs()
 
 
 # ----- Re-export cho code cũ / tương thích ngược -----
-# Code mới nên dùng settings.X.
-# Các alias giữ để file cũ không phải sửa.
-
 DATABASE_URL = settings.DATABASE_URL
 PANORAMAS_DIR = settings.PANORAMAS_DIR
 USER_MEDIA_DIR = settings.USER_MEDIA_DIR
 MAX_FEATURES = settings.MAX_FEATURES
 MAX_UPLOAD_MB = settings.MAX_UPLOAD_MB
 PANO_MIN_WIDTH = settings.PANO_MIN_WIDTH
-WRITE_API_KEY = settings.WRITE_API_KEY

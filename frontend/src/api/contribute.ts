@@ -57,14 +57,6 @@ export interface UploadPanoramaResponse {
 /* Helpers                                                                    */
 /* -------------------------------------------------------------------------- */
 
-function getWriteHeaders(apiKey?: string): HeadersInit {
-    const key = apiKey;
-
-    return key
-        ? { "X-API-Key": key }
-        : {};
-}
-
 function normalizeId(id: number | string): string {
     return encodeURIComponent(String(id));
 }
@@ -75,17 +67,15 @@ function normalizeId(id: number | string): string {
 
 /**
  * POST /api/user-pois
- * Tạo POI người dùng.
+ * Tạo POI người dùng. Yêu cầu JWT Bearer.
  */
 export async function createUserPoi(
-    data: UserPoiRequest,
-    apiKey?: string
+    data: UserPoiRequest
 ): Promise<UserPoiResponse> {
     return apiClient.request<UserPoiResponse>(
         "/api/user-pois",
         {
             method: "POST",
-            headers: getWriteHeaders(apiKey),
             body: JSON.stringify(data),
         }
     );
@@ -109,15 +99,14 @@ export async function getUserPoi(
 
 /**
  * POST /api/user-pois/{id}/photos
- * Upload ảnh cho POI.
+ * Upload ảnh cho POI. Yêu cầu JWT Bearer.
  *
  * Không tự đặt Content-Type vì trình duyệt cần tự tạo
  * multipart/form-data boundary.
  */
 export async function uploadUserPoiPhoto(
     poiId: number | string,
-    file: File,
-    apiKey?: string
+    file: File
 ): Promise<UploadPhotoResponse> {
     const formData = new FormData();
     formData.append("file", file);
@@ -126,7 +115,6 @@ export async function uploadUserPoiPhoto(
         `/api/user-pois/${normalizeId(poiId)}/photos`,
         {
             method: "POST",
-            headers: getWriteHeaders(apiKey),
             body: formData,
         }
     );
@@ -138,7 +126,7 @@ export async function uploadUserPoiPhoto(
 
 /**
  * POST /api/user-panoramas
- * Upload panorama 360 độ.
+ * Upload panorama 360 độ. Yêu cầu JWT Bearer.
  */
 export async function uploadUserPanorama(
     file: File,
@@ -150,8 +138,7 @@ export async function uploadUserPanorama(
         filename?: string;
         subdir?: string;
         captured_at?: string;
-    },
-    apiKey?: string
+    }
 ): Promise<UploadPanoramaResponse> {
     const formData = new FormData();
 
@@ -183,7 +170,6 @@ export async function uploadUserPanorama(
         "/api/user-panoramas",
         {
             method: "POST",
-            headers: getWriteHeaders(apiKey),
             body: formData,
         }
     );

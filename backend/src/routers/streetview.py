@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 from ..config import settings
 from ..db import get_pool
 from ..utils import validate_bbox
-from .contribute import require_write_key
+from .auth import get_current_user
 
 
 ALLOWED_PANO_EXTS      = {".jpg", ".jpeg", ".png", ".webp"}
@@ -324,10 +324,11 @@ class BatchUpdateInput(BaseModel):
     captured_at: datetime | None = None
 
 
-@router.put("/image/{image_id}", dependencies=[Depends(require_write_key)])
+@router.put("/image/{image_id}")
 async def update_streetview_image(
     body: StreetViewUpdate,
     image_id: int = PathParam(ge=1, le=INT4_MAX),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     sent = body.model_fields_set
@@ -344,6 +345,7 @@ async def update_streetview_image(
 
     has_lng = "lng" in sent and body.lng is not None
     has_lat = "lat" in sent and body.lat is not None
+
     if has_lng and has_lat:
         args.extend([body.lng, body.lat])
         sets.append(
@@ -351,11 +353,17 @@ async def update_streetview_image(
             f"${len(args)}::float8), 4326)"
         )
     elif has_lng or has_lat or "lng" in sent or "lat" in sent:
-        raise HTTPException(400, "Cần cung cấp cả lng và lat nếu muốn đổi vị trí")
+        raise HTTPException(
+            400,
+            "Cần cung cấp cả lng và lat nếu muốn đổi vị trí",
+        )
 
-    ts = body.created_at if "created_at" in sent else (
-        body.captured_at if "captured_at" in sent else None
+    ts = (
+        body.created_at
+        if "created_at" in sent
+        else body.captured_at if "captured_at" in sent else None
     )
+
     if ts is not None:
         args.append(ts)
         sets.append(f"created_at = ${len(args)}")
@@ -363,59 +371,115 @@ async def update_streetview_image(
     if not sets:
         raise HTTPException(400, "Không có trường nào để cập nhật")
 
-    row = await pool.fetchrow(
-        f"""
-        UPDATE public.streetview_images
-        SET {', '.join(sets)}
-        WHERE id = $1
-        RETURNING {_COLS_DETAIL}
-        """,
-        *args,
-    )
-    if not row:
-        raise HTTPException(404, "Ảnh không tồn tại")
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            owner = await conn.fetchrow(
+                """
+                SELECT user_id
+                FROM public.streetview_images
+                WHERE id = $1
+                FOR UPDATE
+                """,
+                image_id,
+            )
+
+            if owner is None:
+                raise HTTPException(404, "Ảnh không tồn tại")
+
+            _ensure_image_access(owner, current_user)
+
+            row = await conn.fetchrow(
+                f"""
+                UPDATE public.streetview_images
+                SET {', '.join(sets)}
+                WHERE id = $1
+                RETURNING {_COLS_DETAIL}
+                """,
+                *args,
+            )
+
     return _to_detail(row)
 
 
-@router.patch("/batch-update", dependencies=[Depends(require_write_key)])
+@router.patch("/batch-update")
 async def batch_update_streetview(
     body: BatchUpdateInput,
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
-    """Cập nhật hàng loạt tọa độ hoặc thời gian tạo cho nhiều ảnh cùng lúc."""
+    """Cập nhật hàng loạt tọa độ hoặc thời gian tạo cho nhiều ảnh."""
     ts = body.created_at or body.captured_at
+
+    if (
+        body.delta_lng is None
+        and body.delta_lat is None
+        and ts is None
+    ):
+        raise HTTPException(400, "Không có trường nào để cập nhật")
+
+    # Loại ID trùng để tránh cập nhật/đếm lặp.
+    image_ids = list(dict.fromkeys(body.ids))
+
     async with pool.acquire() as conn:
         async with conn.transaction():
+            rows = await conn.fetch(
+                """
+                SELECT id, user_id
+                FROM public.streetview_images
+                WHERE id = ANY($1::int[])
+                ORDER BY id
+                FOR UPDATE
+                """,
+                image_ids,
+            )
+
+            if len(rows) != len(image_ids):
+                raise HTTPException(
+                    404,
+                    "Một hoặc nhiều ảnh không tồn tại",
+                )
+
+            for row in rows:
+                _ensure_image_access(row, current_user)
+
             if body.delta_lng is not None or body.delta_lat is not None:
                 dlng = body.delta_lng or 0.0
                 dlat = body.delta_lat or 0.0
+
                 await conn.execute(
                     """
                     UPDATE public.streetview_images
-                    SET geom = ST_SetSRID(ST_MakePoint(ST_X(geom) + $1, ST_Y(geom) + $2), 4326)
-                    WHERE id = ANY($3)
+                    SET geom = ST_SetSRID(
+                        ST_MakePoint(
+                            ST_X(geom) + $1,
+                            ST_Y(geom) + $2
+                        ),
+                        4326
+                    )
+                    WHERE id = ANY($3::int[])
                     """,
-                    dlng, dlat, body.ids,
+                    dlng,
+                    dlat,
+                    image_ids,
                 )
+
             if ts is not None:
                 await conn.execute(
                     """
                     UPDATE public.streetview_images
                     SET created_at = $1
-                    WHERE id = ANY($2)
+                    WHERE id = ANY($2::int[])
                     """,
-                    ts, body.ids,
+                    ts,
+                    image_ids,
                 )
-    return {"updated_count": len(body.ids)}
 
+    return {"updated_count": len(image_ids)}
 
-@router.delete(
-    "/image/{image_id}",
-    status_code=204,
-    dependencies=[Depends(require_write_key)],
-)
+@router.delete("/image/{image_id}", status_code=204)
 async def delete_streetview_image(
     image_id: int = PathParam(ge=1, le=INT4_MAX),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     file_to_remove: Path | None = None
@@ -423,25 +487,43 @@ async def delete_streetview_image(
     async with pool.acquire() as conn:
         async with conn.transaction():
             row = await conn.fetchrow(
-                "SELECT file_path FROM public.streetview_images "
-                "WHERE id = $1 FOR UPDATE",
+                """
+                SELECT user_id, file_path
+                FROM public.streetview_images
+                WHERE id = $1
+                FOR UPDATE
+                """,
                 image_id,
             )
-            if not row:
+
+            if row is None:
                 raise HTTPException(404, "Ảnh không tồn tại")
 
+            _ensure_image_access(row, current_user)
+
             await conn.execute(
-                "DELETE FROM public.streetview_images WHERE id = $1", image_id
+                """
+                DELETE FROM public.streetview_images
+                WHERE id = $1
+                """,
+                image_id,
             )
 
             still_used = await conn.fetchval(
-                "SELECT EXISTS (SELECT 1 FROM public.streetview_images "
-                "WHERE file_path = $1)",
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM public.streetview_images
+                    WHERE file_path = $1
+                )
+                """,
                 row["file_path"],
             )
+
             if not still_used:
                 file_to_remove = _resolve_pano_file(row["file_path"])
 
+    # Chỉ xóa file sau khi transaction commit thành công.
     if file_to_remove is not None:
         await asyncio.to_thread(_unlink, file_to_remove)
 
@@ -450,8 +532,7 @@ async def delete_streetview_image(
 
 @router.post(
     "/upload",
-    status_code=201,
-    dependencies=[Depends(require_write_key)],
+    status_code=201
 )
 async def upload_streetview_image(
     file: UploadFile = File(..., description="Ảnh panorama (jpg/jpeg/png/webp)"),
@@ -470,6 +551,7 @@ async def upload_streetview_image(
     captured_at: datetime | None = Form(
         None, description="Thời điểm chụp (ISO 8601). Mặc định = now()",
     ),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     """Upload 1 ảnh panorama: ghi file vào PANORAMAS_DIR + thêm bản ghi DB."""
@@ -510,24 +592,49 @@ async def upload_streetview_image(
     size      = await _save_upload(file, dest)
     file_path = dest.relative_to(base).as_posix()
 
-    # ----- 5. Insert DB -----
+        # ----- 5. Insert DB -----
     try:
         row = await pool.fetchrow(
             f"""
             INSERT INTO public.streetview_images
-                (file_path, heading, pitch, geom, created_at)
-            VALUES ($1, $2, $3,
-                    ST_SetSRID(ST_MakePoint($4::float8, $5::float8), 4326),
-                    COALESCE($6::timestamptz, now()))
+                (user_id, file_path, heading, pitch, geom, created_at)
+            VALUES (
+                $1, $2, $3, $4,
+                ST_SetSRID(
+                    ST_MakePoint($5::float8, $6::float8),
+                    4326
+                ),
+                COALESCE($7::timestamptz, now())
+            )
             RETURNING {_COLS_DETAIL}
             """,
-            file_path, heading, pitch, lng, lat, captured_at,
+            current_user["id"],
+            file_path,
+            heading,
+            pitch,
+            lng,
+            lat,
+            captured_at,
         )
     except Exception as e:
         await asyncio.to_thread(dest.unlink, missing_ok=True)
-        logger.exception("Insert streetview_images thất bại, đã xoá file %s", dest)
+        logger.exception(
+            "Insert streetview_images thất bại, đã xoá file %s",
+            dest,
+        )
         raise HTTPException(500, "Lỗi lưu DB") from e
 
     result = _to_detail(row)
     result["size_bytes"] = size
     return result
+
+
+def _ensure_image_access(row: asyncpg.Record, current_user: dict) -> None:
+    is_owner = row["user_id"] == current_user["id"]
+    is_admin = current_user["role"] == "admin"
+
+    if not is_owner and not is_admin:
+        raise HTTPException(
+            403,
+            "Bạn không có quyền chỉnh sửa ảnh Street View này",
+        )

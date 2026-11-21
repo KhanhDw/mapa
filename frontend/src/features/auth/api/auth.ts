@@ -25,7 +25,10 @@ export async function login(payload: LoginPayload): Promise<AuthResult> {
     const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: payload.email, password: payload.password }),
+        body: JSON.stringify({
+    identifier: payload.email,
+    password: payload.password,
+}),
     });
     if (!res.ok) throw new Error((await readError(res)) ?? 'Đăng nhập thất bại.');
     return normalize(await res.json(), payload.rememberMe);

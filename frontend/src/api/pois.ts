@@ -1,4 +1,4 @@
-
+// frontend\src\api\pois.ts
 import {
     deleteUserPoi as repositoryDeleteUserPoi,
     fetchSystemPois as repositoryFetchSystemPois,
@@ -49,10 +49,9 @@ export async function fetchSystemPois(
  */
 export async function updateUserPoi(
     id: number | string,
-    data: UpdateUserPoiInput,
-    apiKey?: string
+    data: UpdateUserPoiInput
 ) {
-    return repositoryUpdateUserPoi(id, data, apiKey);
+    return repositoryUpdateUserPoi(id, data);
 }
 
 /**
@@ -60,8 +59,7 @@ export async function updateUserPoi(
  * DELETE /api/user-pois/{id}
  */
 export async function deleteUserPoi(
-    id: number | string,
-    apiKey?: string
+    id: number | string
 ): Promise<void> {
-    return repositoryDeleteUserPoi(id, apiKey);
+    return repositoryDeleteUserPoi(id);
 }
