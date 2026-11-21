@@ -1,10 +1,10 @@
 import { ErrorBoundary } from "../ErrorBoundary";
-import EsriSatelliteMap from "../maps/EsriSatelliteMap/EsriSatelliteMap";
-import SatelliteMap from "../maps/SatelliteMap/SatelliteMap";
-import OsmPolygonMap from "../maps/OsmPolygonMap/OsmPolygonMap";
+import EsriSatelliteMap from "../../features/map/components/EsriSatelliteMap/EsriSatelliteMap";
+import SatelliteMap from "../../features/map/components/SatelliteMap/SatelliteMap";
+import OsmPolygonMap from "../../features/map/components/OsmPolygonMap/OsmPolygonMap";
 import TestPSV from "../dev/TestPSV";
 import type { MapType } from "./Activitybar";
-import type { ElectricPole } from "../../api/electricPoles";
+import type { ElectricPole } from "../../features/electric-poles/api/electricPoles";
 import type { LayerVisibility } from "./panels";
 import type { Map as MapLibreMap } from "maplibre-gl";
 

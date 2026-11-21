@@ -7,27 +7,33 @@ import {
   type PanelType,
   type MapType,
 } from "./components/layout/Activitybar";
-import { type LayerVisibility, type LayerKey } from "./components/layout/panels";
-import { createDefaultLayerVisibility } from "./components/maps/EsriSatelliteMap/layers/registry";
 
-import type { ElectricPole } from "./api/electricPoles";
-import type { StreetViewImage } from "./api/streetview";
-import type { PoiWithSource  } from "./api/pois";
-import type { SearchResult } from "./api/search";
+import type { ElectricPole } from "./features/electric-poles/api/electricPoles";
+import type { StreetViewImage } from "./features/streetview/api/streetview";
+import type { PoiWithSource  } from "./features/poi/api/pois";
 
-import { useStreetViewPoints } from "./components/maps/EsriSatelliteMap/hooks/useStreetViewPoints";
-import { useClickMarker } from "./components/maps/EsriSatelliteMap/hooks/useClickMarker";
-import { useClickPointInfo } from "./components/maps/EsriSatelliteMap/hooks/useClickPointInfo";
-import { type PoiInfo } from "./components/layout/panels/generalPanel/generalPanel";
+import { type PoiInfo } from "./features/map/components/MapPointInfoPanel/generalPanel";
 import { StreetViewModal } from "./components/streetview/StreetViewModal/StreetViewModal";
-import { API_BASE } from "./config";
+import { API_BASE } from "./core/config";
 
-import { useMapSearch } from "./app/hooks/useMapSearch";
 import { useElectricPoles } from "./app/hooks/useElectricPoles";
 import { SidebarContent } from "./app/SidebarContent";
 import { MapContainerView } from "./components/layout/MapContainerView";
 
-import "./App.css";
+
+import { type LayerVisibility, type LayerKey } from "./features/map/types/types";
+
+import { createDefaultLayerVisibility } from "./features/map/components/EsriSatelliteMap/layers/registry";
+
+import type { SearchResult } from "./features/search/api/search";
+
+import { useStreetViewPoints } from "./features/map/components/EsriSatelliteMap/hooks/useStreetViewPoints";
+import { useClickMarker } from "./features/map/components/EsriSatelliteMap/hooks/useClickMarker";
+import { useClickPointInfo } from "./features/map/components/EsriSatelliteMap/hooks/useClickPointInfo";
+
+import { useMapSearch } from "./features/search/hooks/useMapSearch";
+
+import "./styles/App.css";
 
 const SHOW_SWITCHER = import.meta.env.VITE_SHOW_MAP_SWITCHER === "true";
 type NavigablePoi = PoiWithSource | SearchResult;

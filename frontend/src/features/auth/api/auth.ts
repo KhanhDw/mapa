@@ -1,4 +1,4 @@
-import { API_BASE } from '../../../config';
+import { API_BASE } from '../../../core/config';
 import type { User } from '../types';
 
 export interface LoginPayload {

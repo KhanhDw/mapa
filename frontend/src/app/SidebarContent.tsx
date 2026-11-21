@@ -19,12 +19,12 @@ import type {
 
 import type { PanelType } from "../components/layout/Activitybar/ActivityBar";
 
-import type { ElectricPole } from "../api/electricPoles";
-import type { StreetViewImage } from "../api/streetview";
-import type { PoiWithSource } from "../api/pois";
-import type { SearchResult } from "../api/search";
+import type { ElectricPole } from "../features/electric-poles/api/electricPoles";
+import type { StreetViewImage } from "../features/streetview/api/streetview";
+import type { PoiWithSource } from "../features/poi/api/pois";
+import type { SearchResult } from "../features/search/api/search";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import type { ClickInfo } from "../components/layout/panels/generalPanel/generalPanel";
+import type { ClickInfo } from "../features/map/components/MapPointInfoPanel/generalPanel";
 type NavigablePoi = PoiWithSource | SearchResult;
 
 interface SidebarContentProps {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ReactPhotoSphereViewer } from "react-photo-sphere-viewer";
-import { API_BASE } from "../../config";
+import { API_BASE } from "../../core/config";
 
 export default function TestPSV() {
     const src = `${API_BASE}/panoramas/demo1.png`;

@@ -15,30 +15,30 @@ import {
 } from "@photo-sphere-viewer/markers-plugin";
 import "@photo-sphere-viewer/markers-plugin/index.css";
 import "./StreetViewModal.css";
-import { API_BASE } from "../../../config";
+import { API_BASE } from "../../../core/config";
+import type {
+    StreetViewGraphPoint,
+} from "../../../features/streetview/types/streetViewGraph";
+interface StreetViewModalProps {
+    startId: number;
+    allPoints: StreetViewGraphPoint[];
+    onClose: () => void;
+    onNodeChange?: (point: StreetViewGraphPoint) => void;
+}
 
-export interface StreetViewPoint {
-    id: number;
-    image_url: string;
-    heading?: number | null;
-    next_ids: number[];
-    link_positions: { textureX: number; textureY: number }[];
-    lng: number;
-    lat: number;
+interface Link {
+    point: StreetViewGraphPoint;
+    distance: number;
+    bearing: number;
 }
 
 type MarkerCfg = MarkerConfig & { data: { targetId: number } };
 
-interface StreetViewModalProps {
-    startId: number;
-    allPoints: StreetViewPoint[];
-    onClose: () => void;
-    onNodeChange?: (point: StreetViewPoint) => void;
-}
+
 
 /** Một đường nối từ node hiện tại tới node lân cận (đã gộp next + previous). */
 interface Link {
-    point: StreetViewPoint;
+    point: StreetViewGraphPoint;
     distance: number; // mét
     bearing: number; // hướng la bàn tuyệt đối 0..360 (0 = Bắc)
 }
@@ -79,7 +79,10 @@ function normalizeDeg(angle: number): number {
     return a > 180 ? a - 360 : a;
 }
 
-function bearingBetween(a: StreetViewPoint, b: StreetViewPoint): number {
+function bearingBetween(
+    a: StreetViewGraphPoint,
+    b: StreetViewGraphPoint
+): number {
     const φ1 = toRad(a.lat);
     const φ2 = toRad(b.lat);
     const Δλ = toRad(b.lng - a.lng);
@@ -90,7 +93,10 @@ function bearingBetween(a: StreetViewPoint, b: StreetViewPoint): number {
     return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
 
-function distanceBetween(a: StreetViewPoint, b: StreetViewPoint): number {
+function distanceBetween(
+    a: StreetViewGraphPoint,
+    b: StreetViewGraphPoint
+): number {
     const lat1 = toRad(a.lat);
     const lat2 = toRad(b.lat);
     const dLat = lat2 - lat1;
@@ -217,13 +223,13 @@ export function StreetViewModal({
     }, [allPoints]);
 
     const getNeighbors = useCallback(
-        (node: StreetViewPoint) => {
+        (node: StreetViewGraphPoint) => {
             const next = node.next_ids
                 .map((id) => pointsById.get(Number(id)))
-                .filter((p): p is StreetViewPoint => Boolean(p));
+                .filter((p): p is StreetViewGraphPoint => Boolean(p));
             const prev = (prevIdsMap.get(Number(node.id)) ?? [])
                 .map((id) => pointsById.get(id))
-                .filter((p): p is StreetViewPoint => Boolean(p));
+                .filter((p): p is StreetViewGraphPoint => Boolean(p));
             return { next, prev };
         },
         [pointsById, prevIdsMap]
@@ -235,7 +241,7 @@ export function StreetViewModal({
      * (mặc định 0 làm mũi tên chỉ sai hướng hoàn toàn).
      */
     const getHeading = useCallback(
-        (node: StreetViewPoint): number => {
+        (node: StreetViewGraphPoint): number => {
             if (typeof node.heading === "number" && Number.isFinite(node.heading)) {
                 return node.heading;
             }
@@ -258,7 +264,7 @@ export function StreetViewModal({
     const links = useMemo<Link[]>(() => {
         if (!currentNode) return [];
         const { next, prev } = getNeighbors(currentNode);
-        const unique = new Map<number, StreetViewPoint>();
+        const unique = new Map<number, StreetViewGraphPoint>();
         [...next, ...prev].forEach((p) => unique.set(Number(p.id), p));
         return Array.from(unique.values())
             .map((point) => ({

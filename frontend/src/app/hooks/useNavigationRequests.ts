@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 
-import type { ElectricPole } from "../../api/electricPoles";
-import type { PoiWithSource } from "../../api/pois";
-import type { SearchResult } from "../../api/search";
-import type { StreetViewImage } from "../../api/streetview";
+import type { ElectricPole } from "../../features/electric-poles/api/electricPoles";
+import type { PoiWithSource } from "../../features/poi/api/pois";
+import type { SearchResult } from "../../features/search/api/search";
+import type { StreetViewImage } from "../../features/streetview/api/streetview";
 
 interface Request<T> {
     value: T;
@@ -63,3 +63,4 @@ export function useNavigationRequests() {
 }
 
 export type { NavigablePoi };
+

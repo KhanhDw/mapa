@@ -12,45 +12,33 @@ $commands = @(
     @{Name = "CUSTOM_TREE"; Description = "Show directory tree of selected subdirectories" }
     @{Name = "PATH_TREE"; Description = "Show directory tree at any specified path" }
     @{Name = "CONCAT_TREE"; Description = "Combine directory tree and file contents into one file" }
+    @{Name = "MULTI_FILES"; Description = "Combine multiple specific files (from any locations) into one text file" }
 )
 
 # ===================================================================
 # IGNORE LIST - folders and files that are skipped automatically
 # ===================================================================
-# Folders: matched by exact name (case-insensitive) at ANY depth.
-# The whole folder is skipped, including everything inside it.
 $script:ExcludeDirNames = @(
-    # Node.js / Next.js
     "node_modules", ".next",
-    # Git
     ".git",
-    # Temp folders
     "tmp", "temp", ".tmp",
-    # Python virtual environments
     ".venv", "venv", "env", ".env", "virtualenv",
-    # Python libraries
     "site-packages",
-    # Python caches
     "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
-    # Test environments
     ".tox", ".nox",
-    # Build output
     "dist", "build"
 )
 
-# Files: matched by file name, wildcards allowed (case-insensitive)
 $script:ExcludeFilePatterns = @(
     "package-lock.json",
     "__init__.*"
 )
 
-# Check if a directory name is in the ignore list
 function Test-IsExcludedDir {
     param([string]$name)
     return ($script:ExcludeDirNames -contains $name)
 }
 
-# Check if a file name is in the ignore list
 function Test-IsExcludedFile {
     param([string]$name)
     foreach ($pattern in $script:ExcludeFilePatterns) {
@@ -59,7 +47,6 @@ function Test-IsExcludedFile {
     return $false
 }
 
-# Recursively list files, skipping ignored folders WITHOUT entering them
 function Get-FilteredFiles {
     param([string]$path)
     $items = Get-ChildItem -LiteralPath $path -Force -ErrorAction SilentlyContinue
@@ -75,20 +62,17 @@ function Get-FilteredFiles {
     }
 }
 
-# Function to generate timestamp
 function Generate-Timestamp {
     return Get-Date -Format "yyyyMMdd_HHmmss"
 }
 
-# Function to clean dragged path
 function Clean-Path {
     param([string]$path)
     $path = $path -replace "^'", "" -replace "'$", ""
-    $path = $path -replace '^"', '' -replace '"$', ''
+    $path = $path -replace '^"', '' -replace '"$', ""
     return $path
 }
 
-# Function to get tree structure (skips everything in the ignore list)
 function Get-TreeStructure {
     param([string]$path)
 
@@ -101,7 +85,6 @@ function Get-TreeStructure {
             if (Test-IsExcludedDir $item.Name) { continue }
 
             $result += "[$($item.Name)]"
-            # Recursively get sub-items
             $subItems = Get-TreeStructure -path $item.FullName
             if ($subItems) {
                 $subItems.Split("`n") | ForEach-Object {
@@ -131,7 +114,6 @@ function Get-TreeStructure {
     return $result -join "`n"
 }
 
-# Function to check if file is text
 function Test-IsTextFile {
     param([string]$filePath)
     try {
@@ -143,7 +125,6 @@ function Test-IsTextFile {
     }
 }
 
-# Custom Tree function
 function Invoke-CustomTree {
     Write-Host "Enter subdirectory names (space-separated, leave empty to skip):" -ForegroundColor Yellow
     $dirs = Read-Host
@@ -166,7 +147,6 @@ function Invoke-CustomTree {
             
             Write-Host "===================" -ForegroundColor Cyan
             
-            # Save output to file in tmp directory with timestamp
             $safeName = $d -replace '[\\/:*?"<>|]', '_'
             $outputFile = ".\tmp\${safeName}_tree_${timestamp}.txt"
             
@@ -186,7 +166,6 @@ $treeOutput
     }
 }
 
-# Path Tree function
 function Invoke-PathTree {
     Write-Host "Enter directory path (drag and drop or type path):" -ForegroundColor Yellow
     $targetPath = Read-Host
@@ -210,7 +189,6 @@ function Invoke-PathTree {
         
         Write-Host "===================" -ForegroundColor Cyan
         
-        # Save output to file
         $content = @"
 ===================
 Directory tree at: $targetPath (Timestamp: $(Get-Date))
@@ -226,7 +204,6 @@ $treeOutput
     }
 }
 
-# Concat Tree function - Combine tree and file contents
 function Invoke-ConcatTree {
     Write-Host "Enter source directory path (drag and drop or type):" -ForegroundColor Yellow
     $targetPath = Read-Host
@@ -257,14 +234,12 @@ function Invoke-ConcatTree {
         $outputFile = ".\tmp\$((Split-Path $outputFilename -Leaf))"
     }
     
-    # Remove old file if exists
     if (Test-Path $outputFile) {
         Remove-Item $outputFile -Force
     }
     
     Write-Host "Processing... Please wait." -ForegroundColor Yellow
     
-    # 1. Write directory tree to output file
     $treeOutput = Get-TreeStructure -path $targetPath
     
     $content = @"
@@ -278,14 +253,12 @@ $treeOutput
 
 "@
     
-    # 2. Collect all files (ignored folders/files are skipped automatically)
     $allFiles = Get-FilteredFiles -path $targetPath
 
     $fileCount = 0
     $skippedCount = 0
     
     foreach ($file in $allFiles) {
-        # Check if file is text and not too large (max 10MB)
         $isText = Test-IsTextFile -filePath $file.FullName
         $isLarge = $file.Length -gt 10MB
         
@@ -315,7 +288,6 @@ FILE: $($file.FullName)
         }
     }
     
-    # Save to file
     $content | Set-Content -Path $outputFile -Encoding UTF8
     
     Write-Host "--------------------------------------------------" -ForegroundColor Green
@@ -325,7 +297,112 @@ FILE: $($file.FullName)
     Write-Host "--------------------------------------------------" -ForegroundColor Green
 }
 
-# Show menu function
+# ===================================================================
+# NEW: Combine multiple specific files from any locations
+# ===================================================================
+function Invoke-MultiFiles {
+    Write-Host "Enter file paths (one per line, empty line to finish):" -ForegroundColor Yellow
+    Write-Host "  - Relative paths are resolved from current directory: $(Get-Location)" -ForegroundColor DarkGray
+    Write-Host "  - Example: src/config.ts" -ForegroundColor DarkGray
+    Write-Host "             src/features/auth/storage.ts" -ForegroundColor DarkGray
+
+    $fileList = @()
+    while ($true) {
+        $line = Read-Host
+        if ([string]::IsNullOrWhiteSpace($line)) { break }
+        $line = (Clean-Path $line.Trim())
+        # Remove surrounding quotes again in case of drag-drop mixed content
+        $line = $line -replace "^'", "" -replace "'$", "" -replace '^"', '' -replace '"$', ""
+        if ($line) { $fileList += $line }
+    }
+
+    if ($fileList.Count -eq 0) {
+        Write-Host "No files entered. Operation cancelled." -ForegroundColor Red
+        return
+    }
+
+    $timestamp = Generate-Timestamp
+    $outputFile = ".\tmp\multi_files_${timestamp}.txt"
+
+    Write-Host "`nProcessing $($fileList.Count) file(s)...`n" -ForegroundColor Yellow
+
+    $content = @"
+===============================================================================
+MULTIPLE FILES CONCATENATION
+Creation time: $(Get-Date)
+Current dir  : $(Get-Location)
+File count   : $($fileList.Count)
+===============================================================================
+
+"@
+
+    $fileCount = 0
+    $skippedCount = 0
+    $missingCount = 0
+
+    foreach ($f in $fileList) {
+        $resolved = $f
+        if (-not [System.IO.Path]::IsPathRooted($resolved)) {
+            $resolved = Join-Path (Get-Location).Path $resolved
+        }
+
+        if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) {
+            Write-Host "Not found: $f" -ForegroundColor Red
+            $content += @"
+===============================================================================
+FILE NOT FOUND: $f
+===============================================================================
+
+"@
+            $missingCount++
+            continue
+        }
+
+        $fileInfo = Get-Item -LiteralPath $resolved
+        Write-Host "Processing: $($fileInfo.FullName)" -ForegroundColor Gray
+
+        $content += @"
+===============================================================================
+FILE: $($fileInfo.FullName)
+===============================================================================
+"@
+
+        if (-not (Test-IsTextFile -filePath $fileInfo.FullName)) {
+            $content += "[Error: Binary/non-text file, skipped]`n`n"
+            Write-Host "Skipping (binary/non-text): $($fileInfo.FullName)" -ForegroundColor Yellow
+            $skippedCount++
+            continue
+        }
+
+        if ($fileInfo.Length -gt 10MB) {
+            $content += "[Error: File too large (>10MB), skipped]`n`n"
+            Write-Host "Skipping (too large >10MB): $($fileInfo.FullName)" -ForegroundColor Yellow
+            $skippedCount++
+            continue
+        }
+
+        try {
+            $fileContent = Get-Content -LiteralPath $fileInfo.FullName -Encoding UTF8 -ErrorAction Stop -Raw
+            $content += $fileContent
+            $content += "`n`n"
+            $fileCount++
+        }
+        catch {
+            $content += "[Error: Unable to read this file]`n`n"
+            $skippedCount++
+        }
+    }
+
+    $content | Set-Content -Path $outputFile -Encoding UTF8
+
+    Write-Host "--------------------------------------------------" -ForegroundColor Green
+    Write-Host "Success! Created combined file at: $outputFile" -ForegroundColor Green
+    Write-Host "Files processed : $fileCount" -ForegroundColor Green
+    Write-Host "Files skipped   : $skippedCount" -ForegroundColor Yellow
+    Write-Host "Files not found : $missingCount" -ForegroundColor Yellow
+    Write-Host "--------------------------------------------------" -ForegroundColor Green
+}
+
 function Show-Menu {
     Clear-Host
     Write-Host "=====================" -ForegroundColor Cyan
@@ -339,7 +416,6 @@ function Show-Menu {
     Write-Host "=====================" -ForegroundColor Cyan
 }
 
-# Main loop
 while ($true) {
     Show-Menu
     $choice = Read-Host "`nEnter command number (or 0 to exit)"
@@ -355,12 +431,12 @@ while ($true) {
             $cmd = $commands[$index]
             Write-Host "`nRunning: $($cmd.Description)" -ForegroundColor Green
             
-            # Handle special commands
             switch ($cmd.Name) {
                 "tree" { Write-Host (Get-TreeStructure -path (Get-Location).Path) }
                 "CUSTOM_TREE" { Invoke-CustomTree }
                 "PATH_TREE" { Invoke-PathTree }
                 "CONCAT_TREE" { Invoke-ConcatTree }
+                "MULTI_FILES" { Invoke-MultiFiles }
                 default {
                     if (Get-Command $cmd.Name -ErrorAction SilentlyContinue) {
                         Invoke-Expression $cmd.Name

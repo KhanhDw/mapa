@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
     getElectricPoles,
     type ElectricPole,
-} from "../../api/electricPoles";
+} from "../../features/electric-poles/api/electricPoles";
 
 export function useElectricPoles() {
     const [electricPoles, setElectricPoles] = useState<ElectricPole[]>([]);
