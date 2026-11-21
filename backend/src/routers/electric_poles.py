@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from pydantic import BaseModel, Field, field_validator
 
 from ..db import get_pool
-from .contribute import require_write_key
+from .auth import get_current_user
 
 
 router = APIRouter(prefix="/api/electric-poles", tags=["electric-poles"])
@@ -58,6 +58,14 @@ def _serialize_pole(row: asyncpg.Record) -> dict:
     }
 
 
+def _ensure_pole_access(row: asyncpg.Record, current_user: dict) -> None:
+    is_owner = row["user_id"] == current_user["id"]
+    is_admin = current_user["role"] == "admin"
+
+    if not is_owner and not is_admin:
+        raise HTTPException(403, "Bạn không có quyền chỉnh sửa trụ điện này")
+
+
 @router.get("")
 async def list_electric_poles(
     search: str | None = Query(default=None, max_length=100),
@@ -100,13 +108,10 @@ async def get_electric_pole(
     return _serialize_pole(row)
 
 
-@router.post(
-    "",
-    status_code=201,
-    dependencies=[Depends(require_write_key)],
-)
+@router.post("", status_code=201)
 async def create_electric_pole(
     body: ElectricPoleInput,
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     try:
@@ -114,13 +119,16 @@ async def create_electric_pole(
             row = await conn.fetchrow(
                 """
                 INSERT INTO user_data.electric_poles
-                    (pole_code, route, status, detail, geom)
-                VALUES ($1, $2, $3, $4,
-                        ST_SetSRID(ST_MakePoint($5, $6), 4326))
+                    (user_id, pole_code, route, status, detail, geom)
+                VALUES (
+                    $1, $2, $3, $4, $5,
+                    ST_SetSRID(ST_MakePoint($6, $7), 4326)
+                )
                 RETURNING id, pole_code, route, status, detail,
                           ST_X(geom) AS lng, ST_Y(geom) AS lat,
                           created_at, updated_at
                 """,
+                current_user["id"],
                 body.pole_code,
                 body.route,
                 body.status,
@@ -134,68 +142,88 @@ async def create_electric_pole(
     return _serialize_pole(row)
 
 
-@router.put(
-    "/{pole_id}",
-    dependencies=[Depends(require_write_key)],
-)
+@router.put("/{pole_id}")
 async def update_electric_pole(
     body: ElectricPoleInput,
     pole_id: int = Path(ge=1, le=BIGINT_MAX),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     try:
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """
-                UPDATE user_data.electric_poles
-                SET pole_code = $2,
-                    route = $3,
-                    status = $4,
-                    detail = $5,
-                    geom = ST_SetSRID(ST_MakePoint($6, $7), 4326),
-                    updated_at = now()
-                WHERE id = $1
-                RETURNING id, pole_code, route, status, detail,
-                          ST_X(geom) AS lng, ST_Y(geom) AS lat,
-                          created_at, updated_at
-                """,
-                pole_id,
-                body.pole_code,
-                body.route,
-                body.status,
-                body.detail,
-                body.lng,
-                body.lat,
-            )
+            async with conn.transaction():
+                owner = await conn.fetchrow(
+                    """
+                    SELECT user_id
+                    FROM user_data.electric_poles
+                    WHERE id = $1
+                    FOR UPDATE
+                    """,
+                    pole_id,
+                )
+
+                if owner is None:
+                    raise HTTPException(404, "Không tìm thấy trụ điện")
+
+                _ensure_pole_access(owner, current_user)
+
+                row = await conn.fetchrow(
+                    """
+                    UPDATE user_data.electric_poles
+                    SET pole_code = $2,
+                        route = $3,
+                        status = $4,
+                        detail = $5,
+                        geom = ST_SetSRID(ST_MakePoint($6, $7), 4326),
+                        updated_at = now()
+                    WHERE id = $1
+                    RETURNING id, pole_code, route, status, detail,
+                              ST_X(geom) AS lng, ST_Y(geom) AS lat,
+                              created_at, updated_at
+                    """,
+                    pole_id,
+                    body.pole_code,
+                    body.route,
+                    body.status,
+                    body.detail,
+                    body.lng,
+                    body.lat,
+                )
     except asyncpg.UniqueViolationError:
         raise HTTPException(409, "Mã trụ điện đã tồn tại")
-
-    if row is None:
-        raise HTTPException(404, "Không tìm thấy trụ điện")
 
     return _serialize_pole(row)
 
 
-@router.delete(
-    "/{pole_id}",
-    status_code=204,
-    dependencies=[Depends(require_write_key)],
-)
+@router.delete("/{pole_id}", status_code=204)
 async def delete_electric_pole(
     pole_id: int = Path(ge=1, le=BIGINT_MAX),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
-        deleted_id = await conn.fetchval(
-            """
-            DELETE FROM user_data.electric_poles
-            WHERE id = $1
-            RETURNING id
-            """,
-            pole_id,
-        )
+        async with conn.transaction():
+            owner = await conn.fetchrow(
+                """
+                SELECT user_id
+                FROM user_data.electric_poles
+                WHERE id = $1
+                FOR UPDATE
+                """,
+                pole_id,
+            )
 
-    if deleted_id is None:
-        raise HTTPException(404, "Không tìm thấy trụ điện")
+            if owner is None:
+                raise HTTPException(404, "Không tìm thấy trụ điện")
+
+            _ensure_pole_access(owner, current_user)
+
+            await conn.execute(
+                """
+                DELETE FROM user_data.electric_poles
+                WHERE id = $1
+                """,
+                pole_id,
+            )
 
     return Response(status_code=204)

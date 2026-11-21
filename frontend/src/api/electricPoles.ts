@@ -62,14 +62,6 @@ function buildQueryParams(
     return result ? `?${result}` : "";
 }
 
-function getWriteHeaders(apiKey?: string): HeadersInit {
-    const key = apiKey;
-
-    return key
-        ? { "X-API-Key": key }
-        : {};
-}
-
 function normalizeId(id: number | string): string {
     return encodeURIComponent(String(id));
 }
@@ -120,17 +112,15 @@ export async function getElectricPole(
 
 /**
  * POST /api/electric-poles
- * Tạo trụ điện mới.
+ * Tạo trụ điện mới. Yêu cầu JWT Bearer.
  */
 export async function createElectricPole(
-    data: ElectricPoleInput,
-    apiKey?: string
+    data: ElectricPoleInput
 ): Promise<ElectricPole> {
     return apiClient.request<ElectricPole>(
         "/api/electric-poles",
         {
             method: "POST",
-            headers: getWriteHeaders(apiKey),
             body: JSON.stringify(data),
         }
     );
@@ -142,18 +132,16 @@ export async function createElectricPole(
 
 /**
  * PUT /api/electric-poles/{id}
- * Cập nhật trụ điện.
+ * Cập nhật trụ điện. Yêu cầu JWT Bearer.
  */
 export async function updateElectricPole(
     id: number | string,
-    data: ElectricPoleInput,
-    apiKey?: string
+    data: ElectricPoleInput
 ): Promise<ElectricPole> {
     return apiClient.request<ElectricPole>(
         `/api/electric-poles/${normalizeId(id)}`,
         {
             method: "PUT",
-            headers: getWriteHeaders(apiKey),
             body: JSON.stringify(data),
         }
     );
@@ -165,19 +153,17 @@ export async function updateElectricPole(
 
 /**
  * DELETE /api/electric-poles/{id}
- * Xóa trụ điện.
+ * Xóa trụ điện. Yêu cầu JWT Bearer.
  *
  * Backend có thể trả HTTP 204.
  */
 export async function deleteElectricPole(
-    id: number | string,
-    apiKey?: string
+    id: number | string
 ): Promise<void> {
     return apiClient.request<void>(
         `/api/electric-poles/${normalizeId(id)}`,
         {
             method: "DELETE",
-            headers: getWriteHeaders(apiKey),
         }
     );
 }

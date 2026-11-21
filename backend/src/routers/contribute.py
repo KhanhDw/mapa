@@ -1,10 +1,8 @@
-
 """Thêm dữ liệu người dùng: POI, ảnh phẳng và ảnh 360°."""
 
 import asyncio
 import io
 import logging
-import secrets
 import uuid
 from pathlib import Path
 from typing import Iterable
@@ -15,7 +13,6 @@ from fastapi import (
     Depends,
     File,
     Form,
-    Header,
     HTTPException,
     Path as PathParam,
     UploadFile,
@@ -25,6 +22,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from ..config import settings
 from ..db import get_pool
+from .auth import get_current_user
 
 
 logger = logging.getLogger(__name__)
@@ -39,25 +37,6 @@ BIGINT_MAX = 2**63 - 1
 Image.MAX_IMAGE_PIXELS = settings.MAX_IMAGE_PIXELS
 
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
-
-
-# ---------- AUTH ----------
-
-def require_write_key(x_api_key: str | None = Header(default=None)):
-    if not settings.WRITE_API_KEY:
-        raise HTTPException(
-            503,
-            "Chưa cấu hình WRITE_API_KEY trong .env",
-        )
-
-    if not x_api_key or not secrets.compare_digest(
-        x_api_key,
-        settings.WRITE_API_KEY,
-    ):
-        raise HTTPException(
-            401,
-            "Sai hoặc thiếu API key",
-        )
 
 
 # ---------- SCHEMA ----------
@@ -294,24 +273,35 @@ def _pano_url(file_path: str | None) -> str | None:
 @router.post(
     "/user-pois",
     status_code=201,
-    dependencies=[Depends(require_write_key)],
 )
 async def create_user_poi(
     body: UserPoiIn,
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     row = await pool.fetchrow(
         """
         INSERT INTO user_data.pois
-            (name, category, address, phone, description, geom)
+            (
+                user_id,
+                name,
+                category,
+                address,
+                phone,
+                description,
+                geom
+            )
         VALUES
-            ($1, $2, $3, $4, $5,
-             ST_SetSRID(
-                 ST_MakePoint($6::float8, $7::float8),
-                 4326
-             ))
+            (
+                $1, $2, $3, $4, $5, $6,
+                ST_SetSRID(
+                    ST_MakePoint($7::float8, $8::float8),
+                    4326
+                )
+            )
         RETURNING id, created_at
         """,
+        current_user["id"],
         body.name,
         body.category,
         body.address,
@@ -406,7 +396,6 @@ async def get_user_poi(
 @router.post(
     "/user-pois/{poi_id}/photos",
     status_code=201,
-    dependencies=[Depends(require_write_key)],
 )
 async def upload_poi_photo(
     poi_id: int = PathParam(
@@ -414,22 +403,32 @@ async def upload_poi_photo(
         le=BIGINT_MAX,
     ),
     file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
-    # Kiểm tra POI tồn tại.
-    poi_exists = await pool.fetchval(
+    # Kiểm tra POI tồn tại + quyền sở hữu.
+    poi = await pool.fetchrow(
         """
-        SELECT 1
+        SELECT id, user_id
         FROM user_data.pois
         WHERE id = $1
         """,
         poi_id,
     )
 
-    if not poi_exists:
+    if poi is None:
         raise HTTPException(
             404,
             "Không tìm thấy địa điểm",
+        )
+
+    is_owner = poi["user_id"] == current_user["id"]
+    is_admin = current_user["role"] == "admin"
+
+    if not is_owner and not is_admin:
+        raise HTTPException(
+            403,
+            "Bạn không có quyền thêm ảnh cho địa điểm này",
         )
 
     # Giữ nguyên giới hạn ảnh trên mỗi POI.
@@ -524,7 +523,6 @@ async def upload_poi_photo(
 @router.post(
     "/user-panoramas",
     status_code=201,
-    dependencies=[Depends(require_write_key)],
 )
 async def upload_user_panorama(
     lng: float = Form(..., ge=-180, le=180),
@@ -532,6 +530,7 @@ async def upload_user_panorama(
     heading: float = Form(0.0, ge=0, lt=360),
     pitch: float = Form(0.0, ge=-90, le=90),
     file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     data = await _read_limited(file)
@@ -566,13 +565,13 @@ async def upload_user_panorama(
         row = await pool.fetchrow(
             """
             INSERT INTO public.streetview_images
-                (file_path, heading, pitch, geom)
+                (user_id, file_path, heading, pitch, geom)
             VALUES
-                ($1, $2, $3,
-                 ST_SetSRID(
-                     ST_MakePoint($4::float8, $5::float8),
-                     4326
-                 ))
+                ($1, $2, $3, $4,
+                ST_SetSRID(
+                    ST_MakePoint($5::float8, $6::float8),
+                    4326
+                ))
             RETURNING id, created_at
             """,
             filename,

@@ -26,8 +26,8 @@ from .contribute import (
     UserPoiIn,
     _media_url,
     _remove_files,
-    require_write_key,
 )
+from .auth import get_current_user
 
 
 logger = logging.getLogger(__name__)
@@ -139,56 +139,64 @@ async def list_user_pois(
 # UPDATE USER POI
 # ============================================================
 
-@router.put(
-    "/api/user-pois/{poi_id}",
-    dependencies=[Depends(require_write_key)],
-)
+@router.put("/api/user-pois/{poi_id}")
 async def update_user_poi(
     body: UserPoiIn,
     poi_id: int = Path(ge=1, le=BIGINT_MAX),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            UPDATE user_data.pois
-            SET
-                name = $2,
-                category = $3,
-                address = $4,
-                phone = $5,
-                description = $6,
-                geom = ST_SetSRID(
-                    ST_MakePoint($7::float8, $8::float8),
-                    4326
-                )
-            WHERE id = $1
-            RETURNING
-                id,
-                name,
-                category,
-                address,
-                phone,
-                description,
-                ST_X(geom) AS lng,
-                ST_Y(geom) AS lat,
-                created_at
-            """,
-            poi_id,
-            body.name,
-            body.category,
-            body.address,
-            body.phone,
-            body.description,
-            body.lng,
-            body.lat,
-        )
+        async with conn.transaction():
+            owner = await conn.fetchrow(
+                """
+                SELECT user_id
+                FROM user_data.pois
+                WHERE id = $1
+                FOR UPDATE
+                """,
+                poi_id,
+            )
 
-    if row is None:
-        raise HTTPException(
-            404,
-            "Không tìm thấy địa điểm",
-        )
+            if owner is None:
+                raise HTTPException(404, "Không tìm thấy địa điểm")
+
+            _ensure_poi_access(owner, current_user)
+
+            row = await conn.fetchrow(
+                """
+                UPDATE user_data.pois
+                SET
+                    name = $2,
+                    category = $3,
+                    address = $4,
+                    phone = $5,
+                    description = $6,
+                    geom = ST_SetSRID(
+                        ST_MakePoint($7::float8, $8::float8),
+                        4326
+                    )
+                WHERE id = $1
+                RETURNING
+                    id,
+                    name,
+                    category,
+                    address,
+                    phone,
+                    description,
+                    ST_X(geom) AS lng,
+                    ST_Y(geom) AS lat,
+                    created_at
+                """,
+                poi_id,
+                body.name,
+                body.category,
+                body.address,
+                body.phone,
+                body.description,
+                body.lng,
+                body.lat,
+            )
 
     return {
         "id": int(row["id"]),
@@ -208,24 +216,20 @@ async def update_user_poi(
 # DELETE USER POI
 # ============================================================
 
-@router.delete(
-    "/api/user-pois/{poi_id}",
-    status_code=204,
-    dependencies=[Depends(require_write_key)],
-)
+@router.delete("/api/user-pois/{poi_id}", status_code=204)
 async def delete_user_poi(
     poi_id: int = Path(ge=1, le=BIGINT_MAX),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     paths = []
 
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # Khóa POI để tránh upload ảnh đồng thời
-            # trong quá trình lấy danh sách ảnh và xóa POI.
+            # Khóa POI và kiểm tra quyền trước khi xóa.
             poi = await conn.fetchrow(
                 """
-                SELECT id
+                SELECT id, user_id
                 FROM user_data.pois
                 WHERE id = $1
                 FOR UPDATE
@@ -234,10 +238,9 @@ async def delete_user_poi(
             )
 
             if poi is None:
-                raise HTTPException(
-                    404,
-                    "Không tìm thấy địa điểm",
-                )
+                raise HTTPException(404, "Không tìm thấy địa điểm")
+
+            _ensure_poi_access(poi, current_user)
 
             photos = await conn.fetch(
                 """
@@ -269,17 +272,11 @@ async def delete_user_poi(
             )
 
             if deleted is None:
-                raise HTTPException(
-                    404,
-                    "Không tìm thấy địa điểm",
-                )
+                raise HTTPException(404, "Không tìm thấy địa điểm")
 
     # Chỉ xóa file sau khi transaction commit thành công.
     if paths:
-        await asyncio.to_thread(
-            _remove_files,
-            paths,
-        )
+        await asyncio.to_thread(_remove_files, paths)
 
     return Response(status_code=204)
 
@@ -291,15 +288,31 @@ async def delete_user_poi(
 @router.delete(
     "/api/user-pois/{poi_id}/photos/{photo_id}",
     status_code=204,
-    dependencies=[Depends(require_write_key)],
 )
 async def delete_poi_photo(
     poi_id: int = Path(ge=1, le=BIGINT_MAX),
     photo_id: int = Path(ge=1, le=BIGINT_MAX),
+    current_user=Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
         async with conn.transaction():
+            # Khóa POI cha để xác minh ownership.
+            poi = await conn.fetchrow(
+                """
+                SELECT user_id
+                FROM user_data.pois
+                WHERE id = $1
+                FOR UPDATE
+                """,
+                poi_id,
+            )
+
+            if poi is None:
+                raise HTTPException(404, "Ảnh không tồn tại")
+
+            _ensure_poi_access(poi, current_user)
+
             row = await conn.fetchrow(
                 """
                 SELECT file_path, thumb_path
@@ -312,10 +325,7 @@ async def delete_poi_photo(
             )
 
             if row is None:
-                raise HTTPException(
-                    404,
-                    "Ảnh không tồn tại",
-                )
+                raise HTTPException(404, "Ảnh không tồn tại")
 
             await conn.execute(
                 """
@@ -326,23 +336,17 @@ async def delete_poi_photo(
                 poi_id,
             )
 
+    # Chỉ xóa file sau khi transaction commit thành công.
     paths = []
 
     if row["file_path"]:
-        paths.append(
-            settings.USER_MEDIA_DIR / row["file_path"]
-        )
+        paths.append(settings.USER_MEDIA_DIR / row["file_path"])
 
     if row["thumb_path"]:
-        paths.append(
-            settings.USER_MEDIA_DIR / row["thumb_path"]
-        )
+        paths.append(settings.USER_MEDIA_DIR / row["thumb_path"])
 
     if paths:
-        await asyncio.to_thread(
-            _remove_files,
-            paths,
-        )
+        await asyncio.to_thread(_remove_files, paths)
 
     return Response(status_code=204)
 
@@ -455,3 +459,14 @@ async def list_system_pois(
         ],
         "total": int(total) if total is not None else None,
     }
+
+
+def _ensure_poi_access(row: asyncpg.Record, current_user: dict) -> None:
+    is_owner = row["user_id"] == current_user["id"]
+    is_admin = current_user["role"] == "admin"
+
+    if not is_owner and not is_admin:
+        raise HTTPException(
+            403,
+            "Bạn không có quyền chỉnh sửa địa điểm này",
+        )

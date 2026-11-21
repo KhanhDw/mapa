@@ -164,13 +164,6 @@ export function useStreetViewManagement({
   const [filter, setFilter] = useState<LinkFilter>("all");
 
   // ====================================================
-  // API KEY
-  // ====================================================
-
-const [apiKey, setApiKey] = useState("");
-  const [apiKeyError, setApiKeyError] = useState(false);
-
-  // ====================================================
   // NAVIGATION
   // ====================================================
 
@@ -410,8 +403,6 @@ const hasMore = images.length < total;
 
     setEditing(null);
     setSelected(null);
-
-    setApiKeyError(false);
     setMode("create");
 
     setError(null);
@@ -476,13 +467,6 @@ const hasMore = images.length < total;
 
       if (!editing || busy) return;
 
-      if (!apiKey.trim()) {
-        setApiKeyError(true);
-        setError("Vui lòng nhập API key để lưu thay đổi");
-        return;
-      }
-
-      setApiKeyError(false);
 
       const lng = parseCoordinate(draft.lng);
       const lat = parseCoordinate(draft.lat);
@@ -547,7 +531,6 @@ if (heading !== undefined) {
         const updated = await updateStreetViewImage(
           editing.id,
           updateData,
-          apiKey.trim(),
         );
 
         closeEditForm();
@@ -568,7 +551,6 @@ if (heading !== undefined) {
     [
       editing,
       busy,
-      apiKey,
       draft,
       closeEditForm,
       loadPage,
@@ -585,22 +567,13 @@ if (heading !== undefined) {
     async (img: StreetViewImage) => {
       if (busy) return;
 
-      if (!apiKey.trim()) {
-        setApiKeyError(true);
-        setConfirmDeleteId(null);
-
-        setError("Vui lòng nhập API key để thực hiện xóa");
-
-        return;
-      }
-
-      setApiKeyError(false);
+      
 
       setBusy(true);
       setError(null);
 
       try {
-        await deleteStreetViewImage(img.id, apiKey.trim());
+        await deleteStreetViewImage(img.id);
 
         if (editing?.id === img.id) {
           closeEditForm();
@@ -623,7 +596,7 @@ if (heading !== undefined) {
         setConfirmDeleteId(null);
       }
     },
-    [busy, apiKey, editing, selected, closeEditForm, loadPage, onChanged],
+    [busy, editing, selected, closeEditForm, loadPage, onChanged],
   );
 
   // ====================================================
@@ -645,12 +618,7 @@ if (heading !== undefined) {
     filter,
     setFilter,
 
-    // API key
-    apiKey,
-    setApiKey,
-    apiKeyError,
-    setApiKeyError,
-
+    
     // Navigation
     mode,
     selected,

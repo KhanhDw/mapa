@@ -93,11 +93,10 @@ export interface UploadProgressEvent {
 }
 
 export interface StreetViewUploadOptions {
-  apiKey?: string;
-  signal?: AbortSignal;
-  onUploadProgress?: (
-    progress: UploadProgressEvent
-  ) => void;
+    signal?: AbortSignal;
+    onUploadProgress?: (
+        progress: UploadProgressEvent
+    ) => void;
 }
 
 export type StreetViewQueryValue = string | number | boolean | undefined;
@@ -123,13 +122,7 @@ function buildQueryParams(query: StreetViewQuery = {}): string {
     return result ? `?${result}` : "";
 }
 
-function getWriteHeaders(apiKey?: string): HeadersInit {
-    const key = apiKey ;
 
-    return key
-        ? { "X-API-Key": key }
-        : {};
-}
 
 function normalizeId(id: number | string): string {
     return encodeURIComponent(String(id));
@@ -206,14 +199,12 @@ export async function getStreetViewImage(
  */
 export async function updateStreetViewImage(
     id: number | string,
-    data: StreetViewUpdate,
-    apiKey?: string
+    data: StreetViewUpdate
 ): Promise<StreetViewImage> {
     return apiClient.request<StreetViewImage>(
         `/api/streetview/image/${normalizeId(id)}`,
         {
             method: "PUT",
-            headers: getWriteHeaders(apiKey),
             body: JSON.stringify(data),
         }
     );
@@ -224,14 +215,12 @@ export async function updateStreetViewImage(
  * Cập nhật nhiều ảnh Street View.
  */
 export async function batchUpdateStreetViewImages(
-    updates: StreetViewBatchUpdateItem[],
-    apiKey?: string
+    updates: StreetViewBatchUpdateItem[]
 ): Promise<unknown> {
     return apiClient.request<unknown>(
         "/api/streetview/batch-update",
         {
             method: "PATCH",
-            headers: getWriteHeaders(apiKey),
             body: JSON.stringify(updates),
         }
     );
@@ -242,14 +231,12 @@ export async function batchUpdateStreetViewImages(
  * Xóa ảnh Street View.
  */
 export async function deleteStreetViewImage(
-    id: number | string,
-    apiKey?: string
+    id: number | string
 ): Promise<void> {
     return apiClient.request<void>(
         `/api/streetview/image/${normalizeId(id)}`,
         {
             method: "DELETE",
-            headers: getWriteHeaders(apiKey),
         }
     );
 }
@@ -297,14 +284,13 @@ export async function uploadStreetViewImage(
     }
 
     return apiClient.request<StreetViewUploadResponse>(
-        "/api/streetview/upload",
-        {
-            method: "POST",
-            headers: getWriteHeaders(options.apiKey),
-            body: formData,
-            signal: options.signal,
-        }
-    );
+    "/api/streetview/upload",
+    {
+        method: "POST",
+        body: formData,
+        signal: options.signal,
+    }
+);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -325,7 +311,6 @@ export interface StreetViewBatchUploadResult {
 
 export interface StreetViewBatchUploadOptions {
     concurrency?: number;
-    apiKey?: string;
     signal?: AbortSignal;
 }
 
@@ -399,15 +384,14 @@ export async function uploadStreetViewBatch(
                 }
 
                 const response =
-                    await apiClient.request<StreetViewUploadResponse>(
-                        "/api/streetview/upload",
-                        {
-                            method: "POST",
-                            headers: getWriteHeaders(options.apiKey),
-                            body: formData,
-                            signal: options.signal,
-                        }
-                    );
+    await apiClient.request<StreetViewUploadResponse>(
+        "/api/streetview/upload",
+        {
+            method: "POST",
+            body: formData,
+            signal: options.signal,
+        }
+    );
 
                 results[index] = {
                     index,

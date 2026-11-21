@@ -1,6 +1,6 @@
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
-
+import { getAuthToken } from '../../features/auth/storage';
 export class ApiError extends Error {
     status: number;
     detail: unknown;
@@ -40,6 +40,35 @@ function normalizeUrl(url: string): string {
     }
 
     return `${base}${path}`;
+}
+
+function isBackendRequest(url: string): boolean {
+    // URL tương đối luôn được gửi đến backend hiện tại.
+    if (!/^https?:\/\//i.test(url)) {
+        return true;
+    }
+
+    // URL tuyệt đối chỉ được gửi token nếu thuộc API_BASE_URL.
+    if (!/^https?:\/\//i.test(API_BASE_URL)) {
+        return false;
+    }
+
+    try {
+        const requestUrl = new URL(url);
+        const baseUrl = new URL(API_BASE_URL);
+        const basePath = baseUrl.pathname.replace(/\/+$/, '');
+
+        return (
+            requestUrl.origin === baseUrl.origin &&
+            (
+                !basePath ||
+                requestUrl.pathname === basePath ||
+                requestUrl.pathname.startsWith(`${basePath}/`)
+            )
+        );
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -131,27 +160,33 @@ function isJsonBody(body: BodyInit | null | undefined): boolean {
 
 class ApiClient {
     /**
-     * Gửi HTTP request đến backend.
-     *
-     * API key không được tự động thêm ở đây.
-     * Từng API ghi dữ liệu phải chủ động truyền X-API-Key.
-     */
-    async request<T>(
-        url: string,
-        init: RequestInit = {}
-    ): Promise<T> {
+  * Gửi HTTP request đến backend.
+  *
+  * Tự động đính kèm JWT Bearer nếu có session hợp lệ.
+  * Không gửi JWT đến URL bên ngoài backend.
+  */
+    async request<T>(url: string, init: RequestInit = {}): Promise<T> {
         const requestUrl = normalizeUrl(url);
-
         const headers = new Headers(init.headers);
 
-        if (isJsonBody(init.body) && !headers.has("Content-Type")) {
-            headers.set("Content-Type", "application/json");
+        if (isJsonBody(init.body) && !headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/json');
+        }
+
+        if (isBackendRequest(requestUrl) && !headers.has('Authorization')) {
+            const token = getAuthToken();
+
+            if (token) {
+                headers.set('Authorization', `Bearer ${token}`);
+            }
         }
 
         const response = await fetch(requestUrl, {
             ...init,
             headers,
         });
+
+        // Giữ nguyên toàn bộ phần xử lý response phía dưới.
 
         if (!response.ok) {
             throw await parseErrorResponse(response);

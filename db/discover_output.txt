@@ -5,13 +5,14 @@ Expanded display is used automatically.
 ========== 1.1 EXTENSIONS ==========
         extname         | extversion 
 ------------------------+------------
+ citext                 | 1.6
  fuzzystrmatch          | 1.2
  pg_trgm                | 1.6
  plpgsql                | 1.0
  postgis                | 3.5.2
  postgis_tiger_geocoder | 3.5.2
  postgis_topology       | 3.5.2
-(6 rows)
+(7 rows)
 
 ========== 1.2 SCHEMAS ==========
  schema_name |   schema_owner    
@@ -41,10 +42,12 @@ Expanded display is used automatically.
 -----------+--------------------------+----------+------------+------
  public    | geography_columns        |       -1 | 0 bytes    | v
  public    | geometry_columns         |       -1 | 0 bytes    | v
- public    | pois                     |       -1 | 24 kB      | r
+ public    | pois                     |       -1 | 48 kB      | r
  public    | spatial_ref_sys          |     8500 | 7144 kB    | r
  public    | streetview_images        |       -1 | 40 kB      | r
- public    | vietnam_roads            |       -1 | 40 kB      | r
+ public    | streetview_links         |       -1 | 16 kB      | r
+ public    | users                    |       -1 | 48 kB      | r
+ public    | vietnam_roads            |       -1 | 1001 MB    | r
  tiger     | addr                     |       -1 | 24 kB      | r
  tiger     | addrfeat                 |       -1 | 48 kB      | r
  tiger     | bg                       |       -1 | 16 kB      | r
@@ -81,22 +84,22 @@ Expanded display is used automatically.
  tiger     | zip_state_loc            |       -1 | 8192 bytes | r
  topology  | layer                    |       -1 | 24 kB      | r
  topology  | topology                 |       -1 | 24 kB      | r
- user_data | electric_poles           |       -1 | 32 kB      | r
+ user_data | electric_poles           |       -1 | 48 kB      | r
  user_data | poi_photos               |       -1 | 24 kB      | r
- user_data | pois                     |       -1 | 40 kB      | r
+ user_data | pois                     |       -1 | 56 kB      | r
  user_data | vietnam_wards_2025       |     3321 | 119 MB     | r
-(46 rows)
+(48 rows)
 
 ========== 2.2 EXACT ROW COUNTS ==========
-             tbl              | count 
-------------------------------+-------
- user_data.pois               |     0
- user_data.poi_photos         |     0
- user_data.electric_poles     |     0
- user_data.vietnam_wards_2025 |  3321
- public.pois                  |     0
- public.streetview_images     |     0
- public.vietnam_roads         |     0
+             tbl              |  count  
+------------------------------+---------
+ user_data.pois               |       0
+ user_data.poi_photos         |       0
+ user_data.electric_poles     |       0
+ user_data.vietnam_wards_2025 |    3321
+ public.pois                  |       0
+ public.streetview_images     |       0
+ public.vietnam_roads         | 3140236
 (7 rows)
 
 
@@ -105,6 +108,7 @@ Expanded display is used automatically.
    Column    |           Type           | Collation | Nullable |                  Default                   | Storage  | Compression | Stats target | Description 
 -------------+--------------------------+-----------+----------+--------------------------------------------+----------+-------------+--------------+-------------
  id          | bigint                   |           | not null | nextval('user_data.pois_id_seq'::regclass) | plain    |             |              | 
+ user_id     | bigint                   |           |          |                                            | plain    |             |              | 
  name        | text                     |           | not null |                                            | extended |             |              | 
  category    | text                     |           | not null | 'other'::text                              | extended |             |              | 
  address     | text                     |           |          |                                            | extended |             |              | 
@@ -115,7 +119,11 @@ Expanded display is used automatically.
 Indexes:
     "pois_pkey" PRIMARY KEY, btree (id)
     "idx_search_user_pois_name_trgm" gin (name gin_trgm_ops)
+    "idx_user_pois_category" btree (category)
     "idx_user_pois_geom" gist (geom)
+    "idx_user_pois_user_id" btree (user_id)
+Foreign-key constraints:
+    "pois_user_id_fkey" FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 Referenced by:
     TABLE "user_data.poi_photos" CONSTRAINT "poi_photos_poi_id_fkey" FOREIGN KEY (poi_id) REFERENCES user_data.pois(id) ON DELETE CASCADE
 Access method: heap
@@ -152,8 +160,12 @@ Indexes:
     "electric_poles_pkey" PRIMARY KEY, btree (id)
     "electric_poles_pole_code_key" UNIQUE CONSTRAINT, btree (pole_code)
     "idx_electric_poles_geom" gist (geom)
+    "idx_electric_poles_route" btree (route)
+    "idx_electric_poles_status" btree (status)
 Check constraints:
     "electric_poles_status_check" CHECK (status = ANY (ARRAY['good'::text, 'warning'::text, 'error'::text]))
+Triggers:
+    trg_electric_poles_updated_at BEFORE UPDATE ON user_data.electric_poles FOR EACH ROW EXECUTE FUNCTION set_updated_at()
 Access method: heap
 
 ========== 3.4 user_data.vietnam_wards_2025 ==========
@@ -192,7 +204,9 @@ Access method: heap
  geom     | geometry(Point,4326) |           | not null |                                  | main     |             |              | 
 Indexes:
     "pois_pkey" PRIMARY KEY, btree (id)
+    "idx_public_pois_category" btree (category)
     "idx_public_pois_geom" gist (geom)
+    "idx_public_pois_name_trgm" gin (name gin_trgm_ops)
 Access method: heap
 
 ========== 3.6 public.streetview_images ==========
@@ -203,11 +217,16 @@ Access method: heap
  file_path  | text                     |           | not null |                                               | extended |             |              | 
  heading    | double precision         |           |          | 0                                             | plain    |             |              | 
  pitch      | double precision         |           |          | 0                                             | plain    |             |              | 
+ next_ids   | integer[]                |           | not null | '{}'::integer[]                               | extended |             |              | 
  geom       | geometry(Point,4326)     |           | not null |                                               | main     |             |              | 
  created_at | timestamp with time zone |           |          | now()                                         | plain    |             |              | 
 Indexes:
     "streetview_images_pkey" PRIMARY KEY, btree (id)
     "idx_streetview_geom" gist (geom)
+    "idx_streetview_next_ids" gin (next_ids)
+Referenced by:
+    TABLE "streetview_links" CONSTRAINT "fk_streetview_source" FOREIGN KEY (source_id) REFERENCES streetview_images(id) ON DELETE CASCADE
+    TABLE "streetview_links" CONSTRAINT "fk_streetview_target" FOREIGN KEY (target_id) REFERENCES streetview_images(id) ON DELETE CASCADE
 Access method: heap
 
 ========== 3.7 public.vietnam_roads ==========
@@ -236,15 +255,19 @@ Access method: heap
  user_data | electric_poles    | electric_poles_pole_code_key | UNIQUE | UNIQUE (pole_code)
  user_data | poi_photos        | poi_photos_poi_id_fkey       | FK     | FOREIGN KEY (poi_id) REFERENCES user_data.pois(id) ON DELETE CASCADE
  user_data | poi_photos        | poi_photos_pkey              | PK     | PRIMARY KEY (id)
+ user_data | pois              | pois_user_id_fkey            | FK     | FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
  user_data | pois              | pois_pkey                    | PK     | PRIMARY KEY (id)
-(9 rows)
+(10 rows)
 
 ========== 4.2 INDEXES ==========
  schemaname |     tablename      |           indexname            |                                               indexdef                                               
 ------------+--------------------+--------------------------------+------------------------------------------------------------------------------------------------------
+ public     | pois               | idx_public_pois_category       | CREATE INDEX idx_public_pois_category ON public.pois USING btree (category)
  public     | pois               | idx_public_pois_geom           | CREATE INDEX idx_public_pois_geom ON public.pois USING gist (geom)
+ public     | pois               | idx_public_pois_name_trgm      | CREATE INDEX idx_public_pois_name_trgm ON public.pois USING gin (name gin_trgm_ops)
  public     | pois               | pois_pkey                      | CREATE UNIQUE INDEX pois_pkey ON public.pois USING btree (id)
  public     | streetview_images  | idx_streetview_geom            | CREATE INDEX idx_streetview_geom ON public.streetview_images USING gist (geom)
+ public     | streetview_images  | idx_streetview_next_ids        | CREATE INDEX idx_streetview_next_ids ON public.streetview_images USING gin (next_ids)
  public     | streetview_images  | streetview_images_pkey         | CREATE UNIQUE INDEX streetview_images_pkey ON public.streetview_images USING btree (id)
  public     | vietnam_roads      | idx_search_roads_name_trgm     | CREATE INDEX idx_search_roads_name_trgm ON public.vietnam_roads USING gin (name gin_trgm_ops)
  public     | vietnam_roads      | idx_vietnam_roads_geom         | CREATE INDEX idx_vietnam_roads_geom ON public.vietnam_roads USING gist (geom)
@@ -252,13 +275,17 @@ Access method: heap
  user_data  | electric_poles     | electric_poles_pkey            | CREATE UNIQUE INDEX electric_poles_pkey ON user_data.electric_poles USING btree (id)
  user_data  | electric_poles     | electric_poles_pole_code_key   | CREATE UNIQUE INDEX electric_poles_pole_code_key ON user_data.electric_poles USING btree (pole_code)
  user_data  | electric_poles     | idx_electric_poles_geom        | CREATE INDEX idx_electric_poles_geom ON user_data.electric_poles USING gist (geom)
+ user_data  | electric_poles     | idx_electric_poles_route       | CREATE INDEX idx_electric_poles_route ON user_data.electric_poles USING btree (route)
+ user_data  | electric_poles     | idx_electric_poles_status      | CREATE INDEX idx_electric_poles_status ON user_data.electric_poles USING btree (status)
  user_data  | poi_photos         | idx_poi_photos_poi             | CREATE INDEX idx_poi_photos_poi ON user_data.poi_photos USING btree (poi_id)
  user_data  | poi_photos         | poi_photos_pkey                | CREATE UNIQUE INDEX poi_photos_pkey ON user_data.poi_photos USING btree (id)
  user_data  | pois               | idx_search_user_pois_name_trgm | CREATE INDEX idx_search_user_pois_name_trgm ON user_data.pois USING gin (name gin_trgm_ops)
+ user_data  | pois               | idx_user_pois_category         | CREATE INDEX idx_user_pois_category ON user_data.pois USING btree (category)
  user_data  | pois               | idx_user_pois_geom             | CREATE INDEX idx_user_pois_geom ON user_data.pois USING gist (geom)
+ user_data  | pois               | idx_user_pois_user_id          | CREATE INDEX idx_user_pois_user_id ON user_data.pois USING btree (user_id)
  user_data  | pois               | pois_pkey                      | CREATE UNIQUE INDEX pois_pkey ON user_data.pois USING btree (id)
  user_data  | vietnam_wards_2025 | idx_vietnam_wards_2025_geom    | CREATE INDEX idx_vietnam_wards_2025_geom ON user_data.vietnam_wards_2025 USING gist (geom)
-(16 rows)
+(23 rows)
 
 
 ========== 5.1 GEOMETRY COLUMNS ==========
@@ -329,10 +356,10 @@ Access method: heap
 ------------------------------+---------
  user_data.pois               |       0
  user_data.electric_poles     |       0
- public.pois                  |       0
- public.vietnam_roads         |       0
- public.streetview_images     |       0
  user_data.vietnam_wards_2025 |       0
+ public.pois                  |       0
+ public.streetview_images     |       0
+ public.vietnam_roads         |       0
 (6 rows)
 
 ========== 7.5 NULL CHECK user_data.pois ==========
@@ -353,62 +380,77 @@ Access method: heap
 (0 rows)
 
 ========== 7.8 ALL user_data & public COLUMNS ==========
- table_schema |     table_name     | ordinal_position | column_name  |        data_type         | max_len | is_nullable |                    column_default                    
---------------+--------------------+------------------+--------------+--------------------------+---------+-------------+------------------------------------------------------
- public       | pois               |                1 | id           | integer                  |         | NO          | nextval('pois_id_seq'::regclass)
- public       | pois               |                2 | name         | text                     |         | YES         | 
- public       | pois               |                3 | fclass       | text                     |         | YES         | 
- public       | pois               |                4 | category     | text                     |         | YES         | 
- public       | pois               |                5 | geom         | USER-DEFINED             |         | NO          | 
- public       | streetview_images  |                1 | id           | integer                  |         | NO          | nextval('streetview_images_id_seq'::regclass)
- public       | streetview_images  |                2 | file_path    | text                     |         | NO          | 
- public       | streetview_images  |                3 | heading      | double precision         |         | YES         | 0
- public       | streetview_images  |                4 | pitch        | double precision         |         | YES         | 0
- public       | streetview_images  |                5 | geom         | USER-DEFINED             |         | NO          | 
- public       | streetview_images  |                6 | created_at   | timestamp with time zone |         | YES         | now()
- public       | vietnam_roads      |                1 | id           | integer                  |         | NO          | nextval('vietnam_roads_id_seq'::regclass)
- public       | vietnam_roads      |                2 | name         | text                     |         | YES         | 
- public       | vietnam_roads      |                3 | fclass       | text                     |         | YES         | 
- public       | vietnam_roads      |                4 | geom         | USER-DEFINED             |         | NO          | 
- user_data    | electric_poles     |                1 | id           | bigint                   |         | NO          | nextval('user_data.electric_poles_id_seq'::regclass)
- user_data    | electric_poles     |                2 | pole_code    | text                     |         | NO          | 
- user_data    | electric_poles     |                3 | route        | text                     |         | NO          | 
- user_data    | electric_poles     |                4 | status       | text                     |         | NO          | 'good'::text
- user_data    | electric_poles     |                5 | detail       | text                     |         | YES         | 
- user_data    | electric_poles     |                6 | geom         | USER-DEFINED             |         | NO          | 
- user_data    | electric_poles     |                7 | created_at   | timestamp with time zone |         | NO          | now()
- user_data    | electric_poles     |                8 | updated_at   | timestamp with time zone |         | NO          | now()
- user_data    | poi_photos         |                1 | id           | bigint                   |         | NO          | nextval('user_data.poi_photos_id_seq'::regclass)
- user_data    | poi_photos         |                2 | poi_id       | bigint                   |         | NO          | 
- user_data    | poi_photos         |                3 | file_path    | text                     |         | NO          | 
- user_data    | poi_photos         |                4 | thumb_path   | text                     |         | YES         | 
- user_data    | poi_photos         |                5 | created_at   | timestamp with time zone |         | NO          | now()
- user_data    | pois               |                1 | id           | bigint                   |         | NO          | nextval('user_data.pois_id_seq'::regclass)
- user_data    | pois               |                2 | name         | text                     |         | NO          | 
- user_data    | pois               |                3 | category     | text                     |         | NO          | 'other'::text
- user_data    | pois               |                4 | address      | text                     |         | YES         | 
- user_data    | pois               |                5 | phone        | text                     |         | YES         | 
- user_data    | pois               |                6 | description  | text                     |         | YES         | 
- user_data    | pois               |                7 | geom         | USER-DEFINED             |         | NO          | 
- user_data    | pois               |                8 | created_at   | timestamp with time zone |         | NO          | now()
- user_data    | vietnam_wards_2025 |                1 | ma           | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |                2 | cay          | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |                3 | ma1          | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |                4 | khoa         | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |                5 | loai         | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |                6 | vido         | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |                7 | tenhc        | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |                8 | kinhdo       | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |                9 | matinh       | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |               10 | tentinh      | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |               11 | matinhxa     | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |               12 | dansonguoi   | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |               13 | trungtamhc   | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |               14 | dientichkm2  | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |               15 | truocsapnhap | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |               16 | area         | text                     |         | YES         | 
- user_data    | vietnam_wards_2025 |               17 | geom         | USER-DEFINED             |         | YES         | 
-(53 rows)
+ table_schema |     table_name     | ordinal_position |    column_name    |        data_type         | max_len | is_nullable |                    column_default                    
+--------------+--------------------+------------------+-------------------+--------------------------+---------+-------------+------------------------------------------------------
+ public       | pois               |                1 | id                | integer                  |         | NO          | nextval('pois_id_seq'::regclass)
+ public       | pois               |                2 | name              | text                     |         | YES         | 
+ public       | pois               |                3 | fclass            | text                     |         | YES         | 
+ public       | pois               |                4 | category          | text                     |         | YES         | 
+ public       | pois               |                5 | geom              | USER-DEFINED             |         | NO          | 
+ public       | streetview_images  |                1 | id                | integer                  |         | NO          | nextval('streetview_images_id_seq'::regclass)
+ public       | streetview_images  |                2 | file_path         | text                     |         | NO          | 
+ public       | streetview_images  |                3 | heading           | double precision         |         | YES         | 0
+ public       | streetview_images  |                4 | pitch             | double precision         |         | YES         | 0
+ public       | streetview_images  |                5 | next_ids          | ARRAY                    |         | NO          | '{}'::integer[]
+ public       | streetview_images  |                6 | geom              | USER-DEFINED             |         | NO          | 
+ public       | streetview_images  |                7 | created_at        | timestamp with time zone |         | YES         | now()
+ public       | streetview_links   |                1 | source_id         | integer                  |         | NO          | 
+ public       | streetview_links   |                2 | target_id         | integer                  |         | NO          | 
+ public       | users              |                1 | id                | bigint                   |         | NO          | nextval('users_id_seq'::regclass)
+ public       | users              |                2 | username          | USER-DEFINED             |         | NO          | 
+ public       | users              |                3 | email             | USER-DEFINED             |         | NO          | 
+ public       | users              |                4 | password_hash     | text                     |         | NO          | 
+ public       | users              |                5 | display_name      | character varying        |     100 | YES         | 
+ public       | users              |                6 | role              | text                     |         | NO          | 'user'::text
+ public       | users              |                7 | is_active         | boolean                  |         | NO          | true
+ public       | users              |                8 | email_verified_at | timestamp with time zone |         | YES         | 
+ public       | users              |                9 | last_login_at     | timestamp with time zone |         | YES         | 
+ public       | users              |               10 | created_at        | timestamp with time zone |         | NO          | now()
+ public       | users              |               11 | updated_at        | timestamp with time zone |         | NO          | now()
+ public       | vietnam_roads      |                1 | id                | integer                  |         | NO          | nextval('vietnam_roads_id_seq'::regclass)
+ public       | vietnam_roads      |                2 | name              | text                     |         | YES         | 
+ public       | vietnam_roads      |                3 | fclass            | text                     |         | YES         | 
+ public       | vietnam_roads      |                4 | geom              | USER-DEFINED             |         | NO          | 
+ user_data    | electric_poles     |                1 | id                | bigint                   |         | NO          | nextval('user_data.electric_poles_id_seq'::regclass)
+ user_data    | electric_poles     |                2 | pole_code         | text                     |         | NO          | 
+ user_data    | electric_poles     |                3 | route             | text                     |         | NO          | 
+ user_data    | electric_poles     |                4 | status            | text                     |         | NO          | 'good'::text
+ user_data    | electric_poles     |                5 | detail            | text                     |         | YES         | 
+ user_data    | electric_poles     |                6 | geom              | USER-DEFINED             |         | NO          | 
+ user_data    | electric_poles     |                7 | created_at        | timestamp with time zone |         | NO          | now()
+ user_data    | electric_poles     |                8 | updated_at        | timestamp with time zone |         | NO          | now()
+ user_data    | poi_photos         |                1 | id                | bigint                   |         | NO          | nextval('user_data.poi_photos_id_seq'::regclass)
+ user_data    | poi_photos         |                2 | poi_id            | bigint                   |         | NO          | 
+ user_data    | poi_photos         |                3 | file_path         | text                     |         | NO          | 
+ user_data    | poi_photos         |                4 | thumb_path        | text                     |         | YES         | 
+ user_data    | poi_photos         |                5 | created_at        | timestamp with time zone |         | NO          | now()
+ user_data    | pois               |                1 | id                | bigint                   |         | NO          | nextval('user_data.pois_id_seq'::regclass)
+ user_data    | pois               |                2 | user_id           | bigint                   |         | YES         | 
+ user_data    | pois               |                3 | name              | text                     |         | NO          | 
+ user_data    | pois               |                4 | category          | text                     |         | NO          | 'other'::text
+ user_data    | pois               |                5 | address           | text                     |         | YES         | 
+ user_data    | pois               |                6 | phone             | text                     |         | YES         | 
+ user_data    | pois               |                7 | description       | text                     |         | YES         | 
+ user_data    | pois               |                8 | geom              | USER-DEFINED             |         | NO          | 
+ user_data    | pois               |                9 | created_at        | timestamp with time zone |         | NO          | now()
+ user_data    | vietnam_wards_2025 |                1 | ma                | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                2 | cay               | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                3 | ma1               | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                4 | khoa              | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                5 | loai              | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                6 | vido              | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                7 | tenhc             | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                8 | kinhdo            | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |                9 | matinh            | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               10 | tentinh           | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               11 | matinhxa          | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               12 | dansonguoi        | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               13 | trungtamhc        | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               14 | dientichkm2       | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               15 | truocsapnhap      | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               16 | area              | text                     |         | YES         | 
+ user_data    | vietnam_wards_2025 |               17 | geom              | USER-DEFINED             |         | YES         | 
+(68 rows)
 
 ========== 7.9 CUSTOM TYPES/ENUMS ==========
  nspname | typname | labels 
@@ -416,9 +458,11 @@ Access method: heap
 (0 rows)
 
 ========== 7.10 TRIGGERS ==========
- schema | tbl | tgname | def 
---------+-----+--------+-----
-(0 rows)
+  schema   |      tbl       |            tgname             |                                                                  def                                                                  
+-----------+----------------+-------------------------------+---------------------------------------------------------------------------------------------------------------------------------------
+ public    | users          | trg_users_updated_at          | CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION set_updated_at()
+ user_data | electric_poles | trg_electric_poles_updated_at | CREATE TRIGGER trg_electric_poles_updated_at BEFORE UPDATE ON user_data.electric_poles FOR EACH ROW EXECUTE FUNCTION set_updated_at()
+(2 rows)
 
 
 ========== DONE ==========

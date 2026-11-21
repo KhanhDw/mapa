@@ -37,6 +37,7 @@ class DBConnection(Protocol):
 
 
 _REQUIRED_TABLES = (
+    "public.users", 
     "public.pois",
     "public.streetview_images",
     "public.vietnam_roads",

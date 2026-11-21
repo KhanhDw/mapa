@@ -163,7 +163,6 @@ export function StreetViewManagementPanel({
           }
           busy={m.busy}
           error={m.error}
-          apiKey={m.apiKey}
           onGoToImage={onGoToImage}
           onEdit={() => m.beginEdit(m.selected!)}
           onRequestDelete={() =>
@@ -183,10 +182,6 @@ export function StreetViewManagementPanel({
           {/* CREATE */}
           {m.mode === "create" ? (
             <StreetViewCreateForm
-              apiKey={m.apiKey}
-              setApiKey={m.setApiKey}
-              apiKeyError={m.apiKeyError}
-              setApiKeyError={m.setApiKeyError}
               isRecordingLocation={isRecordingLocation}
               onStartLocationRecording={
                 onStartLocationRecording
@@ -221,30 +216,6 @@ export function StreetViewManagementPanel({
                   variant="warn"
                 />
               </div>
-
-              {/* API KEY */}
-              <label className="sv-field">
-                <span>API key (quyền thao tác)</span>
-
-                <input
-                  type="password"
-                  className={
-                    m.apiKeyError
-                      ? "sv-input-error"
-                      : ""
-                  }
-                  value={m.apiKey}
-                  onChange={(e) => {
-                    m.setApiKey(e.target.value);
-
-                    if (m.apiKeyError) {
-                      m.setApiKeyError(false);
-                    }
-                  }}
-                  placeholder="Nhập X-API-Key"
-                  autoComplete="off"
-                />
-              </label>
 
               {/* EDIT */}
               {m.editing && <EditForm mgmt={m} />}
@@ -669,7 +640,6 @@ function ImageDetailView({
   confirmDelete: boolean;
   busy: boolean;
   error: string | null;
-  apiKey: string;
   onGoToImage: (image: StreetViewImage) => void;
   onEdit: () => void;
   onRequestDelete: () => void;

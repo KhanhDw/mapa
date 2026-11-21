@@ -9,10 +9,18 @@ import { EXTRA_LAYERS } from "./registry";
 
 /** Trả về các MapLibre layer id tương ứng với 1 LayerKey. */
 function layerIdsFor(key: LayerKey): string[] {
+    // Roads được quản lý riêng bởi roadsLayer.ts
+    if (key === "roads") {
+        return [
+            `${ROADS_LAYER_ID}-casing`,
+            ROADS_LAYER_ID,
+            ROADS_LABEL_LAYER_ID,
+        ];
+    }
+
     const extra = EXTRA_LAYERS.find((d) => d.key === key);
     if (extra) return [extra.layerId];
 
-    if (key === "roads") return [ROADS_LAYER_ID, ROADS_LABEL_LAYER_ID];
     if (key === "streetview") return [SV_LAYER_ID];
 
     return [];

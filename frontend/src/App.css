@@ -12,7 +12,7 @@
   /* === COLORS: BORDERS === */
   --app-border: #e2e8f0;
   --cs-border: #e4e4e7;
-  --app-frame-border: #454545;
+  --app-frame-border: #a0a0a0;
 
   /* === COLORS: BRAND / PRIMARY === */
   --primary: #2563eb;
@@ -132,7 +132,7 @@ body,
   position: relative;
   overflow: hidden;
   border-radius: 12px;
-  border: 4px solid var(--app-frame-border);
+  border: 2px solid var(--app-frame-border);
   background: #ffffff;
 }
 

@@ -121,25 +121,16 @@ export async function fetchSystemPois(
 /**
  * Cập nhật POI do người dùng tạo.
  * PUT /api/user-pois/{id}
- *
- * API này yêu cầu X-API-Key.
+ * Yêu cầu JWT Bearer.
  */
 export async function updateUserPoi(
     id: number | string,
-    data: UpdateUserPoiInput,
-    apiKey?: string
+    data: UpdateUserPoiInput
 ): Promise<PoiItem> {
-    const headers: HeadersInit = {};
-
-    if (apiKey) {
-        headers["X-API-Key"] = apiKey;
-    }
-
     return apiClient.request<PoiItem>(
         `/api/user-pois/${encodeURIComponent(String(id))}`,
         {
             method: "PUT",
-            headers,
             body: JSON.stringify(data),
         }
     );
@@ -148,24 +139,15 @@ export async function updateUserPoi(
 /**
  * Xóa POI do người dùng tạo.
  * DELETE /api/user-pois/{id}
- *
- * API này yêu cầu X-API-Key.
+ * Yêu cầu JWT Bearer.
  */
 export async function deleteUserPoi(
-    id: number | string,
-    apiKey?: string
+    id: number | string
 ): Promise<void> {
-    const headers: HeadersInit = {};
-
-    if (apiKey) {
-        headers["X-API-Key"] = apiKey;
-    }
-
     await apiClient.request<void>(
         `/api/user-pois/${encodeURIComponent(String(id))}`,
         {
             method: "DELETE",
-            headers,
         }
     );
 }
