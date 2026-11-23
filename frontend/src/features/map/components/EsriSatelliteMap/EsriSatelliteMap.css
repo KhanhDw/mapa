@@ -15,3 +15,23 @@
   width: 100%;
   height: 100%;
 }
+
+.poi-hover-popup {
+    pointer-events: none !important;
+}
+
+.poi-hover-popup .maplibregl-popup-content {
+    pointer-events: none !important;
+}
+
+/* Tên POI mặc định */
+.poi-hover-name {
+    color: #1e293b;
+    font-weight: 600;
+    transition: color 0.15s ease;
+}
+
+/* Hover vào tên POI */
+.poi-hover-content:hover .poi-hover-name {
+    color: #2563eb;
+}

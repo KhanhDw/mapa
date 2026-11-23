@@ -3,8 +3,12 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./EsriSatelliteMap.css";
 
+
 import { addExtraLayers } from "./layers/addExtraLayers";
-import { bindUserPoiHover } from "./layers/bindUserPoiHover";
+import {
+    bindPoiInteractions,
+    type SelectedMapPoi, hasPoiAtPoint
+} from "./layers/bindPoiInteractions";
 import { ESRI_INITIAL_VIEW } from "./constants";
 
 import { addRoadsLayer } from "./layers/roadsLayer";
@@ -38,6 +42,7 @@ interface Props {
     onMapInstanceReady?: (map: MapLibreMap) => void;
     streetViewGeojson?: StreetViewGeoJSON | null;
     onStreetViewIconClick?: (id: number) => void;
+    onPoiSelect?: (poi: SelectedMapPoi) => void;
 }
 
 function EsriSatelliteMap({
@@ -49,6 +54,7 @@ function EsriSatelliteMap({
     onMapInstanceReady,
     streetViewGeojson,
     onStreetViewIconClick,
+    onPoiSelect,
 }: Props) {
     const mapContainer = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
@@ -62,6 +68,7 @@ function EsriSatelliteMap({
     const onElectricPoleSelectRef = useRef(onElectricPoleSelect);
     const isRecordingPoleLocationRef = useRef(isRecordingPoleLocation);
     const electricPolesRef = useRef(electricPoles);
+    const onPoiSelectRef = useRef(onPoiSelect);
 
     useEffect(() => { onStreetViewIconClickRef.current = onStreetViewIconClick; }, [onStreetViewIconClick]);
     useEffect(() => { onMapInstanceReadyRef.current = onMapInstanceReady; }, [onMapInstanceReady]);
@@ -69,6 +76,7 @@ function EsriSatelliteMap({
     useEffect(() => { onElectricPoleSelectRef.current = onElectricPoleSelect; }, [onElectricPoleSelect]);
     useEffect(() => { isRecordingPoleLocationRef.current = isRecordingPoleLocation; }, [isRecordingPoleLocation]);
     useEffect(() => { electricPolesRef.current = electricPoles; }, [electricPoles]);
+    useEffect(() => { onPoiSelectRef.current = onPoiSelect; }, [onPoiSelect]);
 
     // ===== Layer Visibility =====
     useEffect(() => {
@@ -125,7 +133,6 @@ function EsriSatelliteMap({
         map.on("load", () => {
             addRoadsLayer(map);
             addExtraLayers(map);
-            bindUserPoiHover(map);
             ensureStreetViewLayer({
                 map,
                 onIconClick: (id) => onStreetViewIconClickRef.current?.(id),
@@ -144,6 +151,22 @@ function EsriSatelliteMap({
             setMapReady(false);
         };
     }, []); // ⬅️ QUAN TRỌNG: bỏ onMapInstanceReady khỏi deps
+
+    // ===== Hover & Click POI =====
+    useEffect(() => {
+        const map = mapInstance;
+        if (!map) return;
+
+        const cleanup = bindPoiInteractions({
+            map,
+            onPoiSelect: (poi) => onPoiSelectRef.current?.(poi),
+            isInteractionBlocked: () => isRecordingPoleLocationRef.current,
+        });
+
+        return () => {
+            cleanup();
+        };
+    }, [mapInstance]);
 
     // ===== Update electric poles =====
     useEffect(() => {
@@ -178,17 +201,20 @@ function EsriSatelliteMap({
 
     // ===== Click trên map để ghi tọa độ =====
     useEffect(() => {
-        if (!mapInstance || !isRecordingPoleLocation) return;
+        const map = mapInstance;
+        if (!map || !isRecordingPoleLocation) return;
 
         const handleMapClick = (event: maplibregl.MapMouseEvent) => {
+            if (hasPoiAtPoint(map, event.point)) return;
+
             onPoleLocationRecordedRef.current({
                 lng: event.lngLat.lng,
                 lat: event.lngLat.lat,
             });
         };
-        mapInstance.on("click", handleMapClick);
+        map.on("click", handleMapClick);
         return () => {
-            mapInstance.off("click", handleMapClick);
+            map.off("click", handleMapClick);
         };
     }, [mapInstance, isRecordingPoleLocation]); // ⬅️ bỏ onPoleLocationRecorded khỏi deps
 

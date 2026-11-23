@@ -14,7 +14,7 @@ import type { PoiWithSource } from "./features/poi/api/pois";
 
 import { StreetViewModal } from "./components/streetview/StreetViewModal/StreetViewModal";
 import { API_BASE } from "./core/config";
-
+import type { SelectedMapPoi } from "./features/map/components/EsriSatelliteMap/layers/bindPoiInteractions";
 import { useElectricPoles } from "./app/hooks/useElectricPoles";
 import { SidebarContent } from "./app/SidebarContent";
 import { MapContainerView } from "./components/layout/MapContainerView";
@@ -69,8 +69,7 @@ export default function App() {
 
   const [selectedPoi, setSelectedPoi] = useState<{
     poi: PoiInfo;
-    clickKey: string;
-  } | null>(null);
+} | null>(null);
 
   const [layers, setLayers] = useState<LayerVisibility>(() =>
     createDefaultLayerVisibility(),
@@ -230,6 +229,22 @@ export default function App() {
     setActivePanel(next);
   };
 
+  const handleMapPoiSelect = useCallback((poi: SelectedMapPoi) => {
+    setSelectedPoi({
+        poi: {
+            id: poi.id,
+            source: poi.sourceType,
+            name: poi.name,
+            category: poi.category,
+            lng: poi.lngLat.lng,
+            lat: poi.lngLat.lat,
+            distance_m: 0,
+        },
+    });
+
+    setActivePanel("info");
+}, []);
+
   // ✅ Fix bước 2: effect đăng xuất đóng tất cả panel được bảo vệ
   useEffect(() => {
     if (isAuthenticated || !requiresAuthentication(activePanel)) {
@@ -376,18 +391,16 @@ export default function App() {
 
   const handlePoiDetails = useCallback(
     (poi: PoiInfo) => {
-      setSelectedPoi({
-        poi,
-        clickKey: clickInfo ? `${clickInfo.lng}|${clickInfo.lat}` : "",
-      });
-      mapInstance?.flyTo({
-        center: [poi.lng, poi.lat],
-        zoom: 17,
-        duration: 600,
-      });
+        setSelectedPoi({ poi });
+
+        mapInstance?.flyTo({
+            center: [poi.lng, poi.lat],
+            zoom: 17,
+            duration: 600,
+        });
     },
-    [clickInfo, mapInstance],
-  );
+    [mapInstance],
+);
 
   const handlePoiStreetView = useCallback(
     (poiOrId: PoiInfo | number) => {
@@ -417,8 +430,7 @@ export default function App() {
   const isSidebarOpen = activePanel !== null;
   const isWideSidebar = isManagementPanel(activePanel);
 
-  const clickKey = clickInfo ? `${clickInfo.lng}|${clickInfo.lat}` : "";
-  const activePoi = selectedPoi?.clickKey === clickKey ? selectedPoi.poi : null;
+  const activePoi = selectedPoi?.poi ?? null;
   const showLocationSidebar = activePanel === "info";
 
   const handleLoginClick = useCallback(() => {
@@ -559,6 +571,7 @@ export default function App() {
           onMapInstanceReady={handleMapInstanceReady}
           svGeojson={svGeojson}
           onStreetViewIconClick={handleStreetViewIconClick}
+          onPoiSelect={handleMapPoiSelect}
         />
 
         {svModal?.open &&

@@ -7,6 +7,7 @@ import type { MapType } from "./Activitybar";
 import type { ElectricPole } from "../../features/electric-poles/api/electricPoles";
 import type { LayerVisibility } from "./panels";
 import type { Map as MapLibreMap } from "maplibre-gl";
+import type { SelectedMapPoi } from "../../features/map/components/EsriSatelliteMap/layers/bindPoiInteractions.ts";
 
 interface MapContainerViewProps {
     mapType: MapType;
@@ -21,6 +22,7 @@ interface MapContainerViewProps {
     onMapInstanceReady: (map: MapLibreMap) => void;
     svGeojson: any;
     onStreetViewIconClick: (id: number) => void;
+    onPoiSelect: (poi: SelectedMapPoi) => void;
 }
 
 export function MapContainerView({
@@ -36,7 +38,9 @@ export function MapContainerView({
     onMapInstanceReady,
     svGeojson,
     onStreetViewIconClick,
+    onPoiSelect,
 }: MapContainerViewProps) {
+    
     return (
         <ErrorBoundary
             key={`${mapType}-${mapKey}`}
@@ -55,6 +59,7 @@ export function MapContainerView({
                         onMapInstanceReady={onMapInstanceReady}
                         streetViewGeojson={svGeojson}
                         onStreetViewIconClick={onStreetViewIconClick}
+                         onPoiSelect={onPoiSelect}
                     />
                 </div>
             )}

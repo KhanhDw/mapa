@@ -83,11 +83,14 @@ export function createDefaultLayerVisibility(): LayerVisibility {
 export interface ExtraLayerDef {
     key: LayerKey;
     sourceId: string;
+    hoverLayerId?: string;
     layerId: string;
     schemaTable: string; // Tên alias gửi lên endpoint /api/mvt/{table}
     sourceLayer: string; // Tên layer bên trong file PBF
+    promoteId?: string;
     maxzoom?: number;
     beforeAdd?: (map: MapLibreMap) => void;
+    hoverSpec?: (sourceId: string, hoverLayerId: string) => LayerSpecification;
     spec: (sourceId: string, layerId: string) => LayerSpecification;
     tilePath?: string;
 }
@@ -144,10 +147,37 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
     {
         key: "pois",
         sourceId: "src-pois",
+        hoverLayerId: "lay-pois-hover",
         layerId: "lay-pois",
         schemaTable: "pois",
+        promoteId: "id",
         sourceLayer: "pois",
         beforeAdd: (map) => poiIconRepository.registerStandardIcons(map),
+        hoverSpec: (src, hoverId) => ({
+            id: hoverId,
+            type: "circle",
+            source: src,
+            "source-layer": "pois",
+            minzoom: 11,
+            paint: {
+                "circle-radius": [
+                    "case",
+                    ["boolean", ["feature-state", "hover"], false],
+                    18,
+                    0,
+                ],
+                "circle-color": "rgba(59, 130, 246, 0.32)",
+                "circle-stroke-width": [
+                    "case",
+                    ["boolean", ["feature-state", "hover"], false],
+                    2,
+                    0,
+                ],
+                "circle-stroke-color": "#93c5fd",
+                "circle-radius-transition": { duration: 150 },
+                "circle-opacity-transition": { duration: 150 },
+            },
+        }),
         spec: (src, id) => ({
             id,
             type: "symbol",
@@ -162,12 +192,21 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
                 ),
                 "icon-anchor": "center",
                 "icon-size": [
-                    "interpolate",
-                    ["linear"],
-                    ["zoom"],
-                    11, 0.8,
-                    15, 0.95,
-                    19, 1.1,
+                    "*",
+                    [
+                        "interpolate",
+                        ["linear"],
+                        ["zoom"],
+                        11, 0.8,
+                        15, 0.95,
+                        19, 1.1,
+                    ],
+                    [
+                        "case",
+                        ["boolean", ["feature-state", "hover"], false],
+                        1.2,
+                        1.0,
+                    ],
                 ],
                 "icon-allow-overlap": false,
                 "icon-padding": 2,
@@ -252,6 +291,7 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
         key: "userPois",
         sourceId: "src-user-pois",
         layerId: "lay-user-pois",
+        hoverLayerId: "lay-user-pois-hover",
         schemaTable: "user_pois",
         sourceLayer: "user_pois",
         tilePath: "user_pois",
@@ -259,12 +299,35 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
             poiIconRepository.registerStandardIcons(map);
             poiIconRepository.registerPinIcons(map);
         },
+        hoverSpec: (src, hoverId) => ({
+            id: hoverId,
+            type: "circle",
+            source: src,
+            "source-layer": "user_pois",
+            minzoom: 10,
+            paint: {
+                "circle-radius": [
+                    "case",
+                    ["boolean", ["feature-state", "hover"], false],
+                    19,
+                    0,
+                ],
+                "circle-color": "rgba(245, 158, 11, 0.35)",
+                "circle-stroke-width": [
+                    "case",
+                    ["boolean", ["feature-state", "hover"], false],
+                    2,
+                    0,
+                ],
+                "circle-stroke-color": "#fcd34d",
+            },
+        }),
         spec: (src, id) => ({
             id,
             type: "symbol",
             source: src,
             "source-layer": "user_pois",
-            minzoom: 11,
+            minzoom: 10,
             layout: {
                 "icon-image": matchExpr(
                     "category",
@@ -276,24 +339,22 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
                     "interpolate",
                     ["linear"],
                     ["zoom"],
-                    7, 0.2,
-                    11, 0.6,
+                    10, 0.85,
                     15, 1.0,
-                    19, 1.4,
+                    19, 1.15,
                 ],
-                "icon-allow-overlap": false,
-                "icon-padding": 2,
+                "icon-allow-overlap": true,
                 "text-field": [
                     "step",
                     ["zoom"],
                     "",
-                    16,
+                    13,
                     ["coalesce", ["get", "name"], ""],
                 ],
                 "text-font": ["Noto Sans Regular"],
                 "text-size": 11,
                 "text-anchor": sideTextAnchorExpr(),
-                "text-offset": sideTextOffsetExpr(1.5),
+                "text-offset": sideTextOffsetExpr(1.0),
                 "text-allow-overlap": false,
                 "text-optional": true,
             },
