@@ -5,7 +5,8 @@ import type {
     PoiInfo,
     RoadInfo,
     StreetViewHit,
-} from "../../MapPointInfoPanel/generalPanel";
+} from '../../../../poi-info/MapPointInfoPanel/types';
+
 import {
     POINT_INFO_POI_LIMIT,
     POINT_INFO_POLE_LIMIT,

@@ -1,54 +1,9 @@
 import { useState } from "react";
 import { CONTRIBUTE_BASE } from "../../../core/config/index.ts";
+import { getAuthToken } from "../../auth/storage";
+import { type CreatePoiResult, EMPTY, type PoiDraft } from "../types";
 
-export const CONTRIBUTE_CATEGORIES = [
-    { value: "cafe", label: "Cà phê" },
-    { value: "restaurant", label: "Nhà hàng" },
-    { value: "fast_food", label: "Đồ ăn nhanh" },
-    { value: "bar", label: "Quán bar" },
-    { value: "hotel", label: "Khách sạn" },
-    { value: "hostel", label: "Nhà nghỉ" },
-    { value: "school", label: "Trường học" },
-    { value: "university", label: "Đại học" },
-    { value: "hospital", label: "Bệnh viện" },
-    { value: "pharmacy", label: "Nhà thuốc" },
-    { value: "clinic", label: "Phòng khám" },
-    { value: "supermarket", label: "Siêu thị" },
-    { value: "convenience", label: "Cửa hàng tiện lợi" },
-    { value: "mall", label: "Trung tâm TM" },
-    { value: "bank", label: "Ngân hàng" },
-    { value: "atm", label: "ATM" },
-    { value: "post_office", label: "Bưu điện" },
-    { value: "fuel", label: "Cây xăng" },
-    { value: "parking", label: "Bãi đỗ xe" },
-    { value: "attraction", label: "Điểm tham quan" },
-    { value: "other", label: "Khác" },
-] as const;
 
-export interface PoiDraft {
-    lng: number | null;
-    lat: number | null;
-    name: string;
-    category: string;
-    address: string;
-    phone: string;
-    description: string;
-    photos: File[];
-}
-
-const EMPTY: PoiDraft = {
-    lng: null, lat: null,
-    name: "", category: "cafe",
-    address: "", phone: "", description: "",
-    photos: [],
-};
-
-export interface CreatePoiResult {
-    id: number;
-    name: string;
-    lng: number;
-    lat: number;
-}
 
 export function useContributeForm() {
     const [draft, setDraft] = useState<PoiDraft>(EMPTY);
@@ -80,15 +35,26 @@ export function useContributeForm() {
             return null;
         }
 
+        const token = getAuthToken(); //[cite: 3]
+        if (!token) {
+            setError("Phiên đăng nhập đã hết hạn hoặc bạn chưa đăng nhập");
+            return null;
+        }
+
+        const authHeaders: Record<string, string> = {
+            Authorization: `Bearer ${token}`,
+        };
+
         setSubmitting(true);
         setError(null);
 
         try {
             // 1. Create POI
-            const res = await fetch(`${CONTRIBUTE_BASE}/poi`, {
+            const res = await fetch(`${CONTRIBUTE_BASE}/poi`, { //[cite: 1]
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    ...authHeaders,
                 },
                 body: JSON.stringify({
                     lng: draft.lng,
@@ -106,15 +72,21 @@ export function useContributeForm() {
             }
             const data = await res.json();
             const result: CreatePoiResult = {
-                id: data.id, name: data.name, lng: data.lng, lat: data.lat,
+                id: data.id,
+                name: data.name,
+                lng: data.lng,
+                lat: data.lat,
             };
 
             // 2. Upload ảnh (nếu có)
             for (const file of draft.photos) {
                 const fd = new FormData();
                 fd.append("file", file);
-                const upRes = await fetch(`${CONTRIBUTE_BASE}/photos/${result.id}`, {
+                const upRes = await fetch(`${CONTRIBUTE_BASE}/photos/${result.id}`, { //[cite: 1]
                     method: "POST",
+                    headers: {
+                        ...authHeaders,
+                    },
                     body: fd,
                 });
                 if (!upRes.ok) {

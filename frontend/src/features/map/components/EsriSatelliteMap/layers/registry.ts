@@ -10,13 +10,10 @@ import type {
     LayerVisibility,
 } from "../../../types/types";
 import {
-    ICON_MATCH,
     POI_ICON_PREFIX,
-    USER_ICON_MATCH,
     USER_PIN_PREFIX,
-    registerPoiIcons,
-    registerUserPoiIcons,
-} from "../utils/createPoiIcon";
+    poiIconRepository,
+} from "../utils/PoiIconRepository";
 
 export type LayerCategory =
     | "sv"
@@ -106,6 +103,31 @@ function matchExpr(
     return out as unknown as ExpressionSpecification;
 }
 
+/**
+ * Đưa text nằm ngang bên trái/phải icon theo mức zoom:
+ * - Zoom < 15: neo bên trái ("right"), offset âm để đẩy chữ sang trái
+ * - Zoom >= 15: neo bên phải ("left"), offset dương để đẩy chữ sang phải
+ */
+function sideTextAnchorExpr(): ExpressionSpecification {
+    return [
+        "step",
+        ["zoom"],
+        "right",
+        15,
+        "left",
+    ] as unknown as ExpressionSpecification;
+}
+
+function sideTextOffsetExpr(gap = 0.95): ExpressionSpecification {
+    return [
+        "step",
+        ["zoom"],
+        ["literal", [-gap, 0]],
+        15,
+        ["literal", [gap, 0]],
+    ] as unknown as ExpressionSpecification;
+}
+
 // Trỏ qua tiền tố /api/mvt và /api/tiles đúng chuẩn backend mới
 const MVT_BASE = `${window.location.origin}/api/mvt`;
 
@@ -118,24 +140,24 @@ export function extraTileUrl(def: ExtraLayerDef, bust = false): string {
 }
 
 export const EXTRA_LAYERS: ExtraLayerDef[] = [
-        // ========== POI HỆ THỐNG (OSM) ==========
+    // ========== POI HỆ THỐNG (OSM) ==========
     {
         key: "pois",
         sourceId: "src-pois",
         layerId: "lay-pois",
         schemaTable: "pois",
         sourceLayer: "pois",
-        beforeAdd: registerPoiIcons,
+        beforeAdd: (map) => poiIconRepository.registerStandardIcons(map),
         spec: (src, id) => ({
             id,
             type: "symbol",
             source: src,
             "source-layer": "pois",
-            minzoom: 10,
+            minzoom: 11,
             layout: {
                 "icon-image": matchExpr(
                     "fclass",
-                    ICON_MATCH,
+                    poiIconRepository.getIconMatch(),
                     POI_ICON_PREFIX + "default"
                 ),
                 "icon-anchor": "center",
@@ -143,55 +165,61 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
                     "interpolate",
                     ["linear"],
                     ["zoom"],
-                    10, 0.65,
-                    15, 0.85,
-                    19, 1.05,
+                    11, 0.8,
+                    15, 0.95,
+                    19, 1.1,
                 ],
-                "icon-allow-overlap": true,
-                "text-field": ["coalesce", ["get", "name"], ""],
+                "icon-allow-overlap": false,
+                "icon-padding": 2,
+                "text-field": [
+                    "step",
+                    ["zoom"],
+                    "",
+                    13,
+                    ["coalesce", ["get", "name"], ""],
+                ],
                 "text-font": ["Noto Sans Regular"],
-                "text-size": 11,
-                "text-anchor": "top",
-                "text-offset": [0, 0.6],
+                "text-size": 14,
+                "text-anchor": sideTextAnchorExpr(),
+                "text-offset": sideTextOffsetExpr(0.95),
+                "text-allow-overlap": false,
+                "text-optional": true,
             },
             paint: {
-                "text-color": "#1e3a8a",
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 2,
+                "text-color": "#ffffff",
+                "text-halo-color": "#111827",
+                "text-halo-width": 1.8,
             },
         }),
     },
     // ========== HÀNH CHÍNH (WARDS) ==========
     {
-    key: "admin",
-    sourceId: "src-admin-wards",
-    layerId: "lay-admin-wards",
-    schemaTable: "wards",
-    sourceLayer: "wards",
-    spec: (src, id) => ({
-        id,
-        type: "line",
-        source: src,
-        "source-layer": "wards",
-        minzoom: 5,
-        paint: {
-            "line-color": "#FFD700",
-            "line-width": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                5, 1.5,
-                10, 2.5,
-                15, 3.5,
-            ],
-            "line-dasharray": [3, 2],
-            "line-opacity": 0.95,
-        },
-    }),
-},
-
-   
-
+        key: "admin",
+        sourceId: "src-admin-wards",
+        layerId: "lay-admin-wards",
+        schemaTable: "wards",
+        sourceLayer: "wards",
+        spec: (src, id) => ({
+            id,
+            type: "line",
+            source: src,
+            "source-layer": "wards",
+            minzoom: 5,
+            paint: {
+                "line-color": "#FFD700",
+                "line-width": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    5, 1.5,
+                    10, 2.5,
+                    15, 3.5,
+                ],
+                "line-dasharray": [3, 2],
+                "line-opacity": 0.95,
+            },
+        }),
+    },
     // ========== CỘT ĐIỆN (ELECTRIC POLES) ==========
     {
         key: "electric_poles",
@@ -219,7 +247,6 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
             },
         }),
     },
-
     // ========== POI NGƯỜI DÙNG ==========
     {
         key: "userPois",
@@ -229,30 +256,51 @@ export const EXTRA_LAYERS: ExtraLayerDef[] = [
         sourceLayer: "user_pois",
         tilePath: "user_pois",
         beforeAdd: (map) => {
-            registerPoiIcons(map);
-            registerUserPoiIcons(map);
+            poiIconRepository.registerStandardIcons(map);
+            poiIconRepository.registerPinIcons(map);
         },
         spec: (src, id) => ({
             id,
             type: "symbol",
             source: src,
             "source-layer": "user_pois",
-            minzoom: 10,
+            minzoom: 11,
             layout: {
-                "icon-image": matchExpr("category", USER_ICON_MATCH, USER_PIN_PREFIX + "default"),
-                "icon-anchor": "bottom",
-                "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.7, 15, 0.9, 19, 1.1],
-                "icon-allow-overlap": true,
-                "text-field": ["coalesce", ["get", "name"], ""],
+                "icon-image": matchExpr(
+                    "category",
+                    poiIconRepository.getUserIconMatch(),
+                    USER_PIN_PREFIX + "default"
+                ),
+                "icon-anchor": "center",
+                "icon-size": [
+                    "interpolate",
+                    ["linear"],
+                    ["zoom"],
+                    7, 0.2,
+                    11, 0.6,
+                    15, 1.0,
+                    19, 1.4,
+                ],
+                "icon-allow-overlap": false,
+                "icon-padding": 2,
+                "text-field": [
+                    "step",
+                    ["zoom"],
+                    "",
+                    16,
+                    ["coalesce", ["get", "name"], ""],
+                ],
                 "text-font": ["Noto Sans Regular"],
                 "text-size": 11,
-                "text-anchor": "top",
-                "text-offset": [0, 0.3],
+                "text-anchor": sideTextAnchorExpr(),
+                "text-offset": sideTextOffsetExpr(1.5),
+                "text-allow-overlap": false,
+                "text-optional": true,
             },
             paint: {
-                "text-color": "#7c2d12",
-                "text-halo-color": "#fff7ed",
-                "text-halo-width": 2,
+                "text-color": "#ffffff",
+                "text-halo-color": "#111827",
+                "text-halo-width": 1.8,
             },
         }),
     },

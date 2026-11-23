@@ -1,7 +1,10 @@
 /**
  * Vẽ icon dấu X nhỏ có viền trắng để nổi bật trên mọi nền đường.
  * Kích thước tính theo CSS px; tự nhân DPR để không bị mờ trên màn retina.
- */
+    -> sau này sẽ đổi thành line nét chấm màu vàng 
+    -> nó sẽ là 1 layer riêng "Tuyến đường có ảnh 360 độ"
+*/
+
 export function createStreetViewXIcon(size = 14): HTMLCanvasElement {
     const dpr = window.devicePixelRatio || 1;
     const canvas = document.createElement("canvas");

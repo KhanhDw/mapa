@@ -27,7 +27,7 @@ import type { StreetViewImage } from "../features/streetview/api/streetview";
 import type { PoiWithSource } from "../features/poi/api/pois";
 import type { SearchResult } from "../features/search/api/search";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import type { ClickInfo } from "../features/map/components/MapPointInfoPanel/generalPanel";
+import type { ClickInfo }from '../features/poi-info/MapPointInfoPanel/types';
 type NavigablePoi = PoiWithSource | SearchResult;
 
 interface SidebarContentProps {

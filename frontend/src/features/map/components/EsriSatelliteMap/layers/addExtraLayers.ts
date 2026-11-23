@@ -8,7 +8,6 @@ export function addExtraLayers(map: MapLibreMap): void {
         if (!map.getSource(def.sourceId)) {
             map.addSource(def.sourceId, {
                 type: "vector",
-                // tiles: [`${TILE_BASE}/${def.schemaTable}/{z}/{x}/{y}.pbf`],
                 tiles: [extraTileUrl(def)],
                 minzoom: 0,
                 maxzoom: def.maxzoom ?? 14,

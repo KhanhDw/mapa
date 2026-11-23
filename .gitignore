@@ -24,9 +24,9 @@ curl/
 # 3. DỮ LIỆU NẶNG (chặn toàn bộ thư mục)
 # ------------------------------------------------------------
 ./data/*
-backend/data/panoramas/
-backend/data/user_media/
-backend/data/2025/
+backend/data/panoramas/*
+backend/data/user_media/*
+backend/data/2025/*
 tiles/
 tmp/
 fontend/public/data/

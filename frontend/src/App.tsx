@@ -12,7 +12,6 @@ import type { ElectricPole } from "./features/electric-poles/api/electricPoles";
 import type { StreetViewImage } from "./features/streetview/api/streetview";
 import type { PoiWithSource } from "./features/poi/api/pois";
 
-import { type PoiInfo } from "./features/map/components/MapPointInfoPanel/generalPanel";
 import { StreetViewModal } from "./components/streetview/StreetViewModal/StreetViewModal";
 import { API_BASE } from "./core/config";
 
@@ -34,6 +33,7 @@ import { useMapSearch } from "./features/search/hooks/useMapSearch";
 import "./styles/App.css";
 import { AuthGate } from "./features/auth/AuthGate";
 import "./features/auth/AuthModal.css";
+import { type PoiInfo } from './features/poi-info/MapPointInfoPanel/types';
 
 const SHOW_SWITCHER = import.meta.env.VITE_SHOW_MAP_SWITCHER === "true";
 type NavigablePoi = PoiWithSource | SearchResult;

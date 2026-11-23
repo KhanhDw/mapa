@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PoiInfo } from "../../../map/components/MapPointInfoPanel/generalPanel";
+import type { PoiInfo } from '../../../poi-info/MapPointInfoPanel/types';
 import "./PlaceDetailPanel.css";
 
 interface UserPoiDetails {
